@@ -37,6 +37,8 @@ lerna-debug.log*
 !.vscode/extensions.json
 /generated/prisma
 CLAUDE.md
+.claude/
+.claude-plugin/
 
 # Misc
 *.tsbuildinfo
