@@ -1,3 +1,6 @@
+import { errorMiddleware } from '@/middleware/error-middleware';
+import { apiRouter } from '@/routes/api';
+import { publicRouter } from '@/routes/public-api';
 import { auth } from '@/utils/auth';
 import cors from 'cors';
 import express from 'express';
@@ -18,3 +21,8 @@ app.use(
 app.all('/api/auth/*', toNodeHandler(auth));
 
 app.use(express.json());
+
+app.use('/api/v1', publicRouter);
+app.use('/api/v1', apiRouter);
+
+app.use(errorMiddleware);
