@@ -1,9 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -13,7 +10,7 @@ datasource db {
   provider = "postgresql"
 }
 
-// Enums
+// ─── Enums ───────────────────────────────────────────────────────────────────
 
 enum UserRole {
   CUSTOMER
@@ -23,33 +20,115 @@ enum UserRole {
   DRIVER
 }
 
-// USER MODEL
+// Shared enum for worker sub-type and station name (same domain values)
+enum StationType {
+  WASHING
+  IRONING
+  PACKING
+}
+
+enum PickupStatus {
+  PENDING
+  DRIVER_ASSIGNED
+  PICKED_UP
+  CANCELLED
+}
+
+enum OrderStatus {
+  WAITING_FOR_PICKUP_DRIVER
+  LAUNDRY_EN_ROUTE_TO_OUTLET
+  LAUNDRY_ARRIVED_AT_OUTLET
+  LAUNDRY_BEING_WASHED
+  LAUNDRY_BEING_IRONED
+  LAUNDRY_BEING_PACKED
+  WAITING_FOR_PAYMENT
+  LAUNDRY_READY_FOR_DELIVERY
+  LAUNDRY_OUT_FOR_DELIVERY
+  LAUNDRY_DELIVERED_TO_CUSTOMER
+  COMPLETED
+}
+
+// Denormalised payment flag on Order for fast packing fork check
+enum OrderPaymentStatus {
+  UNPAID
+  PAID
+}
+
+enum StationStatus {
+  IN_PROGRESS
+  BYPASS_REQUESTED
+  COMPLETED
+}
+
+enum BypassStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// Payment record level status (gateway transaction lifecycle)
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  EXPIRED
+}
+
+enum DeliveryStatus {
+  PENDING
+  DRIVER_ASSIGNED
+  OUT_FOR_DELIVERY
+  DELIVERED
+}
+
+enum ComplaintStatus {
+  OPEN
+  IN_REVIEW
+  RESOLVED
+}
+
+// ─── Models ──────────────────────────────────────────────────────────────────
 
 model User {
-  id            String  @id @default(uuid())
+  id            String       @id @default(uuid())
   name          String?
-  email         String  @unique
-  emailVerified Boolean @default(false)
+  email         String       @unique
+  emailVerified Boolean      @default(false)
   image         String?
-
-  role      UserRole @default(CUSTOMER)
-  avatarUrl String?  @map("avatar_url")
-  phone     String?
-  address       String?
+  role          UserRole     @default(CUSTOMER)
+  workerType    StationType?
+  avatarUrl     String?      @map("avatar_url")
+  phone         String?
+  outletId      String?      @map("outlet_id")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  // better-auth relations
   sessions Session[]
   accounts Account[]
 
+  // Business relations
+  outlet           Outlet?         @relation(fields: [outletId], references: [id])
+  addresses        Address[]
+  shifts           Shift[]
+  pickupRequests   PickupRequest[] @relation("CustomerPickups")
+  driverPickups    PickupRequest[] @relation("DriverPickups")
+  createdOrders    Order[]         @relation("AdminOrders")
+  stationRecords   StationRecord[]
+  workerBypasses   BypassRequest[] @relation("WorkerBypasses")
+  adminBypasses    BypassRequest[] @relation("AdminBypasses")
+  driverDeliveries Delivery[]
+  complaints       Complaint[]
+
+  @@index([outletId])
   @@map("users")
 }
 
 model Session {
   id        String   @id
   expiresAt DateTime
-  token     String
+  token     String   @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   ipAddress String?
@@ -57,7 +136,6 @@ model Session {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([token])
   @@index([userId])
   @@map("session")
 }
@@ -92,4 +170,220 @@ model Verification {
 
   @@index([identifier])
   @@map("verification")
+}
+
+model Outlet {
+  id                 String   @id @default(uuid())
+  name               String
+  address            String
+  city               String
+  province           String
+  latitude           Float
+  longitude          Float
+  maxServiceRadiusKm Float    @default(10.0) @map("max_service_radius_km")
+  isActive           Boolean  @default(true) @map("is_active")
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  users          User[]
+  shifts         Shift[]
+  pickupRequests PickupRequest[]
+  orders         Order[]
+
+  @@map("outlets")
+}
+
+model Address {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  label     String
+  street    String
+  city      String
+  province  String
+  latitude  Float
+  longitude Float
+  isPrimary Boolean  @default(false) @map("is_primary")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pickupRequests PickupRequest[]
+
+  @@index([userId])
+  @@map("addresses")
+}
+
+model Shift {
+  id        String   @id @default(uuid())
+  outletId  String   @map("outlet_id")
+  userId    String   @map("user_id")
+  startTime DateTime @map("start_time")
+  endTime   DateTime @map("end_time")
+
+  outlet Outlet @relation(fields: [outletId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([outletId])
+  @@index([userId])
+  @@map("shifts")
+}
+
+model PickupRequest {
+  id          String       @id @default(uuid())
+  customerId  String       @map("customer_id")
+  addressId   String       @map("address_id")
+  outletId    String       @map("outlet_id")
+  driverId    String?      @map("driver_id")
+  scheduledAt DateTime     @map("scheduled_at")
+  status      PickupStatus @default(PENDING)
+  createdAt   DateTime     @default(now()) @map("created_at")
+
+  customer Address @relation(fields: [addressId], references: [id])
+  outlet   Outlet  @relation(fields: [outletId], references: [id])
+
+  customerUser User  @relation("CustomerPickups", fields: [customerId], references: [id])
+  driverUser   User? @relation("DriverPickups", fields: [driverId], references: [id])
+
+  order Order?
+
+  @@index([customerId])
+  @@index([outletId])
+  @@index([driverId])
+  @@map("pickup_requests")
+}
+
+model Order {
+  id              String             @id @default(uuid())
+  pickupRequestId String             @unique @map("pickup_request_id")
+  outletId        String             @map("outlet_id")
+  adminId         String             @map("admin_id")
+  totalWeightKg   Float              @map("total_weight_kg")
+  pricePerKg      Float              @map("price_per_kg")
+  totalPrice      Float              @map("total_price")
+  paymentStatus   OrderPaymentStatus @default(UNPAID) @map("payment_status")
+  status          OrderStatus        @default(LAUNDRY_ARRIVED_AT_OUTLET)
+  confirmedAt     DateTime?          @map("confirmed_at")
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @updatedAt @map("updated_at")
+
+  pickupRequest  PickupRequest   @relation(fields: [pickupRequestId], references: [id])
+  outlet         Outlet          @relation(fields: [outletId], references: [id])
+  admin          User            @relation("AdminOrders", fields: [adminId], references: [id])
+  items          OrderItem[]
+  stationRecords StationRecord[]
+  payment        Payment?
+  delivery       Delivery?
+  complaints     Complaint[]
+
+  @@index([outletId])
+  @@index([adminId])
+  @@index([status])
+  @@map("orders")
+}
+
+model OrderItem {
+  id       String @id @default(uuid())
+  orderId  String @map("order_id")
+  itemName String @map("item_name")
+  quantity Int
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@map("order_items")
+}
+
+model StationRecord {
+  id          String        @id @default(uuid())
+  orderId     String        @map("order_id")
+  station     StationType
+  workerId    String        @map("worker_id")
+  status      StationStatus @default(IN_PROGRESS)
+  completedAt DateTime?     @map("completed_at")
+  createdAt   DateTime      @default(now()) @map("created_at")
+
+  order          Order           @relation(fields: [orderId], references: [id])
+  worker         User            @relation(fields: [workerId], references: [id])
+  stationItems   StationItem[]
+  bypassRequests BypassRequest[]
+
+  @@index([orderId])
+  @@index([workerId])
+  @@map("station_records")
+}
+
+model StationItem {
+  id              String @id @default(uuid())
+  stationRecordId String @map("station_record_id")
+  itemName        String @map("item_name")
+  quantity        Int
+
+  stationRecord StationRecord @relation(fields: [stationRecordId], references: [id], onDelete: Cascade)
+
+  @@index([stationRecordId])
+  @@map("station_items")
+}
+
+model BypassRequest {
+  id                 String       @id @default(uuid())
+  stationRecordId    String       @map("station_record_id")
+  workerId           String       @map("worker_id")
+  adminId            String?      @map("admin_id")
+  problemDescription String?      @map("problem_description")
+  status             BypassStatus @default(PENDING)
+  resolvedAt         DateTime?    @map("resolved_at")
+  createdAt          DateTime     @default(now()) @map("created_at")
+
+  stationRecord StationRecord @relation(fields: [stationRecordId], references: [id])
+  worker        User          @relation("WorkerBypasses", fields: [workerId], references: [id])
+  admin         User?         @relation("AdminBypasses", fields: [adminId], references: [id])
+
+  @@index([stationRecordId])
+  @@index([workerId])
+  @@index([adminId])
+  @@map("bypass_requests")
+}
+
+model Payment {
+  id          String        @id @default(uuid())
+  orderId     String        @unique @map("order_id")
+  amount      Float
+  gateway     String
+  gatewayTxId String?       @map("gateway_tx_id")
+  status      PaymentStatus @default(PENDING)
+  paidAt      DateTime?     @map("paid_at")
+  createdAt   DateTime      @default(now()) @map("created_at")
+
+  order Order @relation(fields: [orderId], references: [id])
+
+  @@map("payments")
+}
+
+model Delivery {
+  id          String         @id @default(uuid())
+  orderId     String         @unique @map("order_id")
+  driverId    String?        @map("driver_id")
+  status      DeliveryStatus @default(PENDING)
+  deliveredAt DateTime?      @map("delivered_at")
+  createdAt   DateTime       @default(now()) @map("created_at")
+
+  order  Order @relation(fields: [orderId], references: [id])
+  driver User? @relation(fields: [driverId], references: [id])
+
+  @@index([driverId])
+  @@map("deliveries")
+}
+
+model Complaint {
+  id          String          @id @default(uuid())
+  orderId     String          @map("order_id")
+  customerId  String          @map("customer_id")
+  description String
+  status      ComplaintStatus @default(OPEN)
+  createdAt   DateTime        @default(now()) @map("created_at")
+
+  order    Order @relation(fields: [orderId], references: [id])
+  customer User  @relation(fields: [customerId], references: [id])
+
+  @@index([orderId])
+  @@index([customerId])
+  @@map("complaints")
 }
