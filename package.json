@@ -12,11 +12,6 @@
     "start": "node dist/main.js",
     "dev": "nodemon"
   },
-  "jest": {
-    "transform": {
-      "^.+\\.[t|j]sx?$": "babel-jest"
-    }
-  },
   "dependencies": {
     "@prisma/adapter-pg": "^7.4.2",
     "@prisma/client": "^7.4.2",
@@ -38,6 +33,9 @@
     "@types/bcrypt": "^6.0.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^25.3.5",
+    "@types/nodemailer": "^7.0.11",
     "@types/pg": "^8.18.0",
     "@types/supertest": "^7.2.0",
     "@types/uuid": "^10.0.0",
