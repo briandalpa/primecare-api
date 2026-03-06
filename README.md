@@ -5,7 +5,7 @@
 ![Express](https://img.shields.io/badge/Express-5-000000?logo=express&logoColor=white)
 ![Prisma](https://img.shields.io/badge/Prisma-7-2D3748?logo=prisma&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql&logoColor=white)
-![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
 REST API backend for PrimeCare — a laundry e-commerce platform built as the final project for the Purwadhika Full Stack Web Development program. Part of a monorepo alongside [`primecare-web`](../primecare-web) (React frontend).
 
