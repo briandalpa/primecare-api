@@ -7,7 +7,7 @@
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql&logoColor=white)
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
-REST API backend for PrimeCare — a laundry e-commerce platform built as the final project for the Purwadhika Full Stack Web Development program. Part of a monorepo alongside [`primecare-web`](../primecare-web) (React frontend).
+REST API backend for PrimeCare — a laundry e-commerce platform built as the final project for the Purwadhika Full Stack Web Development program. The React frontend lives in a separate repository: [`primecare-web`](https://github.com/briandalpa/primecare-web).
 
 ---
 
@@ -25,11 +25,11 @@ REST API backend for PrimeCare — a laundry e-commerce platform built as the fi
 
 ## Getting Started
 
-**1. Clone the monorepo and navigate to the API package.**
+**1. Clone the repository.**
 
 ```bash
-git clone <repository-url>
-cd prime-care/primecare-api
+git clone https://github.com/briandalpa/primecare-api.git
+cd primecare-api
 ```
 
 **2. Install dependencies.**
