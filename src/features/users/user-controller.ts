@@ -2,6 +2,7 @@ import { Validation } from '@/validations/validation';
 import { NextFunction, Request, Response } from 'express';
 import { RegisterSchema, ResendVerificationSchema, SetPasswordSchema } from './user-model';
 import { UserService } from './user-service';
+import { UserRequest } from '@/types/user-request';
 
 export class UserController {
   static async register(req: Request, res: Response, next: NextFunction) {
@@ -29,6 +30,15 @@ export class UserController {
       const data = Validation.validate(ResendVerificationSchema, req.body);
       const result = await UserService.resendVerification(data);
       res.status(200).json({ status: 'success', message: result.message });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getMe(req: UserRequest, res: Response, next: NextFunction) {
+    try {
+      const result = await UserService.getMe(req.user!.id);
+      res.status(200).json({ status: 'success', message: 'Profile retrieved', data: result });
     } catch (error) {
       next(error);
     }
