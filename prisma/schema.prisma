@@ -12,6 +12,10 @@ datasource db {
 
 // ─── Enums ───────────────────────────────────────────────────────────────────
 
+enum UserRole {
+  CUSTOMER
+}
+
 enum StaffRole {
   SUPER_ADMIN
   OUTLET_ADMIN
@@ -89,13 +93,14 @@ enum ComplaintStatus {
 // Customer only auth record (managed by better-auth).
 // Every User is a customer. Staff identity comes from the Staff model.
 model User {
-  id            String  @id @default(uuid())
+  id            String   @id @default(uuid())
   name          String?
-  email         String  @unique
-  emailVerified Boolean @default(false)
+  email         String   @unique
+  emailVerified Boolean  @default(false)
   image         String?
-  avatarUrl     String? @map("avatar_url")
+  avatarUrl     String?  @map("avatar_url")
   phone         String?
+  role          UserRole @default(CUSTOMER)
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
