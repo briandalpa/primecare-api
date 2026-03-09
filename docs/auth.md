@@ -8,7 +8,7 @@
 
 ## POST /api/auth/sign-up/email
 
-Register a new customer account. No password is set at this step — a verification email is sent instead.
+Register a new customer account. No password is set at this step, a verification email is sent instead.
 
 **Access:** Public
 
@@ -47,6 +47,7 @@ Register a new customer account. No password is set at this step — a verificat
 ```
 
 **Notes:**
+
 - better-auth sends a verification email automatically after sign-up.
 - The verification link expires **1 hour** after being issued.
 - Newly registered users have `emailVerified: false` and cannot create orders until verified.
@@ -61,11 +62,12 @@ Verify the customer's email address and set their password. The token is embedde
 
 **Query Parameters:**
 
-| Param | Type | Required | Description |
-|-------|------|----------|-------------|
-| `token` | string | Yes | One-time verification token from the email link |
+| Param   | Type   | Required | Description                                     |
+| ------- | ------ | -------- | ----------------------------------------------- |
+| `token` | string | Yes      | One time verification token from the email link |
 
 **Notes:**
+
 - Token is single-use and expires 1 hour after generation.
 - After successful verification, `emailVerified` is set to `true`.
 - Redirect the user to the login page on success.
@@ -96,6 +98,7 @@ Resend the email verification link to the user's registered email.
 ```
 
 **Notes:**
+
 - Invalidates any previously issued verification tokens for this email.
 - New token also expires 1 hour after issue.
 
@@ -145,6 +148,7 @@ Log in with email and password.
 ```
 
 **Notes:**
+
 - Sets a session cookie (`better-auth.session_token`) automatically.
 - Unverified users (`emailVerified: false`) are rejected with an appropriate error.
 - After login, redirect the user to their originally requested URL (return URL).
@@ -183,8 +187,7 @@ Retrieve the currently authenticated user and session.
     "id": "usr_abc123",
     "name": "John Doe",
     "email": "john@example.com",
-    "emailVerified": true,
-    "role": "CUSTOMER"
+    "emailVerified": true
   },
   "session": {
     "id": "sess_xyz",
@@ -192,6 +195,8 @@ Retrieve the currently authenticated user and session.
   }
 }
 ```
+
+> **Note:** The `User` model has no `role` field — roles live on the `Staff` model. To get the authenticated user's role and staff info, call `GET /api/v1/users/me` and read the `staff` object.
 
 **Response (Unauthenticated — 200):**
 
@@ -212,10 +217,11 @@ OAuth callback URL. Handled entirely by better-auth.
 
 **Path Params:**
 
-| Param | Description |
-|-------|-------------|
+| Param      | Description                          |
+| ---------- | ------------------------------------ |
 | `provider` | OAuth provider name (e.g., `google`) |
 
 **Notes:**
-- Do not call this endpoint directly — it is the redirect URI registered with OAuth providers.
+
+- Do not call this endpoint directly, it is the redirect URI registered with OAuth providers.
 - better-auth handles token exchange, user creation, and session setup automatically.

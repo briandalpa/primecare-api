@@ -26,9 +26,9 @@ Outlet Admin creates a formal order after laundry physically arrives at the outl
   "totalWeightKg": 3.5,
   "pricePerKg": 10000,
   "items": [
-    { "itemName": "T-Shirt", "quantity": 5 },
-    { "itemName": "Trousers", "quantity": 2 },
-    { "itemName": "Jacket", "quantity": 1 }
+    { "laundryItemId": "uuid-tshirt", "quantity": 5 },
+    { "laundryItemId": "uuid-trousers", "quantity": 2 },
+    { "laundryItemId": "uuid-jacket", "quantity": 1 }
   ]
 }
 ```
@@ -43,16 +43,31 @@ Outlet Admin creates a formal order after laundry physically arrives at the outl
     "id": "ord_xyz789",
     "pickupRequestId": "pkup_abc123",
     "outletId": "out_001",
-    "adminId": "usr_admin01",
+    "staffId": "staff_admin01",
     "totalWeightKg": 3.5,
     "pricePerKg": 10000,
     "totalPrice": 35000,
     "paymentStatus": "UNPAID",
     "status": "LAUNDRY_BEING_WASHED",
     "items": [
-      { "id": "item_001", "itemName": "T-Shirt", "quantity": 5 },
-      { "id": "item_002", "itemName": "Trousers", "quantity": 2 },
-      { "id": "item_003", "itemName": "Jacket", "quantity": 1 }
+      {
+        "id": "item_001",
+        "laundryItemId": "uuid-tshirt",
+        "itemName": "T-Shirt",
+        "quantity": 5
+      },
+      {
+        "id": "item_002",
+        "laundryItemId": "uuid-trousers",
+        "itemName": "Trousers",
+        "quantity": 2
+      },
+      {
+        "id": "item_003",
+        "laundryItemId": "uuid-jacket",
+        "itemName": "Jacket",
+        "quantity": 1
+      }
     ],
     "createdAt": "2026-03-06T12:00:00.000Z"
   }
@@ -78,6 +93,7 @@ Outlet Admin creates a formal order after laundry physically arrives at the outl
 ```
 
 **Notes:**
+
 - `totalPrice` is calculated server-side: `totalWeightKg × pricePerKg`. Never trust the client's total.
 - `pricePerKg` is locked at order creation time and stored on the order record.
 - The pickup request must have status `PICKED_UP` and belong to the admin's outlet.
@@ -87,7 +103,7 @@ Outlet Admin creates a formal order after laundry physically arrives at the outl
 
 ## GET /api/v1/orders
 
-List orders with server-side pagination, filtering, and sorting.
+List orders with server side pagination, filtering, and sorting.
 
 - **SUPER_ADMIN:** All orders from all outlets.
 - **OUTLET_ADMIN:** Only orders from their outlet.
@@ -98,17 +114,17 @@ List orders with server-side pagination, filtering, and sorting.
 
 **Query Parameters:**
 
-| Param | Type | Default | Description |
-|-------|------|---------|-------------|
-| `page` | number | `1` | Page number |
-| `limit` | number | `10` | Items per page |
-| `status` | string | — | Filter by order status enum value |
-| `outletId` | string | — | Filter by outlet (SUPER_ADMIN only) |
-| `fromDate` | string | — | ISO 8601 date; filter `createdAt >= fromDate` |
-| `toDate` | string | — | ISO 8601 date; filter `createdAt <= toDate` |
-| `search` | string | — | Search by order ID or invoice number |
-| `sortBy` | string | `createdAt` | Sort field |
-| `order` | string | `desc` | `asc` or `desc` |
+| Param      | Type   | Default     | Description                                   |
+| ---------- | ------ | ----------- | --------------------------------------------- |
+| `page`     | number | `1`         | Page number                                   |
+| `limit`    | number | `10`        | Items per page                                |
+| `status`   | string | —           | Filter by order status enum value             |
+| `outletId` | string | —           | Filter by outlet (SUPER_ADMIN only)           |
+| `fromDate` | string | —           | ISO 8601 date; filter `createdAt >= fromDate` |
+| `toDate`   | string | —           | ISO 8601 date; filter `createdAt <= toDate`   |
+| `search`   | string | —           | Search by order ID or invoice number          |
+| `sortBy`   | string | `createdAt` | Sort field                                    |
+| `order`    | string | `desc`      | `asc` or `desc`                               |
 
 **Response (Success — 200):**
 
@@ -146,8 +162,8 @@ Get full order detail including items, station history, payment, and delivery in
 **Path Params:**
 
 | Param | Description |
-|-------|-------------|
-| `id` | Order UUID |
+| ----- | ----------- |
+| `id`  | Order UUID  |
 
 **Response (Success — 200):**
 
@@ -169,8 +185,18 @@ Get full order detail including items, station history, payment, and delivery in
     "createdAt": "2026-03-06T12:00:00.000Z",
     "updatedAt": "2026-03-06T12:30:00.000Z",
     "items": [
-      { "id": "item_001", "itemName": "T-Shirt", "quantity": 5 },
-      { "id": "item_002", "itemName": "Trousers", "quantity": 2 }
+      {
+        "id": "item_001",
+        "laundryItemId": "uuid-tshirt",
+        "itemName": "T-Shirt",
+        "quantity": 5
+      },
+      {
+        "id": "item_002",
+        "laundryItemId": "uuid-trousers",
+        "itemName": "Trousers",
+        "quantity": 2
+      }
     ],
     "stationRecords": [
       {
@@ -214,8 +240,8 @@ Customer manually confirms receipt of their delivered laundry. Sets order status
 **Path Params:**
 
 | Param | Description |
-|-------|-------------|
-| `id` | Order UUID |
+| ----- | ----------- |
+| `id`  | Order UUID  |
 
 **Request Body:** None
 
@@ -243,6 +269,7 @@ Customer manually confirms receipt of their delivered laundry. Sets order status
 ```
 
 **Notes:**
+
 - Only valid when `order.status === 'LAUNDRY_DELIVERED_TO_CUSTOMER'`.
-- If the customer does not confirm within **2×24 hours**, a background job auto-sets `status = 'COMPLETED'` and `confirmedAt = now`.
+- If the customer does not confirm within **2×24 hours**, a background job auto sets `status = 'COMPLETED'` and `confirmedAt = now`.
 - A customer cannot confirm an order that already has `status = 'COMPLETED'`.

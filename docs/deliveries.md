@@ -15,16 +15,16 @@ All endpoints are under `/api/v1/deliveries`.
 
 ## GET /api/v1/deliveries
 
-List available delivery requests for the driver's outlet. Only `PENDING` deliveries are shown by default — deliveries are only dispatched after the order's payment is `PAID`.
+List available delivery requests for the driver's outlet. Only `PENDING` deliveries are shown by default, deliveries are only dispatched after the order's payment is `PAID`.
 
 **Access:** `DRIVER`
 
 **Query Parameters:**
 
-| Param | Type | Default | Description |
-|-------|------|---------|-------------|
-| `page` | number | `1` | Page number |
-| `limit` | number | `10` | Items per page |
+| Param    | Type   | Default   | Description                                                                     |
+| -------- | ------ | --------- | ------------------------------------------------------------------------------- |
+| `page`   | number | `1`       | Page number                                                                     |
+| `limit`  | number | `10`      | Items per page                                                                  |
 | `status` | string | `PENDING` | Filter by status: `PENDING`, `DRIVER_ASSIGNED`, `OUT_FOR_DELIVERY`, `DELIVERED` |
 
 **Response (Success — 200):**
@@ -58,6 +58,7 @@ List available delivery requests for the driver's outlet. Only `PENDING` deliver
 ```
 
 **Notes:**
+
 - Scoped to the driver's assigned outlet only.
 - Deliveries with `status = 'PENDING'` are those waiting for a driver to accept.
 - A delivery only appears here after the linked order's `paymentStatus` is `PAID`.
@@ -72,9 +73,9 @@ Driver accepts a delivery request. Sets delivery status to `DRIVER_ASSIGNED` and
 
 **Path Params:**
 
-| Param | Description |
-|-------|-------------|
-| `id` | Delivery UUID |
+| Param | Description   |
+| ----- | ------------- |
+| `id`  | Delivery UUID |
 
 **Request Body:** None
 
@@ -86,7 +87,7 @@ Driver accepts a delivery request. Sets delivery status to `DRIVER_ASSIGNED` and
   "message": "Delivery accepted",
   "data": {
     "id": "del_001",
-    "driverId": "usr_drv001",
+    "driverId": "staff_drv001",
     "status": "DRIVER_ASSIGNED",
     "orderStatus": "LAUNDRY_OUT_FOR_DELIVERY"
   }
@@ -112,26 +113,27 @@ Driver accepts a delivery request. Sets delivery status to `DRIVER_ASSIGNED` and
 ```
 
 **Notes:**
+
 - **One-Task Rule:** Before accepting, the server checks for any active task:
   - `PickupRequest` where `driverId = driver.id` AND `status = 'DRIVER_ASSIGNED'`
   - `Delivery` where `driverId = driver.id` AND `status IN ['DRIVER_ASSIGNED', 'OUT_FOR_DELIVERY']`
   - If any active task exists → `409 Conflict`.
-- Sets `Delivery.driverId` and advances `Order.status` to `LAUNDRY_OUT_FOR_DELIVERY`.
+- Sets `Delivery.driverId` (Staff UUID) and advances `Order.status` to `LAUNDRY_OUT_FOR_DELIVERY`.
 
 ---
 
 ## PATCH /api/v1/deliveries/:id/complete
 
 Driver marks the delivery as complete — laundry has been handed to the customer.
-Sets delivery status to `DELIVERED` and order status to `LAUNDRY_DELIVERED_TO_CUSTOMER`. Starts the 48-hour auto-confirm countdown.
+Sets delivery status to `DELIVERED` and order status to `LAUNDRY_DELIVERED_TO_CUSTOMER`. Starts the 48 hour auto confirm countdown.
 
 **Access:** `DRIVER`
 
 **Path Params:**
 
-| Param | Description |
-|-------|-------------|
-| `id` | Delivery UUID |
+| Param | Description   |
+| ----- | ------------- |
+| `id`  | Delivery UUID |
 
 **Request Body:** None
 
@@ -160,9 +162,10 @@ Sets delivery status to `DELIVERED` and order status to `LAUNDRY_DELIVERED_TO_CU
 ```
 
 **Notes:**
+
 - Only the assigned driver (the one who accepted) can complete this delivery.
 - Sets `Delivery.deliveredAt = now` and `Order.status = 'LAUNDRY_DELIVERED_TO_CUSTOMER'`.
-- The auto-confirm background job will set `Order.status = 'COMPLETED'` if the customer does not confirm within **2×24 hours**.
+- The auto confirm background job will set `Order.status = 'COMPLETED'` if the customer does not confirm within **2×24 hours**.
 
 ---
 
@@ -174,14 +177,14 @@ List the driver's own completed delivery history, paginated and filterable by da
 
 **Query Parameters:**
 
-| Param | Type | Default | Description |
-|-------|------|---------|-------------|
-| `page` | number | `1` | Page number |
-| `limit` | number | `10` | Items per page |
-| `fromDate` | string | — | ISO 8601 date; filter `deliveredAt >= fromDate` |
-| `toDate` | string | — | ISO 8601 date; filter `deliveredAt <= toDate` |
-| `sortBy` | string | `deliveredAt` | Sort field |
-| `order` | string | `desc` | `asc` or `desc` |
+| Param      | Type   | Default       | Description                                     |
+| ---------- | ------ | ------------- | ----------------------------------------------- |
+| `page`     | number | `1`           | Page number                                     |
+| `limit`    | number | `10`          | Items per page                                  |
+| `fromDate` | string | —             | ISO 8601 date; filter `deliveredAt >= fromDate` |
+| `toDate`   | string | —             | ISO 8601 date; filter `deliveredAt <= toDate`   |
+| `sortBy`   | string | `deliveredAt` | Sort field                                      |
+| `order`    | string | `desc`        | `asc` or `desc`                                 |
 
 **Response (Success — 200):**
 
@@ -212,5 +215,6 @@ List the driver's own completed delivery history, paginated and filterable by da
 ```
 
 **Notes:**
+
 - Returns only deliveries where `Delivery.driverId = currentDriver.id`.
-- All pagination and filtering is performed server-side.
+- All pagination and filtering is performed server side.

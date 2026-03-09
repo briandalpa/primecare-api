@@ -80,29 +80,31 @@ Get detailed information about a specific bypass request, including mismatched q
     "stationRecordId": "sr_002",
     "station": "IRONING",
     "workerName": "Bob Ironing",
-    "workerId": "usr_wrk002",
+    "workerId": "staff_wrk002",
     "adminId": null,
     "problemDescription": null,
     "status": "PENDING",
     "createdAt": "2026-03-07T11:00:00.000Z",
     "resolvedAt": null,
     "referenceItems": [
-      { "itemName": "T-Shirt", "quantity": 5 },
-      { "itemName": "Trousers", "quantity": 2 },
-      { "itemName": "Jacket", "quantity": 1 }
+      { "laundryItemId": "uuid-tshirt", "itemName": "T-Shirt", "quantity": 5 },
+      { "laundryItemId": "uuid-trousers", "itemName": "Trousers", "quantity": 2 },
+      { "laundryItemId": "uuid-jacket", "itemName": "Jacket", "quantity": 1 }
     ],
     "workerItems": [
-      { "itemName": "T-Shirt", "quantity": 4 },
-      { "itemName": "Trousers", "quantity": 2 },
-      { "itemName": "Jacket", "quantity": 1 }
+      { "laundryItemId": "uuid-tshirt", "itemName": "T-Shirt", "quantity": 4 },
+      { "laundryItemId": "uuid-trousers", "itemName": "Trousers", "quantity": 2 },
+      { "laundryItemId": "uuid-jacket", "itemName": "Jacket", "quantity": 1 }
     ]
   }
 }
 ```
 
 **Notes:**
+- `workerId` and `adminId` are **Staff UUIDs** (from the `Staff` table), not User UUIDs.
 - `referenceItems` are from the previous station's `StationItem` records (or `OrderItem` for the first station).
 - `workerItems` are the quantities the worker submitted when the mismatch was detected.
+- Each item includes `laundryItemId` (for reference) and `itemName` (from the LaundryItem join, for display).
 
 ---
 
@@ -136,7 +138,7 @@ Outlet Admin approves a bypass request. Requires re-authentication (password che
   "data": {
     "id": "bp_001",
     "status": "APPROVED",
-    "adminId": "usr_admin01",
+    "adminId": "staff_admin01",
     "problemDescription": "One T-Shirt was found damaged during ironing and removed from the batch.",
     "resolvedAt": "2026-03-07T12:00:00.000Z",
     "orderStatus": "LAUNDRY_BEING_PACKED"
@@ -173,12 +175,12 @@ Outlet Admin approves a bypass request. Requires re-authentication (password che
 
 **Notes:**
 - **Re-authentication is mandatory.** The session alone is insufficient. The server verifies the admin's current password before processing.
-- `problemDescription` must be a non-empty string — validation enforced server-side.
+- `problemDescription` must be a non empty string, validation enforced server side.
 - On approval:
   1. `BypassRequest.status` → `APPROVED`
   2. `BypassRequest.adminId`, `problemDescription`, `resolvedAt` are set.
   3. `StationRecord.status` → `COMPLETED`; `completedAt` is set.
-  4. `Order.status` advances to the next station (using the same packing-fork logic for the PACKING station).
+  4. `Order.status` advances to the next station (using the same packing fork logic for the PACKING station).
 - All bypass events are recorded with timestamps for the full audit trail.
 
 ---
@@ -212,7 +214,7 @@ Outlet Admin rejects a bypass request. The worker is notified and must re-enter 
   "data": {
     "id": "bp_001",
     "status": "REJECTED",
-    "adminId": "usr_admin01",
+    "adminId": "staff_admin01",
     "resolvedAt": "2026-03-07T12:30:00.000Z"
   }
 }

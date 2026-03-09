@@ -13,6 +13,8 @@ All endpoints are under `/api/v1/orders/:id/stations`.
 
 **Station Values:** `WASHING` | `IRONING` | `PACKING`
 
+> **Item References:** All item request bodies use `laundryItemId` (UUID from `GET /api/v1/laundry-items`). Responses include both `laundryItemId` and `itemName` (from the LaundryItem join) for frontend display.
+
 ---
 
 ## GET /api/v1/orders/:id/stations
@@ -42,8 +44,8 @@ Get all station records for an order, including item quantities entered at each 
       "completedAt": "2026-03-07T09:00:00.000Z",
       "createdAt": "2026-03-07T08:00:00.000Z",
       "items": [
-        { "itemName": "T-Shirt", "quantity": 5 },
-        { "itemName": "Trousers", "quantity": 2 }
+        { "laundryItemId": "uuid-tshirt", "itemName": "T-Shirt", "quantity": 5 },
+        { "laundryItemId": "uuid-trousers", "itemName": "Trousers", "quantity": 2 }
       ],
       "bypassRequest": null
     },
@@ -55,8 +57,8 @@ Get all station records for an order, including item quantities entered at each 
       "completedAt": null,
       "createdAt": "2026-03-07T10:00:00.000Z",
       "items": [
-        { "itemName": "T-Shirt", "quantity": 4 },
-        { "itemName": "Trousers", "quantity": 2 }
+        { "laundryItemId": "uuid-tshirt", "itemName": "T-Shirt", "quantity": 4 },
+        { "laundryItemId": "uuid-trousers", "itemName": "Trousers", "quantity": 2 }
       ],
       "bypassRequest": {
         "id": "bp_001",
@@ -94,11 +96,11 @@ Worker claims a station and begins processing. Creates a `StationRecord` with `s
     "id": "sr_003",
     "orderId": "ord_xyz789",
     "station": "IRONING",
-    "workerId": "usr_wrk001",
+    "staffId": "staff_wrk001",
     "status": "IN_PROGRESS",
     "previousStationItems": [
-      { "itemName": "T-Shirt", "quantity": 5 },
-      { "itemName": "Trousers", "quantity": 2 }
+      { "laundryItemId": "uuid-tshirt", "itemName": "T-Shirt", "quantity": 5 },
+      { "laundryItemId": "uuid-trousers", "itemName": "Trousers", "quantity": 2 }
     ],
     "createdAt": "2026-03-07T10:00:00.000Z"
   }
@@ -151,9 +153,9 @@ Worker submits item quantities and attempts to complete the station.
 ```json
 {
   "items": [
-    { "itemName": "T-Shirt", "quantity": 5 },
-    { "itemName": "Trousers", "quantity": 2 },
-    { "itemName": "Jacket", "quantity": 1 }
+    { "laundryItemId": "uuid-tshirt", "quantity": 5 },
+    { "laundryItemId": "uuid-trousers", "quantity": 2 },
+    { "laundryItemId": "uuid-jacket", "quantity": 1 }
   ]
 }
 ```
@@ -252,9 +254,9 @@ Worker submits a bypass request when quantities do not match the previous statio
 ```json
 {
   "items": [
-    { "itemName": "T-Shirt", "quantity": 4 },
-    { "itemName": "Trousers", "quantity": 2 },
-    { "itemName": "Jacket", "quantity": 1 }
+    { "laundryItemId": "uuid-tshirt", "quantity": 4 },
+    { "laundryItemId": "uuid-trousers", "quantity": 2 },
+    { "laundryItemId": "uuid-jacket", "quantity": 1 }
   ]
 }
 ```
