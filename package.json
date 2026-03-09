@@ -2,7 +2,7 @@
   "name": "primecare-api",
   "version": "1.0.0",
   "description": "",
-  "license": "ISC",
+  "license": "MIT",
   "author": "Briand Alpa",
   "type": "commonjs",
   "main": "index.js",
@@ -12,16 +12,14 @@
     "start": "node dist/main.js",
     "dev": "nodemon"
   },
-  "jest": {
-    "transform": {
-      "^.+\\.[t|j]sx?$": "babel-jest"
-    }
+  "prisma": {
+    "seed": "ts-node --transpile-only -r tsconfig-paths/register prisma/seed.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.4.2",
     "@prisma/client": "^7.4.2",
     "bcrypt": "^6.0.0",
-    "better-auth": "^1.5.3",
+    "better-auth": "^1.5.4",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
@@ -38,6 +36,9 @@
     "@types/bcrypt": "^6.0.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^25.3.5",
+    "@types/nodemailer": "^7.0.11",
     "@types/pg": "^8.18.0",
     "@types/supertest": "^7.2.0",
     "@types/uuid": "^10.0.0",
