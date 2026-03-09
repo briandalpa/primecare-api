@@ -28,15 +28,17 @@ Get the currently authenticated user's profile.
     "id": "usr_abc123",
     "name": "John Doe",
     "email": "john@example.com",
-    "role": "CUSTOMER",
-    "workerType": null,
-    "isVerified": true,
+    "emailVerified": true,
+    "image": null,
     "avatarUrl": "https://example.com/avatar.jpg",
-    "outletId": null,
-    "createdAt": "2026-03-06T10:00:00.000Z"
+    "phone": null,
+    "createdAt": "2026-03-06T10:00:00.000Z",
+    "staff": null
   }
 }
 ```
+
+> `staff` is `null` for customers. For staff members it contains: `{ role, workerType, outletId, isActive }`. Use this field to determine the user's role and permissions.
 
 ---
 
@@ -72,8 +74,10 @@ Update the authenticated user's own profile.
 ```
 
 **Notes:**
+
 - Avatar upload must be `jpg`, `png`, or `webp`; max 2 MB.
-- Email and role cannot be changed via this endpoint.
+- Email cannot be changed via this endpoint.
+- Role and staff related fields cannot be changed via this endpoint, use `PATCH /api/v1/users/:id` (admin only).
 
 ---
 
@@ -85,14 +89,14 @@ List all users. Outlet Admin sees only users in their own outlet.
 
 **Query Parameters:**
 
-| Param | Type | Default | Description |
-|-------|------|---------|-------------|
-| `page` | number | `1` | Page number |
-| `limit` | number | `10` | Items per page |
-| `role` | string | — | Filter by role: `OUTLET_ADMIN`, `WORKER`, `DRIVER` |
-| `outletId` | string | — | Filter by outlet (SUPER_ADMIN only) |
-| `sortBy` | string | `createdAt` | Sort field |
-| `order` | string | `desc` | `asc` or `desc` |
+| Param      | Type   | Default     | Description                                        |
+| ---------- | ------ | ----------- | -------------------------------------------------- |
+| `page`     | number | `1`         | Page number                                        |
+| `limit`    | number | `10`        | Items per page                                     |
+| `role`     | string | —           | Filter by role: `OUTLET_ADMIN`, `WORKER`, `DRIVER` |
+| `outletId` | string | —           | Filter by outlet (SUPER_ADMIN only)                |
+| `sortBy`   | string | `createdAt` | Sort field                                         |
+| `order`    | string | `desc`      | `asc` or `desc`                                    |
 
 **Response (Success — 200):**
 
@@ -105,10 +109,11 @@ List all users. Outlet Admin sees only users in their own outlet.
       "id": "usr_def456",
       "name": "Jane Worker",
       "email": "jane@primecare.com",
+      "emailVerified": true,
       "role": "WORKER",
       "workerType": "WASHING",
-      "isVerified": true,
       "outletId": "out_001",
+      "isActive": true,
       "createdAt": "2026-03-01T08:00:00.000Z"
     }
   ],
@@ -150,9 +155,11 @@ Create a new staff user account. Sends an invitation email for password setup.
     "id": "usr_new789",
     "name": "New Driver",
     "email": "driver@primecare.com",
+    "emailVerified": false,
     "role": "DRIVER",
-    "isVerified": false,
+    "workerType": null,
     "outletId": "out_001",
+    "isActive": true,
     "createdAt": "2026-03-06T10:00:00.000Z"
   }
 }
@@ -168,9 +175,10 @@ Create a new staff user account. Sends an invitation email for password setup.
 ```
 
 **Notes:**
+
 - `workerType` is required when `role` is `WORKER` (`WASHING`, `IRONING`, or `PACKING`).
 - Outlet Admin can only assign users to their own outlet.
-- The invitation email contains a one-time password-setup link (expires 1 hour).
+- The invitation email contains a one time password setup link (expires 1 hour).
 
 ---
 
@@ -183,8 +191,8 @@ Get a specific user by ID.
 **Path Params:**
 
 | Param | Description |
-|-------|-------------|
-| `id` | User UUID |
+| ----- | ----------- |
+| `id`  | User UUID   |
 
 **Response (Success — 200):**
 
@@ -196,10 +204,11 @@ Get a specific user by ID.
     "id": "usr_def456",
     "name": "Jane Worker",
     "email": "jane@primecare.com",
+    "emailVerified": true,
     "role": "WORKER",
     "workerType": "WASHING",
-    "isVerified": true,
     "outletId": "out_001",
+    "isActive": true,
     "createdAt": "2026-03-01T08:00:00.000Z"
   }
 }
@@ -225,8 +234,8 @@ Update a staff user's details.
 **Path Params:**
 
 | Param | Description |
-|-------|-------------|
-| `id` | User UUID |
+| ----- | ----------- |
+| `id`  | User UUID   |
 
 **Request Body:**
 
@@ -247,6 +256,7 @@ Update a staff user's details.
     "id": "usr_def456",
     "name": "Jane Worker Updated",
     "workerType": "IRONING",
+    "isActive": true,
     "updatedAt": "2026-03-06T12:00:00.000Z"
   }
 }
@@ -263,8 +273,8 @@ Delete a staff user account.
 **Path Params:**
 
 | Param | Description |
-|-------|-------------|
-| `id` | User UUID |
+| ----- | ----------- |
+| `id`  | User UUID   |
 
 **Response (Success — 200):**
 
@@ -286,6 +296,7 @@ Delete a staff user account.
 ```
 
 **Notes:**
+
 - Always require confirmation in the UI before calling this endpoint.
 - Cannot delete your own account via this endpoint.
 
@@ -373,6 +384,7 @@ Add a new saved address.
 ```
 
 **Notes:**
+
 - `latitude` and `longitude` are required. Use OpenCage or RajaOngkir on the frontend to populate coordinates from city/province.
 - If `isPrimary: true`, all other addresses for this user are automatically set to `isPrimary: false`.
 
@@ -386,9 +398,9 @@ Update a saved address.
 
 **Path Params:**
 
-| Param | Description |
-|-------|-------------|
-| `id` | Address UUID |
+| Param | Description  |
+| ----- | ------------ |
+| `id`  | Address UUID |
 
 **Request Body:**
 
@@ -398,8 +410,8 @@ Update a saved address.
   "street": "Jl. Sudirman No. 2",
   "city": "Jakarta",
   "province": "DKI Jakarta",
-  "latitude": -6.2090,
-  "longitude": 106.8460
+  "latitude": -6.209,
+  "longitude": 106.846
 }
 ```
 
@@ -415,8 +427,8 @@ Update a saved address.
     "street": "Jl. Sudirman No. 2",
     "city": "Jakarta",
     "province": "DKI Jakarta",
-    "latitude": -6.2090,
-    "longitude": 106.8460,
+    "latitude": -6.209,
+    "longitude": 106.846,
     "isPrimary": true
   }
 }
@@ -441,9 +453,9 @@ Delete a saved address.
 
 **Path Params:**
 
-| Param | Description |
-|-------|-------------|
-| `id` | Address UUID |
+| Param | Description  |
+| ----- | ------------ |
+| `id`  | Address UUID |
 
 **Response (Success — 200):**
 
@@ -456,6 +468,7 @@ Delete a saved address.
 ```
 
 **Notes:**
+
 - If the deleted address was the primary address and other addresses exist, prompt the user to designate a new primary address (or handle automatically by selecting the most recently created one).
 
 ---
@@ -468,9 +481,9 @@ Set an address as the primary address. Clears `isPrimary` on all other addresses
 
 **Path Params:**
 
-| Param | Description |
-|-------|-------------|
-| `id` | Address UUID |
+| Param | Description  |
+| ----- | ------------ |
+| `id`  | Address UUID |
 
 **Request Body:** None
 

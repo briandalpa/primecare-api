@@ -66,10 +66,11 @@ Customer creates a new laundry pickup request. The server automatically assigns 
 ```
 
 **Notes:**
+
 - The server calculates the Haversine distance from the address coordinates to each active outlet's coordinates.
 - The request is assigned to the nearest outlet within `outlet.maxServiceRadiusKm`.
 - If no outlet is within range, return `422` — the request is not created.
-- Unverified customers (`isVerified: false`) cannot create pickup requests.
+- Customers with `emailVerified: false` cannot create pickup requests.
 
 ---
 
@@ -81,11 +82,11 @@ List the authenticated customer's own pickup requests.
 
 **Query Parameters:**
 
-| Param | Type | Default | Description |
-|-------|------|---------|-------------|
-| `page` | number | `1` | Page number |
-| `limit` | number | `10` | Items per page |
-| `status` | string | — | Filter by status: `PENDING`, `DRIVER_ASSIGNED`, `PICKED_UP`, `CANCELLED` |
+| Param    | Type   | Default | Description                                                              |
+| -------- | ------ | ------- | ------------------------------------------------------------------------ |
+| `page`   | number | `1`     | Page number                                                              |
+| `limit`  | number | `10`    | Items per page                                                           |
+| `status` | string | —       | Filter by status: `PENDING`, `DRIVER_ASSIGNED`, `PICKED_UP`, `CANCELLED` |
 
 **Response (Success — 200):**
 
@@ -120,11 +121,11 @@ List available pickup requests for the driver's outlet. Only shows `PENDING` req
 
 **Query Parameters:**
 
-| Param | Type | Default | Description |
-|-------|------|---------|-------------|
+| Param    | Type   | Default   | Description      |
+| -------- | ------ | --------- | ---------------- |
 | `status` | string | `PENDING` | Filter by status |
-| `page` | number | `1` | Page number |
-| `limit` | number | `10` | Items per page |
+| `page`   | number | `1`       | Page number      |
+| `limit`  | number | `10`      | Items per page   |
 
 **Response (Success — 200):**
 
@@ -157,6 +158,7 @@ List available pickup requests for the driver's outlet. Only shows `PENDING` req
 ```
 
 **Notes:**
+
 - Scoped to the driver's assigned outlet only.
 
 ---
@@ -169,9 +171,9 @@ Driver accepts a pickup request. Sets the order status to `LAUNDRY_EN_ROUTE_TO_O
 
 **Path Params:**
 
-| Param | Description |
-|-------|-------------|
-| `id` | PickupRequest UUID |
+| Param | Description        |
+| ----- | ------------------ |
+| `id`  | PickupRequest UUID |
 
 **Request Body:** None
 
@@ -183,7 +185,7 @@ Driver accepts a pickup request. Sets the order status to `LAUNDRY_EN_ROUTE_TO_O
   "message": "Pickup request accepted",
   "data": {
     "id": "pkup_abc123",
-    "driverId": "usr_drv001",
+    "driverId": "staff_drv001",
     "status": "DRIVER_ASSIGNED",
     "orderStatus": "LAUNDRY_EN_ROUTE_TO_OUTLET"
   }
@@ -209,25 +211,26 @@ Driver accepts a pickup request. Sets the order status to `LAUNDRY_EN_ROUTE_TO_O
 ```
 
 **Notes:**
+
 - **One-Task Rule:** Before accepting, the server checks for any active task:
   - `PickupRequest` where `driverId = driver.id` AND `status = 'DRIVER_ASSIGNED'`
   - `Delivery` where `driverId = driver.id` AND `status IN ['DRIVER_ASSIGNED', 'OUT_FOR_DELIVERY']`
   - If any active task exists → `409 Conflict`.
-- Sets `PickupRequest.driverId` and advances the linked order status.
+- Sets `PickupRequest.driverId` (Staff UUID) and advances the linked order status.
 
 ---
 
 ## PATCH /api/v1/pickup-requests/:id/complete
 
-Driver marks the pickup as complete — laundry has been collected and is arriving at the outlet.
+Driver marks the pickup as complete, laundry has been collected and is arriving at the outlet.
 
 **Access:** `DRIVER`
 
 **Path Params:**
 
-| Param | Description |
-|-------|-------------|
-| `id` | PickupRequest UUID |
+| Param | Description        |
+| ----- | ------------------ |
+| `id`  | PickupRequest UUID |
 
 **Request Body:** None
 
@@ -255,6 +258,7 @@ Driver marks the pickup as complete — laundry has been collected and is arrivi
 ```
 
 **Notes:**
+
 - Only the assigned driver (the one who accepted) can complete this request.
 - Advances the linked order status to `LAUNDRY_ARRIVED_AT_OUTLET`.
 - Triggers a notification to the outlet admin that laundry has arrived.
