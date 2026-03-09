@@ -1,5 +1,150 @@
 # Users API Spec
 
+## Public Endpoints (No Auth Required)
+
+These endpoints do not require a session cookie. They handle customer self-registration.
+
+---
+
+## POST /api/v1/users/register
+
+Register a new customer account. No password is set at this step — a set-password email is sent instead.
+
+**Access:** Public
+
+**Request Body:**
+
+```json
+{
+  "name": "John Doe",
+  "email": "john@example.com"
+}
+```
+
+**Response (Success — 201):**
+
+```json
+{
+  "status": "success",
+  "message": "Registration successful. Check your email to set your password.",
+  "data": {
+    "id": "usr_abc123",
+    "name": "John Doe",
+    "email": "john@example.com",
+    "emailVerified": false
+  }
+}
+```
+
+**Response (Error — 409):**
+
+```json
+{
+  "status": "error",
+  "message": "Email already registered"
+}
+```
+
+**Notes:**
+
+- A set-password link is emailed immediately after registration. The link expires **1 hour** after issue.
+- The user cannot sign in until they complete `POST /api/v1/users/set-password`.
+- Newly registered users have `emailVerified: false`.
+
+---
+
+## POST /api/v1/users/set-password
+
+Set the account password using the token from the registration email. Marks the account as verified.
+
+**Access:** Public
+
+**Request Body:**
+
+```json
+{
+  "token": "uuid-token-from-email",
+  "password": "SecurePass123!"
+}
+```
+
+**Response (Success — 200):**
+
+```json
+{
+  "status": "success",
+  "message": "Password set successfully"
+}
+```
+
+**Response (Error — 400):**
+
+```json
+{
+  "status": "error",
+  "message": "Invalid or expired token"
+}
+```
+
+**Response (Error — 409):**
+
+```json
+{
+  "status": "error",
+  "message": "Password already set"
+}
+```
+
+**Notes:**
+
+- `password` must be at least 8 characters.
+- Token is single-use and expires 1 hour after registration.
+- On success, `emailVerified` is set to `true` and the user may sign in via `POST /api/auth/sign-in/email`.
+
+---
+
+## POST /api/v1/users/resend-verification
+
+Resend the set-password email if the previous link has expired.
+
+**Access:** Public
+
+**Request Body:**
+
+```json
+{
+  "email": "john@example.com"
+}
+```
+
+**Response (Success — 200):**
+
+```json
+{
+  "status": "success",
+  "message": "Verification email sent"
+}
+```
+
+**Response (Error — 409):**
+
+```json
+{
+  "status": "error",
+  "message": "Account already verified"
+}
+```
+
+**Notes:**
+
+- Always returns 200 even if the email is not registered (prevents email enumeration).
+- If the account is already verified (password already set), returns 409.
+- Invalidates any previously issued token and issues a new one (expires 1 hour).
+
+---
+
+## Authenticated Endpoints
+
 Manages user profiles and saved addresses. All endpoints are under `/api/v1/users`.
 
 **Auth:** All endpoints require a valid session cookie (`better-auth.session_token`).
