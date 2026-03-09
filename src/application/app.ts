@@ -18,7 +18,7 @@ app.use(
 );
 
 // better-auth handler (must be before express.json())
-app.all('/api/auth/*', toNodeHandler(auth));
+app.all('/api/auth/*splat', toNodeHandler(auth));
 
 app.use(express.json());
 
