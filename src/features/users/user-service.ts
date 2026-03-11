@@ -172,7 +172,6 @@ export class UserService {
       throw new ResponseError(403, 'Forbidden');
     }
 
-    // SUPER_ADMIN → semua user
     if (staff.role === 'SUPER_ADMIN') {
       const users = await prisma.user.findMany({
         include: { staff: true },
@@ -189,7 +188,6 @@ export class UserService {
       }));
     }
 
-    // OUTLET_ADMIN → hanya user di outlet dia
     if (staff.role === 'OUTLET_ADMIN') {
       const users = await prisma.user.findMany({
         where: {
@@ -212,5 +210,78 @@ export class UserService {
     }
 
     throw new ResponseError(403, 'Forbidden');
+  }
+
+  static async createAdminUser(
+    userId: string,
+    data: {
+      name: string;
+      email: string;
+      role: 'OUTLET_ADMIN' | 'WORKER' | 'DRIVER';
+      outletId?: string;
+    }
+  ) {
+    const requester = await prisma.staff.findUnique({
+      where: { userId },
+    });
+
+    if (!requester || requester.role !== 'SUPER_ADMIN') {
+      throw new ResponseError(403, 'Forbidden');
+    }
+
+    const existing = await prisma.user.findUnique({
+      where: { email: data.email },
+    });
+
+    if (existing) {
+      throw new ResponseError(409, 'Email already registered');
+    }
+
+    const user = await prisma.user.create({
+      data: {
+        id: uuid(),
+        name: data.name,
+        email: data.email,
+        emailVerified: false,
+      },
+    });
+
+    await prisma.staff.create({
+      data: {
+        id: uuid(),
+        userId: user.id,
+        role: data.role,
+        outletId: data.outletId ?? null,
+        isActive: true,
+      },
+    });
+
+    const token = uuid();
+
+    await prisma.verification.create({
+      data: {
+        id: uuid(),
+        identifier: data.email,
+        value: token,
+        expiresAt: new Date(Date.now() + 3600 * 1000),
+      },
+    });
+
+    const link = `${process.env.FRONTEND_URL}/set-password?token=${token}`;
+
+    void sendEmail({
+      to: data.email,
+      subject: 'Set your PrimeCare password',
+      html: `<p>You have been invited to PrimeCare.</p>
+             <p>Click the link below to set your password. This link expires in 1 hour.</p>
+             <p><a href="${link}">${link}</a></p>`,
+    });
+
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: data.role,
+    };
   }
 }
