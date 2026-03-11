@@ -72,8 +72,29 @@ export class UserController {
       message: 'Admin user created',
       data: result,
     });
-  } catch (error) {
-    next(error);
+    } catch (error) {
+      next(error);
+    }
   }
-}
+
+  static async updateAdminUser(req: UserRequest, res: Response, next: NextFunction) {
+  try {
+    const requesterId = req.user!.id
+    const userId = req.params.id as string
+
+    const result = await UserService.updateAdminUser(
+      requesterId,
+      userId,
+      req.body
+    )
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Admin user updated',
+      data: result,
+    })
+    } catch (error) {
+      next(error)
+    }
+  }
 }

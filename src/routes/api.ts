@@ -16,6 +16,7 @@ apiRouter.get(
   requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'),
   UserController.getAdminUsers
 );
+
 // Admin - Create user (SUPER_ADMIN only)
 apiRouter.post(
   '/admin/users',
@@ -23,3 +24,11 @@ apiRouter.post(
   requireStaffRole('SUPER_ADMIN'),
   UserController.createAdminUser
 );
+
+// Admin - Update user (SUPER_ADMIN only)
+apiRouter.patch(
+  '/admin/users/:id',
+  requireAuth,
+  requireStaffRole('SUPER_ADMIN'),
+  UserController.updateAdminUser
+)
