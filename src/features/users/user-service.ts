@@ -30,8 +30,7 @@ export class UserService {
       },
     });
 
-    const link = `${process.env.FRONTEND_URL}/set-password?token=${token}`;
-
+    const link = `${process.env.FRONTEND_URL}/auth/set-password?token=${token}`;
     void sendEmail({
       to: data.email,
       subject: 'Set your PrimeCare password',
@@ -123,8 +122,7 @@ export class UserService {
       },
     });
 
-    const link = `${process.env.FRONTEND_URL}/set-password?token=${token}`;
-
+    const link = `${process.env.FRONTEND_URL}/auth/set-password?token=${token}`;
     void sendEmail({
       to: data.email,
       subject: 'Set your PrimeCare password',
