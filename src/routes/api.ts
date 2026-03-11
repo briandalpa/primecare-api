@@ -31,4 +31,12 @@ apiRouter.patch(
   requireAuth,
   requireStaffRole('SUPER_ADMIN'),
   UserController.updateAdminUser
-)
+);
+
+// Admin - Delete user (SUPER_ADMIN only)
+apiRouter.delete(
+  '/admin/users/:id',
+  requireAuth,
+  requireStaffRole('SUPER_ADMIN'),
+  UserController.deleteAdminUser
+);
