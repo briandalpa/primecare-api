@@ -57,4 +57,23 @@ export class UserController {
       next(error);
     }
   }
+
+  static async createAdminUser(req: UserRequest, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user!.id;
+
+    const result = await UserService.createAdminUser(
+      userId,
+      req.body
+    );
+
+    res.status(201).json({
+      status: 'success',
+      message: 'Admin user created',
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
 }
