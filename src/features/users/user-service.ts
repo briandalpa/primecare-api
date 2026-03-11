@@ -282,4 +282,41 @@ export class UserService {
       role: data.role,
     };
   }
+
+  static async updateAdminUser(
+  requesterId: string,
+  userId: string,
+  data: {
+    role?: 'OUTLET_ADMIN' | 'WORKER' | 'DRIVER'
+    outletId?: string
+    isActive?: boolean
+  }
+  ) {
+  const requester = await prisma.staff.findUnique({
+    where: { userId: requesterId },
+  })
+
+  if (!requester || requester.role !== 'SUPER_ADMIN') {
+    throw new ResponseError(403, 'Forbidden')
+  }
+
+  const staff = await prisma.staff.findUnique({
+    where: { userId },
+  })
+
+  if (!staff) {
+    throw new ResponseError(404, 'User staff not found')
+  }
+
+  const updated = await prisma.staff.update({
+    where: { userId },
+    data: {
+      role: data.role ?? staff.role,
+      outletId: data.outletId ?? staff.outletId,
+      isActive: data.isActive ?? staff.isActive,
+    },
+  })
+
+    return updated
+  }
 }
