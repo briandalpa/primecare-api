@@ -6,24 +6,27 @@ import bcrypt from 'bcrypt';
 
 export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL,
+
   database: prismaAdapter(prisma, {
     provider: 'postgresql',
   }),
   trustedOrigins: [process.env.FRONTEND_URL ?? 'http://localhost:5173'],
   emailAndPassword: {
     enabled: true,
-    requireEmailVerification: true,
+    requireEmailVerification: false,
     password: {
       hash: async (password) => bcrypt.hash(password, 10),
       verify: async ({ hash, password }) => bcrypt.compare(password, hash),
     },
   },
-  socialProviders: {
-    google: {
-      clientId: process.env.GOOGLE_CLIENT_ID as string,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
-    },
-  },
+
+//  socialProviders: {
+//    google: {
+//      clientId: process.env.GOOGLE_CLIENT_ID as string,
+//      clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
+//    },
+// },
+
   emailVerification: {
     sendVerificationEmail: async ({ user, url }) => {
       void sendEmail({
