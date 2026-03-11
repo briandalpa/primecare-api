@@ -97,4 +97,23 @@ export class UserController {
       next(error)
     }
   }
+
+  static async deleteAdminUser(req: UserRequest, res: Response, next: NextFunction) {
+  try {
+    const requesterId = req.user!.id
+    const userId = req.params.id as string
+
+    const result = await UserService.deleteAdminUser(
+      requesterId,
+      userId
+    )
+
+    res.status(200).json({
+      status: 'success',
+      message: result.message,
+    })
+    } catch (error) {
+      next(error)
+    }
+  }
 }
