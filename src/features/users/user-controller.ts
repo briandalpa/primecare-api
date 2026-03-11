@@ -43,4 +43,18 @@ export class UserController {
       next(error);
     }
   }
+
+  static async getAdminUsers(req: UserRequest, res: Response, next: NextFunction) {
+  try {
+    const users = await UserService.getAdminUsers(req.user!.id);
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Users retrieved successfully',
+      data: users,
+    });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
