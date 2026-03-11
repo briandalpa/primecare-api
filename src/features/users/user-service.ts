@@ -319,4 +319,32 @@ export class UserService {
 
     return updated
   }
+
+  static async deleteAdminUser(requesterId: string, userId: string) {
+  const requester = await prisma.staff.findUnique({
+    where: { userId: requesterId },
+  })
+
+  if (!requester || requester.role !== 'SUPER_ADMIN') {
+    throw new ResponseError(403, 'Forbidden')
+  }
+
+  const staff = await prisma.staff.findUnique({
+    where: { userId },
+  })
+
+  if (!staff) {
+    throw new ResponseError(404, 'User staff not found')
+  }
+
+  await prisma.staff.delete({
+    where: { userId },
+  })
+
+  await prisma.user.delete({
+    where: { id: userId },
+  })
+
+    return { message: 'User deleted successfully' }
+  }
 }
