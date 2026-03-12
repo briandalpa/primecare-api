@@ -9,6 +9,7 @@ const adapter = new PrismaPg({ connectionString });
 const prisma = new PrismaClient({
   adapter,
   log: [
+    // Routes all DB events to winston so query and error logs appear in structured output.
     { emit: 'event', level: 'query' },
     { emit: 'event', level: 'error' },
     { emit: 'event', level: 'info' },
