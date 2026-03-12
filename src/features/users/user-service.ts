@@ -3,11 +3,17 @@ import { ResponseError } from '@/error/response-error';
 import { sendEmail } from '@/utils/mailer';
 import bcrypt from 'bcrypt';
 import { v4 as uuid } from 'uuid';
-import { RegisterInput, ResendVerificationInput, SetPasswordInput } from './user-model';
+import {
+  RegisterInput,
+  ResendVerificationInput,
+  SetPasswordInput,
+} from './user-model';
 
 export class UserService {
   static async register(data: RegisterInput) {
-    const existing = await prisma.user.findUnique({ where: { email: data.email } });
+    const existing = await prisma.user.findUnique({
+      where: { email: data.email },
+    });
     if (existing) throw new ResponseError(409, 'Email already registered');
 
     const user = await prisma.user.create({
@@ -217,7 +223,7 @@ export class UserService {
       email: string;
       role: 'OUTLET_ADMIN' | 'WORKER' | 'DRIVER';
       outletId?: string;
-    }
+    },
   ) {
     const requester = await prisma.staff.findUnique({
       where: { userId },
