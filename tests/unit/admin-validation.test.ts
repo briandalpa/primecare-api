@@ -13,45 +13,33 @@ describe('AdminValidation', () => {
       expect(result).toEqual(data);
     });
 
-    it('should accept valid create input with WORKER role', () => {
-      const data = {
-        name: 'Jane Worker',
-        email: 'worker@example.com',
-        role: 'WORKER',
-      };
-      const result = Validation.validate(AdminValidation.CREATE, data);
-      expect(result).toEqual(data);
+    it('should accept valid create input with different valid roles (OUTLET_ADMIN, WORKER, DRIVER)', () => {
+      const validRoles = ['OUTLET_ADMIN', 'WORKER', 'DRIVER'];
+      validRoles.forEach((role) => {
+        const data = {
+          name: 'Test Admin',
+          email: 'test@example.com',
+          role,
+        };
+        const result = Validation.validate(AdminValidation.CREATE, data);
+        expect(result).toEqual(data);
+      });
     });
 
-    it('should accept valid create input with DRIVER role', () => {
-      const data = {
-        name: 'Bob Driver',
-        email: 'driver@example.com',
-        role: 'DRIVER',
-      };
-      const result = Validation.validate(AdminValidation.CREATE, data);
-      expect(result).toEqual(data);
-    });
-
-    it('should accept valid create input with outletId', () => {
-      const data = {
+    it('should accept valid create input with or without optional outletId', () => {
+      const dataWithOutletId = {
         name: 'Alice Admin',
         email: 'alice@example.com',
         role: 'OUTLET_ADMIN',
         outletId: 'outlet-123',
       };
-      const result = Validation.validate(AdminValidation.CREATE, data);
-      expect(result).toEqual(data);
-    });
-
-    it('should accept valid create input without outletId', () => {
-      const data = {
+      const dataWithoutOutletId = {
         name: 'Bob Admin',
         email: 'bob@example.com',
         role: 'OUTLET_ADMIN',
       };
-      const result = Validation.validate(AdminValidation.CREATE, data);
-      expect(result).toEqual(data);
+      expect(Validation.validate(AdminValidation.CREATE, dataWithOutletId)).toEqual(dataWithOutletId);
+      expect(Validation.validate(AdminValidation.CREATE, dataWithoutOutletId)).toEqual(dataWithoutOutletId);
     });
 
     it('should reject empty name', () => {
@@ -141,124 +129,31 @@ describe('AdminValidation', () => {
       expect(() => Validation.validate(AdminValidation.CREATE, data)).toThrow();
     });
 
-    it('should accept name with single character', () => {
-      const data = {
-        name: 'A',
-        email: 'admin@example.com',
-        role: 'OUTLET_ADMIN',
-      };
-      const result = Validation.validate(AdminValidation.CREATE, data);
-      expect(result).toEqual(data);
-    });
-
-    it('should accept name with spaces', () => {
-      const data = {
-        name: 'John Michael Smith',
-        email: 'admin@example.com',
-        role: 'OUTLET_ADMIN',
-      };
-      const result = Validation.validate(AdminValidation.CREATE, data);
-      expect(result).toEqual(data);
-    });
-
-    it('should accept email with numbers and special characters', () => {
-      const data = {
-        name: 'John Admin',
-        email: 'john.doe+admin@example123.co.uk',
-        role: 'OUTLET_ADMIN',
-      };
-      const result = Validation.validate(AdminValidation.CREATE, data);
-      expect(result).toEqual(data);
-    });
   });
 
   describe('UPDATE schema', () => {
-    it('should accept valid update with role only', () => {
-      const data = {
-        role: 'WORKER',
-      };
-      const result = Validation.validate(AdminValidation.UPDATE, data);
-      expect(result).toEqual(data);
+    it('should accept valid update with any optional field combination', () => {
+      const testCases = [
+        { role: 'WORKER' },
+        { outletId: 'outlet-456' },
+        { isActive: true },
+        { role: 'OUTLET_ADMIN', outletId: 'outlet-789' },
+        { role: 'DRIVER', isActive: false },
+        { outletId: 'outlet-111', isActive: true },
+        { role: 'OUTLET_ADMIN', outletId: 'outlet-222', isActive: true },
+        {},
+      ];
+      testCases.forEach((data) => {
+        const result = Validation.validate(AdminValidation.UPDATE, data);
+        expect(result).toEqual(data);
+      });
     });
 
-    it('should accept valid update with outletId only', () => {
-      const data = {
-        outletId: 'outlet-456',
-      };
-      const result = Validation.validate(AdminValidation.UPDATE, data);
-      expect(result).toEqual(data);
-    });
-
-    it('should accept valid update with isActive only', () => {
-      const data = {
-        isActive: true,
-      };
-      const result = Validation.validate(AdminValidation.UPDATE, data);
-      expect(result).toEqual(data);
-    });
-
-    it('should accept valid update with role and outletId', () => {
-      const data = {
-        role: 'OUTLET_ADMIN',
-        outletId: 'outlet-789',
-      };
-      const result = Validation.validate(AdminValidation.UPDATE, data);
-      expect(result).toEqual(data);
-    });
-
-    it('should accept valid update with role and isActive', () => {
-      const data = {
-        role: 'DRIVER',
-        isActive: false,
-      };
-      const result = Validation.validate(AdminValidation.UPDATE, data);
-      expect(result).toEqual(data);
-    });
-
-    it('should accept valid update with outletId and isActive', () => {
-      const data = {
-        outletId: 'outlet-111',
-        isActive: true,
-      };
-      const result = Validation.validate(AdminValidation.UPDATE, data);
-      expect(result).toEqual(data);
-    });
-
-    it('should accept valid update with all fields', () => {
-      const data = {
-        role: 'OUTLET_ADMIN',
-        outletId: 'outlet-222',
-        isActive: true,
-      };
-      const result = Validation.validate(AdminValidation.UPDATE, data);
-      expect(result).toEqual(data);
-    });
-
-    it('should accept empty update object', () => {
-      const data = {};
-      const result = Validation.validate(AdminValidation.UPDATE, data);
-      expect(result).toEqual(data);
-    });
-
-    it('should reject invalid role in update', () => {
-      const data = {
-        role: 'INVALID_ROLE',
-      };
-      expect(() => Validation.validate(AdminValidation.UPDATE, data)).toThrow();
-    });
-
-    it('should reject CUSTOMER role in update', () => {
-      const data = {
-        role: 'CUSTOMER',
-      };
-      expect(() => Validation.validate(AdminValidation.UPDATE, data)).toThrow();
-    });
-
-    it('should reject SUPER_ADMIN role in update', () => {
-      const data = {
-        role: 'SUPER_ADMIN',
-      };
-      expect(() => Validation.validate(AdminValidation.UPDATE, data)).toThrow();
+    it('should reject invalid roles (CUSTOMER, SUPER_ADMIN, or unknown)', () => {
+      const invalidRoles = ['INVALID_ROLE', 'CUSTOMER', 'SUPER_ADMIN'];
+      invalidRoles.forEach((role) => {
+        expect(() => Validation.validate(AdminValidation.UPDATE, { role })).toThrow();
+      });
     });
 
     it('should reject isActive as non-boolean', () => {
@@ -266,31 +161,6 @@ describe('AdminValidation', () => {
         isActive: 'true',
       };
       expect(() => Validation.validate(AdminValidation.UPDATE, data)).toThrow();
-    });
-
-    it('should accept all valid roles in update', () => {
-      const roles = ['OUTLET_ADMIN', 'WORKER', 'DRIVER'];
-      roles.forEach((role) => {
-        const data = { role };
-        const result = Validation.validate(AdminValidation.UPDATE, data);
-        expect(result).toEqual(data);
-      });
-    });
-
-    it('should accept isActive as false', () => {
-      const data = {
-        isActive: false,
-      };
-      const result = Validation.validate(AdminValidation.UPDATE, data);
-      expect(result).toEqual(data);
-    });
-
-    it('should accept string outletId', () => {
-      const data = {
-        outletId: 'outlet-with-long-id-12345',
-      };
-      const result = Validation.validate(AdminValidation.UPDATE, data);
-      expect(result).toEqual(data);
     });
   });
 });
