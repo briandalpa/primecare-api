@@ -1,6 +1,8 @@
+import type { Request, Response } from 'express';
+
 jest.mock('better-auth/node', () => ({
-  fromNodeHeaders: jest.fn((headers) => headers),
-  toNodeHandler: jest.fn((auth) => (req, res) => res.json({ ok: true })),
+  fromNodeHeaders: jest.fn((headers: Record<string, string | string[] | undefined>) => headers),
+  toNodeHandler: jest.fn(() => (_req: Request, res: Response) => res.json({ ok: true })),
 }));
 
 jest.mock('@/application/database', () => ({
@@ -163,7 +165,7 @@ describe('User Routes Integration Tests', () => {
 
   describe('GET /api/v1/users/me', () => {
     it('should return 401 when not authenticated', async () => {
-      (auth.api.getSession as jest.Mock).mockResolvedValue(null);
+      (auth.api.getSession as unknown as jest.Mock).mockResolvedValue(null);
 
       const response = await request(app).get('/api/v1/users/me');
 
@@ -177,7 +179,7 @@ describe('User Routes Integration Tests', () => {
         email: 'john@example.com',
         emailVerified: true,
       };
-      (auth.api.getSession as jest.Mock).mockResolvedValue({ user: mockUser });
+      (auth.api.getSession as unknown as jest.Mock).mockResolvedValue({ user: mockUser });
       (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
 
       const response = await request(app).get('/api/v1/users/me');
