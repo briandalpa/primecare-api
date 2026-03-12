@@ -1,18 +1,39 @@
-import { z } from 'zod';
+import type { User } from '@/generated/prisma/client';
 
-export const RegisterSchema = z.object({
-  name: z.string().min(1),
-  email: z.email(),
-});
-export type RegisterInput = z.infer<typeof RegisterSchema>;
+export type RegisterInput = { name: string; email: string };
+export type SetPasswordInput = { token: string; password: string };
+export type ResendVerificationInput = { email: string };
 
-export const SetPasswordSchema = z.object({
-  token: z.string().min(1),
-  password: z.string().min(8),
-});
-export type SetPasswordInput = z.infer<typeof SetPasswordSchema>;
+export type CustomerRegistrationResponse = {
+  id: string;
+  name: string;
+  email: string;
+  emailVerified: boolean;
+};
 
-export const ResendVerificationSchema = z.object({
-  email: z.email(),
-});
-export type ResendVerificationInput = z.infer<typeof ResendVerificationSchema>;
+export type UserProfileResponse = {
+  id: string;
+  name: string;
+  email: string;
+  emailVerified: boolean;
+  role: string;
+  image: string | null;
+  avatarUrl: string | null;
+  phone: string | null;
+  createdAt: Date;
+  staff: {
+    role: string;
+    workerType: string | null;
+    outletId: string | null;
+    isActive: boolean;
+  } | null;
+};
+
+export function toUserResponse(user: User): CustomerRegistrationResponse {
+  return {
+    id: user.id,
+    name: user.name ?? '',
+    email: user.email,
+    emailVerified: user.emailVerified,
+  };
+}
