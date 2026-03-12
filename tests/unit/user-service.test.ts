@@ -43,7 +43,6 @@ describe('UserService', () => {
       (prisma.user.findUnique as jest.Mock).mockResolvedValue({ id: 'user-1', email: 'john@example.com' });
 
       await expect(UserService.register({ name: 'John', email: 'john@example.com' })).rejects.toThrow(ResponseError);
-      const error = new ResponseError(409, 'Email already registered');
     });
   });
 
