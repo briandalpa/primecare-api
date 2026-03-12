@@ -56,10 +56,9 @@ describe('UserValidation', () => {
       expect(result).toEqual(data);
     });
 
-    it('should accept name with single character', () => {
+    it('should reject name with single character', () => {
       const data = { name: 'A', email: 'john@example.com' };
-      const result = Validation.validate(UserValidation.REGISTER, data);
-      expect(result).toEqual(data);
+      expect(() => Validation.validate(UserValidation.REGISTER, data)).toThrow();
     });
 
     it('should accept name with spaces', () => {
