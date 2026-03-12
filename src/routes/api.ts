@@ -3,6 +3,7 @@
 import express from 'express';
 import { requireAuth, requireStaffRole } from '@/middleware/auth-middleware';
 import { UserController } from '@/features/users/user-controller';
+import { AdminController } from '@/features/admin/admin-controller';
 
 export const apiRouter = express.Router();
 
@@ -10,33 +11,13 @@ export const apiRouter = express.Router();
 apiRouter.get('/users/me', requireAuth, UserController.getMe);
 
 // Admin - Get users (SUPER_ADMIN & OUTLET_ADMIN)
-apiRouter.get(
-  '/admin/users',
-  requireAuth,
-  requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'),
-  UserController.getAdminUsers
-);
+apiRouter.get('/admin/users', requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'), AdminController.getAdminUsers);
 
 // Admin - Create user (SUPER_ADMIN only)
-apiRouter.post(
-  '/admin/users',
-  requireAuth,
-  requireStaffRole('SUPER_ADMIN'),
-  UserController.createAdminUser
-);
+apiRouter.post('/admin/users', requireStaffRole('SUPER_ADMIN'), AdminController.createAdminUser);
 
 // Admin - Update user (SUPER_ADMIN only)
-apiRouter.patch(
-  '/admin/users/:id',
-  requireAuth,
-  requireStaffRole('SUPER_ADMIN'),
-  UserController.updateAdminUser
-);
+apiRouter.patch('/admin/users/:id', requireStaffRole('SUPER_ADMIN'), AdminController.updateAdminUser);
 
 // Admin - Delete user (SUPER_ADMIN only)
-apiRouter.delete(
-  '/admin/users/:id',
-  requireAuth,
-  requireStaffRole('SUPER_ADMIN'),
-  UserController.deleteAdminUser
-);
+apiRouter.delete('/admin/users/:id', requireStaffRole('SUPER_ADMIN'), AdminController.deleteAdminUser);
