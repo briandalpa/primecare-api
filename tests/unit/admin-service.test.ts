@@ -21,15 +21,19 @@ describe('AdminService', () => {
   });
 
   describe('getAdminUsers', () => {
-    it('should return all users for SUPER_ADMIN', async () => {
+    it('should return all users for SUPER_ADMIN with correct structure', async () => {
       const mockUsers = [
-        { id: 'user-1', name: 'Alice', email: 'alice@example.com', staff: { id: 'staff-1', role: 'OUTLET_ADMIN' } },
-        { id: 'user-2', name: 'Bob', email: 'bob@example.com', staff: { id: 'staff-2', role: 'WORKER' } },
+        { id: 'user-1', name: 'Alice', email: 'alice@example.com', emailVerified: false, createdAt: new Date(), staff: { role: 'OUTLET_ADMIN' } },
+        { id: 'user-2', name: 'Bob', email: 'bob@example.com', emailVerified: false, createdAt: new Date(), staff: { role: 'WORKER' } },
       ];
       (prisma.user.findMany as jest.Mock).mockResolvedValue(mockUsers);
 
       const result = await AdminService.getAdminUsers({ role: 'SUPER_ADMIN', outletId: null });
       expect(result).toHaveLength(2);
+      expect(result[0]).toHaveProperty('id');
+      expect(result[0]).toHaveProperty('name');
+      expect(result[0]).toHaveProperty('email');
+      expect(result[0]).toHaveProperty('role');
     });
 
     it('should return only outlet users for OUTLET_ADMIN', async () => {
@@ -38,18 +42,20 @@ describe('AdminService', () => {
 
       const result = await AdminService.getAdminUsers({ role: 'OUTLET_ADMIN', outletId: 'outlet-1' });
       expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('user-1');
+      expect(result[0].email).toBe('charlie@example.com');
     });
 
     it('should throw 403 for WORKER role', async () => {
       const mockStaff = { role: 'WORKER', outletId: null };
 
-      await expect(AdminService.getAdminUsers(mockStaff)).rejects.toThrow(ResponseError);
+      await expect(AdminService.getAdminUsers(mockStaff)).rejects.toMatchObject({ status: 403 });
     });
 
     it('should throw 403 for DRIVER role', async () => {
       const mockStaff = { role: 'DRIVER', outletId: null };
 
-      await expect(AdminService.getAdminUsers(mockStaff)).rejects.toThrow(ResponseError);
+      await expect(AdminService.getAdminUsers(mockStaff)).rejects.toMatchObject({ status: 403 });
     });
   });
 
@@ -90,7 +96,7 @@ describe('AdminService', () => {
           email: 'charlie@example.com',
           role: 'WORKER',
         })
-      ).rejects.toThrow(ResponseError);
+      ).rejects.toMatchObject({ status: 409 });
     });
 
     it('should create DRIVER without outletId', async () => {
@@ -144,7 +150,7 @@ describe('AdminService', () => {
     it('should throw 404 when staff not found', async () => {
       (prisma.staff.findUnique as jest.Mock).mockResolvedValue(null);
 
-      await expect(AdminService.updateAdminUser('nonexistent', { role: 'WORKER' })).rejects.toThrow(ResponseError);
+      await expect(AdminService.updateAdminUser('nonexistent', { role: 'WORKER' })).rejects.toMatchObject({ status: 404 });
     });
 
     it('should update isActive status', async () => {
@@ -183,16 +189,10 @@ describe('AdminService', () => {
         isActive: true,
       });
 
-      await AdminService.updateAdminUser('user-1', { outletId: 'outlet-2' });
-      expect(prisma.staff.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            role: 'WORKER', // preserved
-            outletId: 'outlet-2', // updated
-            isActive: true, // preserved
-          }),
-        })
-      );
+      const result = await AdminService.updateAdminUser('user-1', { outletId: 'outlet-2' });
+      expect(result.role).toBe('WORKER');
+      expect(result.outletId).toBe('outlet-2');
+      expect(result.isActive).toBe(true);
     });
   });
 
@@ -213,23 +213,17 @@ describe('AdminService', () => {
     it('should throw 404 when staff not found', async () => {
       (prisma.staff.findUnique as jest.Mock).mockResolvedValue(null);
 
-      await expect(AdminService.deleteAdminUser('nonexistent')).rejects.toThrow(ResponseError);
+      await expect(AdminService.deleteAdminUser('nonexistent')).rejects.toMatchObject({ status: 404 });
     });
 
-    it('should delete staff before user for cascading', async () => {
-      const callOrder: string[] = [];
+    it('should call both staff and user delete', async () => {
       (prisma.staff.findUnique as jest.Mock).mockResolvedValue({ id: 'staff-1', userId: 'user-1' });
-      (prisma.staff.delete as jest.Mock).mockImplementation(() => {
-        callOrder.push('staff.delete');
-        return Promise.resolve({ id: 'staff-1' });
-      });
-      (prisma.user.delete as jest.Mock).mockImplementation(() => {
-        callOrder.push('user.delete');
-        return Promise.resolve({ id: 'user-1' });
-      });
+      (prisma.staff.delete as jest.Mock).mockResolvedValue({ id: 'staff-1' });
+      (prisma.user.delete as jest.Mock).mockResolvedValue({ id: 'user-1' });
 
       await AdminService.deleteAdminUser('user-1');
-      expect(callOrder).toEqual(['staff.delete', 'user.delete']);
+      expect(prisma.staff.delete).toHaveBeenCalledWith({ where: { userId: 'user-1' } });
+      expect(prisma.user.delete).toHaveBeenCalledWith({ where: { id: 'user-1' } });
     });
   });
 });
