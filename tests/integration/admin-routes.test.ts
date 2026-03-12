@@ -139,6 +139,27 @@ describe('Admin Routes Integration Tests', () => {
 
       expect(response.status).toBe(400);
     });
+
+    it('should return 409 when email already exists', async () => {
+      const mockUser = { id: 'user-1' };
+      const mockStaff = { id: 'staff-1', role: 'SUPER_ADMIN', isActive: true };
+      (auth.api.getSession as jest.Mock).mockResolvedValue({ user: mockUser });
+      (prisma.staff.findUnique as jest.Mock).mockResolvedValue(mockStaff);
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+        id: 'existing-user',
+        email: 'charlie@example.com',
+      });
+
+      const response = await request(app)
+        .post('/api/v1/admin/users')
+        .send({
+          name: 'Charlie',
+          email: 'charlie@example.com',
+          role: 'WORKER',
+        });
+
+      expect(response.status).toBe(409);
+    });
   });
 
   describe('PATCH /api/v1/admin/users/:id', () => {
