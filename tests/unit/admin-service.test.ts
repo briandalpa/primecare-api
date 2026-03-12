@@ -11,7 +11,6 @@ jest.mock('@/utils/mailer', () => ({
 }));
 
 import { AdminService } from '@/features/admin/admin-service';
-import { ResponseError } from '@/error/response-error';
 import { prisma } from '@/application/database';
 import { sendEmail } from '@/utils/mailer';
 
@@ -47,13 +46,13 @@ describe('AdminService', () => {
     });
 
     it('should throw 403 for WORKER role', async () => {
-      const mockStaff = { role: 'WORKER', outletId: null };
+      const mockStaff = { role: 'WORKER' as const, outletId: null };
 
       await expect(AdminService.getAdminUsers(mockStaff)).rejects.toMatchObject({ status: 403 });
     });
 
     it('should throw 403 for DRIVER role', async () => {
-      const mockStaff = { role: 'DRIVER', outletId: null };
+      const mockStaff = { role: 'DRIVER' as const, outletId: null };
 
       await expect(AdminService.getAdminUsers(mockStaff)).rejects.toMatchObject({ status: 403 });
     });
