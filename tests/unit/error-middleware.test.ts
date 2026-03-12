@@ -53,7 +53,7 @@ describe('errorMiddleware', () => {
         received: 'number',
         path: ['name'],
         message: 'Expected string',
-      },
+      } as any,
     ]);
     errorMiddleware(zodError as any, req as Request, res as Response, next);
     expect(res.status).toHaveBeenCalledWith(400);
