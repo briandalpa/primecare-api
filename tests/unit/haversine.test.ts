@@ -1,4 +1,4 @@
-import { haversineDistance } from '../src/utils/haversine';
+import { haversineDistance } from '../../src/utils/haversine';
 
 describe('haversineDistance', () => {
   it('returns 0 for the same point', () => {
