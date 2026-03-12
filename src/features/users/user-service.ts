@@ -5,18 +5,19 @@ import bcrypt from 'bcrypt';
 import { v4 as uuid } from 'uuid';
 import { RegisterInput, ResendVerificationInput, SetPasswordInput, toUserResponse } from './user-model';
 
+// Clears any existing tokens for this email before issuing a new one, preventing stale links.
 const createVerificationToken = async (email: string): Promise<string> => {
   await prisma.verification.deleteMany({ where: { identifier: email } });
   const token = uuid();
   await prisma.verification.create({
-    data: { id: uuid(), identifier: email, value: token, expiresAt: new Date(Date.now() + 3600 * 1000) },
+    data: { id: uuid(), identifier: email, value: token, expiresAt: new Date(Date.now() + 3600 * 1000) }, // expires in 1 hour
   });
   return token;
 };
 
 const sendSetPasswordEmail = (email: string, token: string) => {
   const link = `${process.env.FRONTEND_URL}/auth/set-password?token=${token}`;
-  void sendEmail({
+  void sendEmail({ // Non-blocking: email delivery failure should not fail the request.
     to: email,
     subject: 'Set your PrimeCare password',
     html: `<p>Click the link below to set your password. This link expires in 1 hour.</p>
@@ -24,6 +25,7 @@ const sendSetPasswordEmail = (email: string, token: string) => {
   });
 };
 
+// Validates token existence and expiry in one query; throws if either check fails.
 const verifyToken = async (token: string) => {
   const verification = await prisma.verification.findFirst({ where: { value: token } });
   if (!verification || verification.expiresAt < new Date()) {
@@ -60,18 +62,18 @@ export class UserService {
     if (!user) throw new ResponseError(404, 'User not found');
 
     const existingAccount = await prisma.account.findFirst({ where: { userId: user.id, providerId: 'credential' } });
-    if (existingAccount) throw new ResponseError(409, 'Password already set');
+    if (existingAccount) throw new ResponseError(409, 'Password already set'); // Prevents overwriting an existing password via token replay.
 
     await createCredentialAccount(user.id, data.password);
-    await prisma.user.update({ where: { id: user.id }, data: { emailVerified: true } });
-    await prisma.verification.delete({ where: { id: verification.id } });
+    await prisma.user.update({ where: { id: user.id }, data: { emailVerified: true } }); // Email is considered verified once the user sets their password.
+    await prisma.verification.delete({ where: { id: verification.id } }); // Token is single-use; delete it to prevent reuse.
 
     return { message: 'Password set successfully' };
   }
 
   static async resendVerification(data: ResendVerificationInput) {
     const user = await prisma.user.findUnique({ where: { email: data.email } });
-    if (!user) return { message: 'Verification email sent' };
+    if (!user) return { message: 'Verification email sent' }; // Silent success: avoids leaking whether an email is registered.
 
     const existingAccount = await prisma.account.findFirst({ where: { userId: user.id, providerId: 'credential' } });
     if (existingAccount) throw new ResponseError(409, 'Account already verified');
@@ -90,7 +92,7 @@ export class UserService {
       name: user.name ?? '',
       email: user.email,
       emailVerified: user.emailVerified,
-      role: user.staff?.role ?? 'CUSTOMER',
+      role: user.staff?.role ?? 'CUSTOMER', // A User without a Staff record is implicitly a CUSTOMER.
       image: user.image,
       avatarUrl: user.avatarUrl,
       phone: user.phone,
