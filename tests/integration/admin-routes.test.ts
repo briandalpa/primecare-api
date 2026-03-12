@@ -1,6 +1,8 @@
+import type { Request, Response } from 'express';
+
 jest.mock('better-auth/node', () => ({
-  fromNodeHeaders: jest.fn((headers) => headers),
-  toNodeHandler: jest.fn((auth) => (req, res) => res.json({ ok: true })),
+  fromNodeHeaders: jest.fn((headers: Record<string, string | string[] | undefined>) => headers),
+  toNodeHandler: jest.fn(() => (_req: Request, res: Response) => res.json({ ok: true })),
 }));
 
 jest.mock('@/application/database', () => ({
@@ -34,7 +36,7 @@ describe('Admin Routes Integration Tests', () => {
 
   describe('GET /api/v1/admin/users', () => {
     it('should return 401 when not authenticated', async () => {
-      (auth.api.getSession as jest.Mock).mockResolvedValue(null);
+      (auth.api.getSession as unknown as jest.Mock).mockResolvedValue(null);
 
       const response = await request(app).get('/api/v1/admin/users');
 
@@ -44,7 +46,7 @@ describe('Admin Routes Integration Tests', () => {
     it('should return 403 for non-admin roles', async () => {
       const mockUser = { id: 'user-1', name: 'John', email: 'john@example.com' };
       const mockStaff = { id: 'staff-1', role: 'DRIVER', isActive: true };
-      (auth.api.getSession as jest.Mock).mockResolvedValue({ user: mockUser, session: 'token' });
+      (auth.api.getSession as unknown as jest.Mock).mockResolvedValue({ user: mockUser, session: 'token' });
       (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
       (prisma.staff.findUnique as jest.Mock).mockResolvedValue(mockStaff);
 
@@ -56,7 +58,7 @@ describe('Admin Routes Integration Tests', () => {
     it('should return users for SUPER_ADMIN', async () => {
       const mockUser = { id: 'user-1', name: 'John', email: 'john@example.com' };
       const mockStaff = { id: 'staff-1', role: 'SUPER_ADMIN', isActive: true };
-      (auth.api.getSession as jest.Mock).mockResolvedValue({ user: mockUser, session: 'token' });
+      (auth.api.getSession as unknown as jest.Mock).mockResolvedValue({ user: mockUser, session: 'token' });
       (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
       (prisma.staff.findUnique as jest.Mock).mockResolvedValue(mockStaff);
       (prisma.staff.findMany as jest.Mock).mockResolvedValue([
@@ -75,7 +77,7 @@ describe('Admin Routes Integration Tests', () => {
 
   describe('POST /api/v1/admin/users', () => {
     it('should return 401 when not authenticated', async () => {
-      (auth.api.getSession as jest.Mock).mockResolvedValue(null);
+      (auth.api.getSession as unknown as jest.Mock).mockResolvedValue(null);
 
       const response = await request(app)
         .post('/api/v1/admin/users')
@@ -87,7 +89,7 @@ describe('Admin Routes Integration Tests', () => {
     it('should return 403 for non-SUPER_ADMIN', async () => {
       const mockUser = { id: 'user-1', name: 'John', email: 'john@example.com' };
       const mockStaff = { id: 'staff-1', role: 'OUTLET_ADMIN', isActive: true };
-      (auth.api.getSession as jest.Mock).mockResolvedValue({ user: mockUser, session: 'token' });
+      (auth.api.getSession as unknown as jest.Mock).mockResolvedValue({ user: mockUser, session: 'token' });
       (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
       (prisma.staff.findUnique as jest.Mock).mockResolvedValue(mockStaff);
 
@@ -101,7 +103,7 @@ describe('Admin Routes Integration Tests', () => {
     it('should create admin user for SUPER_ADMIN', async () => {
       const mockUser = { id: 'user-1', name: 'John', email: 'john@example.com' };
       const mockStaff = { id: 'staff-1', role: 'SUPER_ADMIN', isActive: true };
-      (auth.api.getSession as jest.Mock).mockResolvedValue({ user: mockUser, session: 'token' });
+      (auth.api.getSession as unknown as jest.Mock).mockResolvedValue({ user: mockUser, session: 'token' });
       (prisma.user.findUnique as jest.Mock).mockResolvedValueOnce(mockUser);
       (prisma.staff.findUnique as jest.Mock).mockResolvedValueOnce(mockStaff);
       (prisma.user.findUnique as jest.Mock).mockResolvedValueOnce(null);
@@ -129,7 +131,7 @@ describe('Admin Routes Integration Tests', () => {
     it('should return 400 for invalid input', async () => {
       const mockUser = { id: 'user-1', name: 'John', email: 'john@example.com' };
       const mockStaff = { id: 'staff-1', role: 'SUPER_ADMIN', isActive: true };
-      (auth.api.getSession as jest.Mock).mockResolvedValue({ user: mockUser, session: 'token' });
+      (auth.api.getSession as unknown as jest.Mock).mockResolvedValue({ user: mockUser, session: 'token' });
       (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
       (prisma.staff.findUnique as jest.Mock).mockResolvedValue(mockStaff);
 
@@ -143,7 +145,7 @@ describe('Admin Routes Integration Tests', () => {
     it('should return 409 when email already exists', async () => {
       const mockUser = { id: 'user-1' };
       const mockStaff = { id: 'staff-1', role: 'SUPER_ADMIN', isActive: true };
-      (auth.api.getSession as jest.Mock).mockResolvedValue({ user: mockUser });
+      (auth.api.getSession as unknown as jest.Mock).mockResolvedValue({ user: mockUser });
       (prisma.staff.findUnique as jest.Mock).mockResolvedValue(mockStaff);
       (prisma.user.findUnique as jest.Mock).mockResolvedValue({
         id: 'existing-user',
@@ -166,7 +168,7 @@ describe('Admin Routes Integration Tests', () => {
     it('should return 403 for non-SUPER_ADMIN', async () => {
       const mockUser = { id: 'user-1', name: 'John', email: 'john@example.com' };
       const mockStaff = { id: 'staff-1', role: 'OUTLET_ADMIN', isActive: true };
-      (auth.api.getSession as jest.Mock).mockResolvedValue({ user: mockUser, session: 'token' });
+      (auth.api.getSession as unknown as jest.Mock).mockResolvedValue({ user: mockUser, session: 'token' });
       (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
       (prisma.staff.findUnique as jest.Mock).mockResolvedValue(mockStaff);
 
@@ -180,7 +182,7 @@ describe('Admin Routes Integration Tests', () => {
     it('should update user for SUPER_ADMIN', async () => {
       const mockUser = { id: 'user-1', name: 'John', email: 'john@example.com' };
       const mockStaff = { id: 'staff-1', role: 'SUPER_ADMIN', isActive: true };
-      (auth.api.getSession as jest.Mock).mockResolvedValue({ user: mockUser, session: 'token' });
+      (auth.api.getSession as unknown as jest.Mock).mockResolvedValue({ user: mockUser, session: 'token' });
       (prisma.user.findUnique as jest.Mock).mockResolvedValueOnce(mockUser);
       (prisma.staff.findUnique as jest.Mock).mockResolvedValueOnce(mockStaff);
       (prisma.staff.findUnique as jest.Mock).mockResolvedValueOnce({
@@ -206,7 +208,7 @@ describe('Admin Routes Integration Tests', () => {
     it('should return 403 for non-SUPER_ADMIN', async () => {
       const mockUser = { id: 'user-1', name: 'John', email: 'john@example.com' };
       const mockStaff = { id: 'staff-1', role: 'OUTLET_ADMIN', isActive: true };
-      (auth.api.getSession as jest.Mock).mockResolvedValue({ user: mockUser, session: 'token' });
+      (auth.api.getSession as unknown as jest.Mock).mockResolvedValue({ user: mockUser, session: 'token' });
       (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
       (prisma.staff.findUnique as jest.Mock).mockResolvedValue(mockStaff);
 
@@ -218,7 +220,7 @@ describe('Admin Routes Integration Tests', () => {
     it('should delete user for SUPER_ADMIN', async () => {
       const mockUser = { id: 'user-1', name: 'John', email: 'john@example.com' };
       const mockStaff = { id: 'staff-1', role: 'SUPER_ADMIN', isActive: true };
-      (auth.api.getSession as jest.Mock).mockResolvedValue({ user: mockUser, session: 'token' });
+      (auth.api.getSession as unknown as jest.Mock).mockResolvedValue({ user: mockUser, session: 'token' });
       (prisma.user.findUnique as jest.Mock).mockResolvedValueOnce(mockUser);
       (prisma.staff.findUnique as jest.Mock).mockResolvedValueOnce(mockStaff);
       (prisma.staff.findUnique as jest.Mock).mockResolvedValueOnce({
