@@ -89,7 +89,7 @@ const seedSuperAdmin = async () => {
     await tx.account.create({
       data: {
         id: accountId,
-        accountId: email,
+        accountId: userId,
         providerId: 'credential',
         userId,
         password: hashedPassword,
