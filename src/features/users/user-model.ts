@@ -4,6 +4,7 @@ export type RegisterInput = { name: string; email: string };
 export type SetPasswordInput = { token: string; password: string };
 export type ResendVerificationInput = { email: string };
 
+// Minimal response returned after registration; does not include profile or staff data.
 export type CustomerRegistrationResponse = {
   id: string;
   name: string;
@@ -11,6 +12,7 @@ export type CustomerRegistrationResponse = {
   emailVerified: boolean;
 };
 
+// Full profile response for GET /users/me; includes staff details when the user is a staff member.
 export type UserProfileResponse = {
   id: string;
   name: string;
@@ -26,7 +28,7 @@ export type UserProfileResponse = {
     workerType: string | null;
     outletId: string | null;
     isActive: boolean;
-  } | null;
+  } | null; // null when the user has no Staff record, meaning they are a CUSTOMER.
 };
 
 export function toUserResponse(user: User): CustomerRegistrationResponse {

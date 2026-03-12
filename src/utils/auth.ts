@@ -13,7 +13,7 @@ export const auth = betterAuth({
   trustedOrigins: [process.env.FRONTEND_URL ?? 'http://localhost:5173'],
   emailAndPassword: {
     enabled: true,
-    requireEmailVerification: false,
+    requireEmailVerification: false, // Staff use a custom token-based password setup, not better-auth's built-in verification.
     password: {
       hash: async (password) => bcrypt.hash(password, 10),
       verify: async ({ hash, password }) => bcrypt.compare(password, hash),
@@ -28,8 +28,8 @@ export const auth = betterAuth({
   },
 
   session: {
-    expiresIn: 60 * 60 * 24 * 7, // 7 days
-    updateAge: 60 * 60 * 24, // refresh expiry once per day
+    expiresIn: 60 * 60 * 24 * 7, // 7 days in seconds
+    updateAge: 60 * 60 * 24, // Extend session expiry once per day to avoid forcing re-login too often.
   },
 
   emailVerification: {
@@ -42,7 +42,7 @@ export const auth = betterAuth({
       });
     },
     expiresIn: 3600,
-    sendOnSignUp: false,
-    disableAutoSignIn: true,
+    sendOnSignUp: false, // Verification emails are triggered manually, not on registration.
+    disableAutoSignIn: true, // Prevents an automatic session from being created after email verification.
   },
 });
