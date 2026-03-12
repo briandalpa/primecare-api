@@ -1,13 +1,13 @@
 import { Validation } from '@/validations/validation';
+import { UserValidation } from '@/validations/user-validation';
 import { NextFunction, Request, Response } from 'express';
-import { RegisterSchema, ResendVerificationSchema, SetPasswordSchema } from './user-model';
 import { UserService } from './user-service';
 import { UserRequest } from '@/types/user-request';
 
 export class UserController {
   static async register(req: Request, res: Response, next: NextFunction) {
     try {
-      const data = Validation.validate(RegisterSchema, req.body);
+      const data = Validation.validate(UserValidation.REGISTER, req.body);
       const result = await UserService.register(data);
       res.status(201).json({ status: 'success', message: 'Registration successful. Check your email to set your password.', data: result });
     } catch (error) {
@@ -17,7 +17,7 @@ export class UserController {
 
   static async setPassword(req: Request, res: Response, next: NextFunction) {
     try {
-      const data = Validation.validate(SetPasswordSchema, req.body);
+      const data = Validation.validate(UserValidation.SET_PASSWORD, req.body);
       const result = await UserService.setPassword(data);
       res.status(200).json({ status: 'success', message: result.message });
     } catch (error) {
@@ -27,7 +27,7 @@ export class UserController {
 
   static async resendVerification(req: Request, res: Response, next: NextFunction) {
     try {
-      const data = Validation.validate(ResendVerificationSchema, req.body);
+      const data = Validation.validate(UserValidation.RESEND_VERIFICATION, req.body);
       const result = await UserService.resendVerification(data);
       res.status(200).json({ status: 'success', message: result.message });
     } catch (error) {
@@ -41,79 +41,6 @@ export class UserController {
       res.status(200).json({ status: 'success', message: 'Profile retrieved', data: result });
     } catch (error) {
       next(error);
-    }
-  }
-
-  static async getAdminUsers(req: UserRequest, res: Response, next: NextFunction) {
-  try {
-    const users = await UserService.getAdminUsers(req.user!.id);
-
-    res.status(200).json({
-      status: 'success',
-      message: 'Users retrieved successfully',
-      data: users,
-    });
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  static async createAdminUser(req: UserRequest, res: Response, next: NextFunction) {
-  try {
-    const userId = req.user!.id;
-
-    const result = await UserService.createAdminUser(
-      userId,
-      req.body
-    );
-
-    res.status(201).json({
-      status: 'success',
-      message: 'Admin user created',
-      data: result,
-    });
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  static async updateAdminUser(req: UserRequest, res: Response, next: NextFunction) {
-  try {
-    const requesterId = req.user!.id
-    const userId = req.params.id as string
-
-    const result = await UserService.updateAdminUser(
-      requesterId,
-      userId,
-      req.body
-    )
-
-    res.status(200).json({
-      status: 'success',
-      message: 'Admin user updated',
-      data: result,
-    })
-    } catch (error) {
-      next(error)
-    }
-  }
-
-  static async deleteAdminUser(req: UserRequest, res: Response, next: NextFunction) {
-  try {
-    const requesterId = req.user!.id
-    const userId = req.params.id as string
-
-    const result = await UserService.deleteAdminUser(
-      requesterId,
-      userId
-    )
-
-    res.status(200).json({
-      status: 'success',
-      message: result.message,
-    })
-    } catch (error) {
-      next(error)
     }
   }
 }
