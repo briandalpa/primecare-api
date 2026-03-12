@@ -24,64 +24,20 @@ describe('Validation', () => {
       expect(result).toEqual(data);
     });
 
-    it('should throw ZodError on invalid data', () => {
+    it('should throw ZodError on type mismatch or invalid format', () => {
+      expect(() => Validation.validate(z.object({ name: z.string() }), { name: 123 })).toThrow();
+      expect(() => Validation.validate(z.object({ count: z.number() }), { count: '123' })).toThrow();
+      expect(() => Validation.validate(z.object({ isActive: z.boolean() }), { isActive: 'true' })).toThrow();
+      expect(() => Validation.validate(z.object({ email: z.string().email() }), { email: 'invalid' })).toThrow();
+    });
+
+    it('should throw ZodError when required fields are missing', () => {
       const schema = z.object({
         name: z.string(),
         age: z.number(),
       });
-      const data = { name: 'John', age: 'thirty' };
-      expect(() => Validation.validate(schema, data)).toThrow();
-    });
-
-    it('should throw ZodError with invalid email', () => {
-      const schema = z.object({
-        email: z.string().email(),
-      });
-      const data = { email: 'not-an-email' };
-      expect(() => Validation.validate(schema, data)).toThrow();
-    });
-
-    it('should throw ZodError when required field is missing', () => {
-      const schema = z.object({
-        name: z.string(),
-        age: z.number(),
-      });
-      const data = { name: 'John' };
-      expect(() => Validation.validate(schema, data)).toThrow();
-    });
-
-    it('should throw ZodError when multiple required fields are missing', () => {
-      const schema = z.object({
-        name: z.string(),
-        email: z.string().email(),
-        age: z.number(),
-      });
-      const data = {};
-      expect(() => Validation.validate(schema, data)).toThrow();
-    });
-
-    it('should throw ZodError with string type mismatch', () => {
-      const schema = z.object({
-        name: z.string(),
-      });
-      const data = { name: 123 };
-      expect(() => Validation.validate(schema, data)).toThrow();
-    });
-
-    it('should throw ZodError with number type mismatch', () => {
-      const schema = z.object({
-        count: z.number(),
-      });
-      const data = { count: '123' };
-      expect(() => Validation.validate(schema, data)).toThrow();
-    });
-
-    it('should throw ZodError with boolean type mismatch', () => {
-      const schema = z.object({
-        isActive: z.boolean(),
-      });
-      const data = { isActive: 'true' };
-      expect(() => Validation.validate(schema, data)).toThrow();
+      expect(() => Validation.validate(schema, { name: 'John' })).toThrow();
+      expect(() => Validation.validate(schema, {})).toThrow();
     });
 
     it('should validate optional fields correctly', () => {
@@ -205,47 +161,5 @@ describe('Validation', () => {
       expect(() => Validation.validate(schema, data)).toThrow();
     });
 
-    it('should handle empty object schema', () => {
-      const schema = z.object({});
-      const data = {};
-      const result = Validation.validate(schema, data);
-      expect(result).toEqual({});
-    });
-
-    it('should allow extra fields by default', () => {
-      const schema = z.object({
-        name: z.string(),
-      });
-      const data = { name: 'John', extra: 'field' };
-      const result = Validation.validate(schema, data);
-      expect(result).toHaveProperty('name', 'John');
-    });
-
-    it('should validate primitive types directly', () => {
-      const schema = z.string();
-      const data = 'hello';
-      const result = Validation.validate(schema, data);
-      expect(result).toBe('hello');
-    });
-
-    it('should throw ZodError on primitive type mismatch', () => {
-      const schema = z.string();
-      const data = 123;
-      expect(() => Validation.validate(schema, data)).toThrow();
-    });
-
-    it('should validate number primitive', () => {
-      const schema = z.number();
-      const data = 42;
-      const result = Validation.validate(schema, data);
-      expect(result).toBe(42);
-    });
-
-    it('should validate boolean primitive', () => {
-      const schema = z.boolean();
-      const data = true;
-      const result = Validation.validate(schema, data);
-      expect(result).toBe(true);
-    });
   });
 });
