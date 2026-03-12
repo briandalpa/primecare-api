@@ -17,13 +17,6 @@ describe('errorMiddleware', () => {
     next = jest.fn();
   });
 
-  it('should handle ResponseError with custom status', () => {
-    const error = new ResponseError(404, 'User not found');
-    errorMiddleware(error, req as Request, res as Response, next);
-    expect(res.status).toHaveBeenCalledWith(404);
-    expect(res.json).toHaveBeenCalledWith({ errors: 'User not found' });
-  });
-
   it('should handle ResponseError with 400 status', () => {
     const error = new ResponseError(400, 'Validation error');
     errorMiddleware(error, req as Request, res as Response, next);
@@ -35,24 +28,21 @@ describe('errorMiddleware', () => {
     const error = new ResponseError(401, 'Unauthorized');
     errorMiddleware(error, req as Request, res as Response, next);
     expect(res.status).toHaveBeenCalledWith(401);
-  });
-
-  it('should handle ResponseError with 403 status', () => {
-    const error = new ResponseError(403, 'Forbidden');
-    errorMiddleware(error, req as Request, res as Response, next);
-    expect(res.status).toHaveBeenCalledWith(403);
-  });
-
-  it('should handle ResponseError with 409 status', () => {
-    const error = new ResponseError(409, 'Conflict');
-    errorMiddleware(error, req as Request, res as Response, next);
-    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith({ errors: 'Unauthorized' });
   });
 
   it('should handle ResponseError with 500 status', () => {
     const error = new ResponseError(500, 'Internal Server Error');
     errorMiddleware(error, req as Request, res as Response, next);
     expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ errors: 'Internal Server Error' });
+  });
+
+  it('should handle ResponseError with 422 status', () => {
+    const error = new ResponseError(422, 'No outlet available in your area');
+    errorMiddleware(error, req as Request, res as Response, next);
+    expect(res.status).toHaveBeenCalledWith(422);
+    expect(res.json).toHaveBeenCalledWith({ errors: 'No outlet available in your area' });
   });
 
   it('should handle ZodError with 400 status', () => {
@@ -81,5 +71,6 @@ describe('errorMiddleware', () => {
     const error = { message: 'Unknown error' };
     errorMiddleware(error as any, req as Request, res as Response, next);
     expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ errors: 'Unknown error' });
   });
 });
