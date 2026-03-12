@@ -2,6 +2,9 @@ module.exports = {
   transform: {
     '^.+\\.[t|j]sx?$': 'babel-jest',
   },
+  transformIgnorePatterns: [
+    'node_modules/(?!(better-auth)/)',
+  ],
   testMatch: [
     '**/tests/**/*.test.ts',
     '**/src/**/*.test.ts',
