@@ -216,4 +216,37 @@ export class AdminService {
 
     return order;
   }
+
+  static async createAdminOrder(
+  staff: any,
+  data: {
+    pickupRequestId: string;
+    pricePerKg: number;
+    totalWeightKg: number;
+  }
+  ) {
+
+  const pickupRequest = await prisma.pickupRequest.findUnique({
+    where: { id: data.pickupRequestId }
+  });
+
+  if (!pickupRequest) {
+    throw new ResponseError(404, "Pickup request not found");
+  }
+
+  const totalPrice = data.pricePerKg * data.totalWeightKg;
+
+  const order = await prisma.order.create({
+    data: {
+      pickupRequestId: pickupRequest.id,
+      outletId: pickupRequest.outletId,
+      staffId: staff.id,
+      pricePerKg: data.pricePerKg,
+      totalWeightKg: data.totalWeightKg,
+      totalPrice,
+    },
+  });
+
+    return order;
+  }
 }
