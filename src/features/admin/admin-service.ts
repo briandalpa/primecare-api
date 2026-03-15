@@ -154,7 +154,6 @@ export class AdminService {
     }
   }
 
-  // PCS-118
   static async getAdminOrders(
     staff: any,
     page: number,
@@ -186,5 +185,35 @@ export class AdminService {
         totalPages: Math.ceil(total / limit)
       }
     }
+  }
+
+  static async getAdminOrderDetail(staff: any, orderId: string) {
+
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: {
+      pickupRequest: {
+        include: {
+          customerUser: true
+        }
+      },
+      outlet: true,
+      items: {
+        include: {
+          laundryItem: true
+        }
+      }
+    }
+  });
+
+  if (!order) {
+    throw new ResponseError(404, "Order not found");
+  }
+
+  if (staff.role === "OUTLET_ADMIN" && staff.outletId !== order.outletId) {
+    throw new ResponseError(403, "Forbidden");
+  }
+
+    return order;
   }
 }
