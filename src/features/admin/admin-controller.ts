@@ -181,16 +181,16 @@ export class AdminController {
 
     const result = await AdminService.getAdminPickupRequests(
       req.staff!
-    );
+    )
 
     res.status(200).json({
       status: "success",
       message: "Pickup requests retrieved successfully",
       data: result
-    });
+    })
 
     } catch (error) {
-      next(error);
+      next(error)
     }
   }
 }

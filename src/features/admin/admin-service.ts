@@ -92,22 +92,41 @@ const sendInviteEmail = (email: string, token: string) => {
   })
 }
 
+// ================= ORDER PRICE (PCS-124) =================
+
+const calculateOrderPrice = (
+  totalWeightKg: number,
+  pricePerKg: number
+) => {
+  return totalWeightKg * pricePerKg
+}
+
 // ================= SERVICE =================
+
 export class AdminService {
+
+  // USERS
+
   static async getAdminUsers(staff: any) {
     if (staff.role === 'SUPER_ADMIN') {
       return fetchAllUsers()
     }
+
     if (staff.role === 'OUTLET_ADMIN' && staff.outletId) {
       return fetchOutletUsers(staff.outletId)
     }
+
     throw new ResponseError(403, 'Forbidden')
   }
 
   static async createAdminUser(data: CreateAdminUserInput) {
+
     const user = await createUserAndStaff(data)
+
     const token = await createInviteToken(data.email)
+
     sendInviteEmail(data.email, token)
+
     return {
       id: user.id,
       name: user.name,
@@ -120,12 +139,15 @@ export class AdminService {
     userId: string,
     data: UpdateAdminUserInput
   ) {
+
     const staff = await prisma.staff.findUnique({
       where: { userId }
     })
+
     if (!staff) {
       throw new ResponseError(404, 'User staff not found')
     }
+
     return prisma.staff.update({
       where: { userId },
       data: {
@@ -137,22 +159,29 @@ export class AdminService {
   }
 
   static async deleteAdminUser(userId: string) {
+
     const staff = await prisma.staff.findUnique({
       where: { userId }
     })
+
     if (!staff) {
       throw new ResponseError(404, 'User staff not found')
     }
+
     await prisma.staff.delete({
       where: { userId }
     })
+
     await prisma.user.delete({
       where: { id: userId }
     })
+
     return {
       message: 'User deleted successfully'
     }
   }
+
+  // ================= PCS-118 =================
 
   static async getAdminOrders(
     staff: any,
@@ -161,10 +190,13 @@ export class AdminService {
   ) {
 
     const skip = (page - 1) * limit
+
     const where: any = {}
+
     if (staff.role === 'OUTLET_ADMIN') {
       where.outletId = staff.outletId
     }
+
     const orders = await prisma.order.findMany({
       where,
       skip,
@@ -175,7 +207,9 @@ export class AdminService {
         pickupRequest: true
       }
     })
+
     const total = await prisma.order.count({ where })
+
     return {
       data: orders,
       meta: {
@@ -187,90 +221,99 @@ export class AdminService {
     }
   }
 
+  // ================= PCS-119 =================
+
   static async getAdminOrderDetail(staff: any, orderId: string) {
 
-  const order = await prisma.order.findUnique({
-    where: { id: orderId },
-    include: {
-      pickupRequest: {
-        include: {
-          customerUser: true
-        }
-      },
-      outlet: true,
-      items: {
-        include: {
-          laundryItem: true
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        pickupRequest: {
+          include: {
+            customerUser: true
+          }
+        },
+        outlet: true,
+        items: {
+          include: {
+            laundryItem: true
+          }
         }
       }
+    })
+
+    if (!order) {
+      throw new ResponseError(404, 'Order not found')
     }
-  });
 
-  if (!order) {
-    throw new ResponseError(404, "Order not found");
+    if (staff.role === 'OUTLET_ADMIN' && staff.outletId !== order.outletId) {
+      throw new ResponseError(403, 'Forbidden')
+    }
+
+    return order
   }
 
-  if (staff.role === "OUTLET_ADMIN" && staff.outletId !== order.outletId) {
-    throw new ResponseError(403, "Forbidden");
-  }
-
-    return order;
-  }
+  // ================= PCS-122 =================
 
   static async getAdminPickupRequests(staff: any) {
 
-  const where: any = {
-    status: "PICKED_UP",
-    order: null
-  };
-
-  if (staff.role === "OUTLET_ADMIN") {
-    where.outletId = staff.outletId;
-  }
-
-  const pickups = await prisma.pickupRequest.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-    include: {
-      customerUser: true,
-      address: true,
-      outlet: true
+    const where: any = {
+      status: 'PICKED_UP',
+      order: null
     }
-  });
 
-  return pickups;
+    if (staff.role === 'OUTLET_ADMIN') {
+      where.outletId = staff.outletId
+    }
+
+    const pickups = await prisma.pickupRequest.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        customerUser: true,
+        outlet: true,
+        address: true
+      }
+    })
+
+    return pickups
   }
+
+  // ================= PCS-123 =================
 
   static async createAdminOrder(
-  staff: any,
-  data: {
-    pickupRequestId: string;
-    pricePerKg: number;
-    totalWeightKg: number;
-  }
+    staff: any,
+    data: {
+      pickupRequestId: string
+      pricePerKg: number
+      totalWeightKg: number
+    }
   ) {
 
-  const pickupRequest = await prisma.pickupRequest.findUnique({
-    where: { id: data.pickupRequestId }
-  });
+    const pickupRequest = await prisma.pickupRequest.findUnique({
+      where: { id: data.pickupRequestId }
+    })
 
-  if (!pickupRequest) {
-    throw new ResponseError(404, "Pickup request not found");
-  }
+    if (!pickupRequest) {
+      throw new ResponseError(404, 'Pickup request not found')
+    }
 
-  const totalPrice = data.pricePerKg * data.totalWeightKg;
+    const totalPrice = calculateOrderPrice(
+      data.totalWeightKg,
+      data.pricePerKg
+    )
 
-  const order = await prisma.order.create({
-    data: {
-      pickupRequestId: pickupRequest.id,
-      outletId: pickupRequest.outletId,
-      staffId: staff.id,
-      pricePerKg: data.pricePerKg,
-      totalWeightKg: data.totalWeightKg,
-      totalPrice,
-    },
-  });
+    const order = await prisma.order.create({
+      data: {
+        pickupRequestId: pickupRequest.id,
+        outletId: pickupRequest.outletId,
+        staffId: staff.id,
+        pricePerKg: data.pricePerKg,
+        totalWeightKg: data.totalWeightKg,
+        totalPrice
+      }
+    })
 
-    return order;
+    return order
   }
 }
