@@ -217,6 +217,30 @@ export class AdminService {
     return order;
   }
 
+  static async getAdminPickupRequests(staff: any) {
+
+  const where: any = {
+    status: "PICKED_UP",
+    order: null
+  };
+
+  if (staff.role === "OUTLET_ADMIN") {
+    where.outletId = staff.outletId;
+  }
+
+  const pickups = await prisma.pickupRequest.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    include: {
+      customerUser: true,
+      address: true,
+      outlet: true
+    }
+  });
+
+  return pickups;
+  }
+
   static async createAdminOrder(
   staff: any,
   data: {
