@@ -146,8 +146,29 @@ export class AdminController {
       data: result
     });
 
-  } catch (error) {
-    next(error);
+    } catch (error) {
+      next(error);
+    }
   }
-}
+
+  static async createAdminOrder(
+  req: UserRequest,
+  res: Response,
+  next: NextFunction
+  ) {
+  try {
+    const result = await AdminService.createAdminOrder(
+      req.staff!,
+      req.body
+    );
+
+    res.status(201).json({
+      status: "success",
+      message: "Order created successfully",
+      data: result,
+    });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
