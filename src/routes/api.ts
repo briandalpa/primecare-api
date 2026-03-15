@@ -19,6 +19,9 @@ apiRouter.get('/admin/orders', requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'), 
 // Admin - Get order detail (PCS-119)
 apiRouter.get('/admin/orders/:id', requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'), AdminController.getAdminOrderDetail);
 
+// Admin - Create order (PCS-123)
+apiRouter.post("/admin/orders", requireStaffRole("SUPER_ADMIN", "OUTLET_ADMIN"), AdminController.createAdminOrder);
+
 // Admin - Create user (SUPER_ADMIN only)
 apiRouter.post('/admin/users', requireStaffRole('SUPER_ADMIN'), AdminController.createAdminUser);
 
