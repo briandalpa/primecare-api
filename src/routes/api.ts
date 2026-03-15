@@ -19,6 +19,9 @@ apiRouter.get('/admin/orders', requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'), 
 // Admin - Get order detail (PCS-119)
 apiRouter.get('/admin/orders/:id', requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'), AdminController.getAdminOrderDetail);
 
+// Admin - Get pickup requests awaiting order creation (PCS-122)
+apiRouter.get("/admin/pickup-requests", requireStaffRole("SUPER_ADMIN", "OUTLET_ADMIN"), AdminController.getAdminPickupRequests);
+
 // Admin - Create order (PCS-123)
 apiRouter.post("/admin/orders", requireStaffRole("SUPER_ADMIN", "OUTLET_ADMIN"), AdminController.createAdminOrder);
 
@@ -30,3 +33,4 @@ apiRouter.patch('/admin/users/:id', requireStaffRole('SUPER_ADMIN'), AdminContro
 
 // Admin - Delete user (SUPER_ADMIN only)
 apiRouter.delete('/admin/users/:id', requireStaffRole('SUPER_ADMIN'), AdminController.deleteAdminUser);
+
