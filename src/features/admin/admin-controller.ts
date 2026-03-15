@@ -102,8 +102,6 @@ export class AdminController {
     }
   }
 
-  // PCS-118
-
   static async getAdminOrders(
     req: UserRequest,
     res: Response,
@@ -132,4 +130,24 @@ export class AdminController {
     }
   }
 
+ static async getAdminOrderDetail(req: UserRequest, res: Response, next: NextFunction) {
+  try {
+
+    const orderId = req.params.id as string;
+
+    const result = await AdminService.getAdminOrderDetail(
+      req.staff!,
+      orderId
+    );
+
+    res.status(200).json({
+      status: "success",
+      message: "Order retrieved successfully",
+      data: result
+    });
+
+  } catch (error) {
+    next(error);
+  }
+}
 }
