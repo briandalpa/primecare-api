@@ -258,7 +258,7 @@ export class AdminService {
   static async getAdminPickupRequests(staff: any) {
 
     const where: any = {
-      status: 'PICKED_UP',
+      status: 'DRIVER_ASSIGNED',
       order: null
     }
 
