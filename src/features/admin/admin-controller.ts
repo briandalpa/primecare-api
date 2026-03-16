@@ -1,5 +1,5 @@
-import { Validation } from '@/validations/validation'
 import { AdminValidation } from '@/validations/admin-validation'
+import { Validation } from '@/validations/validation'
 import { NextFunction, Response } from 'express'
 import { UserRequest } from '@/types/user-request'
 import { AdminService } from './admin-service'
@@ -13,12 +13,19 @@ export class AdminController {
   ) {
     try {
 
-      const users = await AdminService.getAdminUsers(req.staff!)
+      const result = await AdminService.getAdminUsers(req.staff!, {
+        page: Number(req.query.page) || 1,
+        limit: Number(req.query.limit) || 10,
+        role: req.query.role as string | undefined,
+        sortBy: req.query.sortBy as string | undefined,
+        sortOrder: (req.query.sortOrder as 'asc' | 'desc') || undefined,
+      })
 
       res.status(200).json({
         status: 'success',
         message: 'Users retrieved successfully',
-        data: users
+        data: result.data,
+        meta: result.meta
       })
 
     } catch (error) {
@@ -109,14 +116,16 @@ export class AdminController {
   ) {
     try {
 
-      const page = Number(req.query.page) || 1
-      const limit = Number(req.query.limit) || 10
-
-      const result = await AdminService.getAdminOrders(
-        req.staff!,
-        page,
-        limit
-      )
+      const result = await AdminService.getAdminOrders(req.staff!, {
+        page: Number(req.query.page) || 1,
+        limit: Number(req.query.limit) || 10,
+        status: req.query.status as string | undefined,
+        outletId: req.query.outletId as string | undefined,
+        dateFrom: req.query.dateFrom as string | undefined,
+        dateTo: req.query.dateTo as string | undefined,
+        sortBy: req.query.sortBy as string | undefined,
+        sortOrder: (req.query.sortOrder as 'asc' | 'desc') || undefined,
+      })
 
       res.status(200).json({
         status: 'success',
@@ -130,64 +139,75 @@ export class AdminController {
     }
   }
 
- static async getAdminOrderDetail(req: UserRequest, res: Response, next: NextFunction) {
-  try {
+  static async getAdminOrderDetail(
+    req: UserRequest,
+    res: Response,
+    next: NextFunction
+  ) {
+    try {
 
-    const orderId = req.params.id as string;
+      const orderId = req.params.id as string
 
-    const result = await AdminService.getAdminOrderDetail(
-      req.staff!,
-      orderId
-    );
+      const result = await AdminService.getAdminOrderDetail(
+        req.staff!,
+        orderId
+      )
 
-    res.status(200).json({
-      status: "success",
-      message: "Order retrieved successfully",
-      data: result
-    });
+      res.status(200).json({
+        status: 'success',
+        message: 'Order retrieved successfully',
+        data: result
+      })
 
     } catch (error) {
-      next(error);
+      next(error)
     }
   }
 
   static async createAdminOrder(
-  req: UserRequest,
-  res: Response,
-  next: NextFunction
+    req: UserRequest,
+    res: Response,
+    next: NextFunction
   ) {
-  try {
-    const result = await AdminService.createAdminOrder(
-      req.staff!,
-      req.body
-    );
+    try {
 
-    res.status(201).json({
-      status: "success",
-      message: "Order created successfully",
-      data: result,
-    });
+      const data = Validation.validate(AdminValidation.CREATE_ORDER, req.body)
+
+      const result = await AdminService.createAdminOrder(req.staff!, data)
+
+      res.status(201).json({
+        status: 'success',
+        message: 'Order created successfully',
+        data: result
+      })
+
     } catch (error) {
-      next(error);
+      next(error)
     }
   }
 
   static async getAdminPickupRequests(
-  req: UserRequest,
-  res: Response,
-  next: NextFunction
+    req: UserRequest,
+    res: Response,
+    next: NextFunction
   ) {
-  try {
+    try {
 
-    const result = await AdminService.getAdminPickupRequests(
-      req.staff!
-    )
+      const page = Number(req.query.page) || 1
+      const limit = Number(req.query.limit) || 10
 
-    res.status(200).json({
-      status: "success",
-      message: "Pickup requests retrieved successfully",
-      data: result
-    })
+      const result = await AdminService.getAdminPickupRequests(
+        req.staff!,
+        page,
+        limit
+      )
+
+      res.status(200).json({
+        status: 'success',
+        message: 'Pickup requests retrieved successfully',
+        data: result.data,
+        meta: result.meta
+      })
 
     } catch (error) {
       next(error)

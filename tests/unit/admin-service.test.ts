@@ -1,8 +1,8 @@
 jest.mock('@/application/database', () => ({
   prisma: {
-    user: { findUnique: jest.fn(), create: jest.fn(), delete: jest.fn(), findMany: jest.fn() },
+    user: { findUnique: jest.fn(), create: jest.fn(), delete: jest.fn(), findMany: jest.fn(), count: jest.fn() },
     staff: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn(), findMany: jest.fn() },
-    verification: { create: jest.fn() },
+    verification: { create: jest.fn(), deleteMany: jest.fn() },
   },
 }));
 
@@ -14,6 +14,8 @@ import { AdminService } from '@/features/admin/admin-service';
 import { prisma } from '@/application/database';
 import { sendEmail } from '@/utils/mailer';
 
+const defaultQuery = { page: 1, limit: 10 };
+
 describe('AdminService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -22,39 +24,42 @@ describe('AdminService', () => {
   describe('getAdminUsers', () => {
     it('should return all users for SUPER_ADMIN with correct structure', async () => {
       const mockUsers = [
-        { id: 'user-1', name: 'Alice', email: 'alice@example.com', emailVerified: false, createdAt: new Date(), staff: { role: 'OUTLET_ADMIN' } },
-        { id: 'user-2', name: 'Bob', email: 'bob@example.com', emailVerified: false, createdAt: new Date(), staff: { role: 'WORKER' } },
+        { id: 'user-1', name: 'Alice', email: 'alice@example.com', emailVerified: false, createdAt: new Date(), staff: { role: 'OUTLET_ADMIN', outletId: null, isActive: true, workerType: null } },
+        { id: 'user-2', name: 'Bob', email: 'bob@example.com', emailVerified: false, createdAt: new Date(), staff: { role: 'WORKER', outletId: 'outlet-1', isActive: true, workerType: 'WASHING' } },
       ];
       (prisma.user.findMany as jest.Mock).mockResolvedValue(mockUsers);
+      (prisma.user.count as jest.Mock).mockResolvedValue(2);
 
-      const result = await AdminService.getAdminUsers({ role: 'SUPER_ADMIN', outletId: null });
-      expect(result).toHaveLength(2);
-      expect(result[0]).toHaveProperty('id');
-      expect(result[0]).toHaveProperty('name');
-      expect(result[0]).toHaveProperty('email');
-      expect(result[0]).toHaveProperty('role');
+      const result = await AdminService.getAdminUsers({ role: 'SUPER_ADMIN', outletId: null }, defaultQuery);
+      expect(result.data).toHaveLength(2);
+      expect(result.data[0]).toHaveProperty('id');
+      expect(result.data[0]).toHaveProperty('name');
+      expect(result.data[0]).toHaveProperty('email');
+      expect(result.data[0]).toHaveProperty('role');
+      expect(result.meta).toHaveProperty('total', 2);
     });
 
     it('should return only outlet users for OUTLET_ADMIN', async () => {
-      const mockUsers = [{ id: 'user-1', name: 'Charlie', email: 'charlie@example.com', staff: { id: 'staff-1', role: 'WORKER', outletId: 'outlet-1' } }];
+      const mockUsers = [{ id: 'user-1', name: 'Charlie', email: 'charlie@example.com', emailVerified: false, createdAt: new Date(), staff: { role: 'WORKER', outletId: 'outlet-1', isActive: true, workerType: 'IRONING' } }];
       (prisma.user.findMany as jest.Mock).mockResolvedValue(mockUsers);
+      (prisma.user.count as jest.Mock).mockResolvedValue(1);
 
-      const result = await AdminService.getAdminUsers({ role: 'OUTLET_ADMIN', outletId: 'outlet-1' });
-      expect(result).toHaveLength(1);
-      expect(result[0].id).toBe('user-1');
-      expect(result[0].email).toBe('charlie@example.com');
+      const result = await AdminService.getAdminUsers({ role: 'OUTLET_ADMIN', outletId: 'outlet-1' }, defaultQuery);
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0]!.id).toBe('user-1');
+      expect(result.data[0]!.email).toBe('charlie@example.com');
     });
 
     it('should throw 403 for WORKER role', async () => {
       const mockStaff = { role: 'WORKER' as const, outletId: null };
 
-      await expect(AdminService.getAdminUsers(mockStaff)).rejects.toMatchObject({ status: 403 });
+      await expect(AdminService.getAdminUsers(mockStaff, defaultQuery)).rejects.toMatchObject({ status: 403 });
     });
 
     it('should throw 403 for DRIVER role', async () => {
       const mockStaff = { role: 'DRIVER' as const, outletId: null };
 
-      await expect(AdminService.getAdminUsers(mockStaff)).rejects.toMatchObject({ status: 403 });
+      await expect(AdminService.getAdminUsers(mockStaff, defaultQuery)).rejects.toMatchObject({ status: 403 });
     });
   });
 
@@ -71,6 +76,7 @@ describe('AdminService', () => {
         userId: 'user-new',
         role: 'OUTLET_ADMIN',
       });
+      (prisma.verification.deleteMany as jest.Mock).mockResolvedValue({ count: 0 });
       (prisma.verification.create as jest.Mock).mockResolvedValue({ token: 'invite-token' });
       (sendEmail as jest.Mock).mockResolvedValue(true);
 
@@ -98,7 +104,7 @@ describe('AdminService', () => {
       ).rejects.toMatchObject({ status: 409 });
     });
 
-    it('should create DRIVER without outletId', async () => {
+    it('should create DRIVER with outletId', async () => {
       (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
       (prisma.user.create as jest.Mock).mockResolvedValue({
         id: 'user-driver',
@@ -109,8 +115,9 @@ describe('AdminService', () => {
         id: 'staff-driver',
         userId: 'user-driver',
         role: 'DRIVER',
-        outletId: null,
+        outletId: 'outlet-1',
       });
+      (prisma.verification.deleteMany as jest.Mock).mockResolvedValue({ count: 0 });
       (prisma.verification.create as jest.Mock).mockResolvedValue({ token: 'token' });
       (sendEmail as jest.Mock).mockResolvedValue(true);
 
@@ -118,10 +125,11 @@ describe('AdminService', () => {
         name: 'David',
         email: 'david@example.com',
         role: 'DRIVER',
+        outletId: 'outlet-1',
       });
 
       expect(result.role).toBe('DRIVER');
-      expect(prisma.staff.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ outletId: null }) }));
+      expect(prisma.staff.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ outletId: 'outlet-1' }) }));
     });
   });
 
@@ -133,6 +141,7 @@ describe('AdminService', () => {
         role: 'WORKER',
         outletId: 'outlet-1',
         isActive: true,
+        workerType: null,
       });
       (prisma.staff.update as jest.Mock).mockResolvedValue({
         id: 'staff-1',
@@ -159,6 +168,7 @@ describe('AdminService', () => {
         role: 'WORKER',
         outletId: null,
         isActive: true,
+        workerType: null,
       });
       (prisma.staff.update as jest.Mock).mockResolvedValue({
         id: 'staff-1',
@@ -179,6 +189,7 @@ describe('AdminService', () => {
         role: 'WORKER',
         outletId: 'outlet-1',
         isActive: true,
+        workerType: 'WASHING',
       });
       (prisma.staff.update as jest.Mock).mockResolvedValue({
         id: 'staff-1',
