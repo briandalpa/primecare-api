@@ -7,9 +7,9 @@ jest.mock('better-auth/node', () => ({
 
 jest.mock('@/application/database', () => ({
   prisma: {
-    user: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn(), findMany: jest.fn() },
+    user: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn(), findMany: jest.fn(), count: jest.fn() },
     staff: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn(), findMany: jest.fn() },
-    verification: { create: jest.fn() },
+    verification: { create: jest.fn(), deleteMany: jest.fn() },
   },
 }));
 
@@ -28,6 +28,8 @@ import { app } from '@/application/app';
 import { prisma } from '@/application/database';
 import { sendEmail } from '@/utils/mailer';
 import { auth } from '@/utils/auth';
+
+const VALID_UUID = '123e4567-e89b-12d3-a456-426614174000';
 
 describe('Admin Routes Integration Tests', () => {
   beforeEach(() => {
@@ -61,17 +63,16 @@ describe('Admin Routes Integration Tests', () => {
       (auth.api.getSession as unknown as jest.Mock).mockResolvedValue({ user: mockUser, session: 'token' });
       (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
       (prisma.staff.findUnique as jest.Mock).mockResolvedValue(mockStaff);
-      (prisma.staff.findMany as jest.Mock).mockResolvedValue([
-        { id: 'staff-2', userId: 'user-2', role: 'OUTLET_ADMIN' },
-      ]);
       (prisma.user.findMany as jest.Mock).mockResolvedValue([
-        { id: 'user-2', name: 'Alice', email: 'alice@example.com' },
+        { id: 'user-2', name: 'Alice', email: 'alice@example.com', emailVerified: true, createdAt: new Date(), staff: { role: 'OUTLET_ADMIN', outletId: null, isActive: true, workerType: null } },
       ]);
+      (prisma.user.count as jest.Mock).mockResolvedValue(1);
 
       const response = await request(app).get('/api/v1/admin/users');
 
       expect(response.status).toBe(200);
       expect(Array.isArray(response.body.data)).toBe(true);
+      expect(response.body.meta).toHaveProperty('total');
     });
   });
 
@@ -95,18 +96,18 @@ describe('Admin Routes Integration Tests', () => {
 
       const response = await request(app)
         .post('/api/v1/admin/users')
-        .send({ name: 'Charlie', email: 'charlie@example.com', role: 'WORKER' });
+        .send({ name: 'Charlie', email: 'charlie@example.com', role: 'OUTLET_ADMIN' });
 
       expect(response.status).toBe(403);
     });
 
-    it('should create admin user for SUPER_ADMIN', async () => {
+    it('should create OUTLET_ADMIN for SUPER_ADMIN', async () => {
       const mockUser = { id: 'user-1', name: 'John', email: 'john@example.com' };
       const mockStaff = { id: 'staff-1', role: 'SUPER_ADMIN', isActive: true };
       (auth.api.getSession as unknown as jest.Mock).mockResolvedValue({ user: mockUser, session: 'token' });
-      (prisma.user.findUnique as jest.Mock).mockResolvedValueOnce(mockUser);
-      (prisma.staff.findUnique as jest.Mock).mockResolvedValueOnce(mockStaff);
-      (prisma.user.findUnique as jest.Mock).mockResolvedValueOnce(null);
+      (prisma.user.findUnique as jest.Mock).mockResolvedValueOnce(mockUser);   // auth middleware
+      (prisma.staff.findUnique as jest.Mock).mockResolvedValueOnce(mockStaff); // auth middleware
+      (prisma.user.findUnique as jest.Mock).mockResolvedValueOnce(null);       // email uniqueness check
       (prisma.user.create as jest.Mock).mockResolvedValue({
         id: 'user-new',
         name: 'Charlie',
@@ -115,20 +116,41 @@ describe('Admin Routes Integration Tests', () => {
       (prisma.staff.create as jest.Mock).mockResolvedValue({
         id: 'staff-new',
         userId: 'user-new',
-        role: 'WORKER',
+        role: 'OUTLET_ADMIN',
       });
+      (prisma.verification.deleteMany as jest.Mock).mockResolvedValue({ count: 0 });
       (prisma.verification.create as jest.Mock).mockResolvedValue({ token: 'invite-token' });
       (sendEmail as jest.Mock).mockResolvedValue(true);
 
       const response = await request(app)
         .post('/api/v1/admin/users')
-        .send({ name: 'Charlie', email: 'charlie@example.com', role: 'WORKER' });
+        .send({ name: 'Charlie', email: 'charlie@example.com', role: 'OUTLET_ADMIN' });
 
       expect(response.status).toBe(201);
       expect(response.body.data).toHaveProperty('id');
     });
 
-    it('should return 400 for invalid input', async () => {
+    it('should create WORKER with outletId and workerType', async () => {
+      const mockUser = { id: 'user-1', name: 'John', email: 'john@example.com' };
+      const mockStaff = { id: 'staff-1', role: 'SUPER_ADMIN', isActive: true };
+      (auth.api.getSession as unknown as jest.Mock).mockResolvedValue({ user: mockUser, session: 'token' });
+      (prisma.user.findUnique as jest.Mock).mockResolvedValueOnce(mockUser);   // auth middleware
+      (prisma.staff.findUnique as jest.Mock).mockResolvedValueOnce(mockStaff); // auth middleware
+      (prisma.user.findUnique as jest.Mock).mockResolvedValueOnce(null);       // email uniqueness check
+      (prisma.user.create as jest.Mock).mockResolvedValue({ id: 'user-w', name: 'Worker', email: 'worker@example.com' });
+      (prisma.staff.create as jest.Mock).mockResolvedValue({ id: 'staff-w', role: 'WORKER' });
+      (prisma.verification.deleteMany as jest.Mock).mockResolvedValue({ count: 0 });
+      (prisma.verification.create as jest.Mock).mockResolvedValue({ token: 'token' });
+      (sendEmail as jest.Mock).mockResolvedValue(true);
+
+      const response = await request(app)
+        .post('/api/v1/admin/users')
+        .send({ name: 'Worker', email: 'worker@example.com', role: 'WORKER', outletId: VALID_UUID, workerType: 'WASHING' });
+
+      expect(response.status).toBe(201);
+    });
+
+    it('should return 400 for invalid input (empty name)', async () => {
       const mockUser = { id: 'user-1', name: 'John', email: 'john@example.com' };
       const mockStaff = { id: 'staff-1', role: 'SUPER_ADMIN', isActive: true };
       (auth.api.getSession as unknown as jest.Mock).mockResolvedValue({ user: mockUser, session: 'token' });
@@ -137,7 +159,21 @@ describe('Admin Routes Integration Tests', () => {
 
       const response = await request(app)
         .post('/api/v1/admin/users')
-        .send({ name: '', email: 'charlie@example.com', role: 'WORKER' });
+        .send({ name: '', email: 'charlie@example.com', role: 'OUTLET_ADMIN' });
+
+      expect(response.status).toBe(400);
+    });
+
+    it('should return 400 for WORKER without outletId or workerType', async () => {
+      const mockUser = { id: 'user-1', name: 'John', email: 'john@example.com' };
+      const mockStaff = { id: 'staff-1', role: 'SUPER_ADMIN', isActive: true };
+      (auth.api.getSession as unknown as jest.Mock).mockResolvedValue({ user: mockUser, session: 'token' });
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
+      (prisma.staff.findUnique as jest.Mock).mockResolvedValue(mockStaff);
+
+      const response = await request(app)
+        .post('/api/v1/admin/users')
+        .send({ name: 'Worker', email: 'worker@example.com', role: 'WORKER' });
 
       expect(response.status).toBe(400);
     });
@@ -146,8 +182,9 @@ describe('Admin Routes Integration Tests', () => {
       const mockUser = { id: 'user-1' };
       const mockStaff = { id: 'staff-1', role: 'SUPER_ADMIN', isActive: true };
       (auth.api.getSession as unknown as jest.Mock).mockResolvedValue({ user: mockUser });
-      (prisma.staff.findUnique as jest.Mock).mockResolvedValue(mockStaff);
-      (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+      (prisma.user.findUnique as jest.Mock).mockResolvedValueOnce(mockUser);   // auth middleware
+      (prisma.staff.findUnique as jest.Mock).mockResolvedValueOnce(mockStaff); // auth middleware
+      (prisma.user.findUnique as jest.Mock).mockResolvedValueOnce({            // email uniqueness check
         id: 'existing-user',
         email: 'charlie@example.com',
       });
@@ -157,7 +194,7 @@ describe('Admin Routes Integration Tests', () => {
         .send({
           name: 'Charlie',
           email: 'charlie@example.com',
-          role: 'WORKER',
+          role: 'OUTLET_ADMIN',
         });
 
       expect(response.status).toBe(409);
@@ -189,6 +226,9 @@ describe('Admin Routes Integration Tests', () => {
         id: 'staff-2',
         userId: 'user-2',
         role: 'WORKER',
+        outletId: null,
+        isActive: true,
+        workerType: 'WASHING',
       });
       (prisma.staff.update as jest.Mock).mockResolvedValue({
         id: 'staff-2',

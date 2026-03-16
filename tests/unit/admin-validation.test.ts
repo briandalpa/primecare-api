@@ -1,9 +1,11 @@
 import { AdminValidation } from '@/validations/admin-validation';
 import { Validation } from '@/validations/validation';
 
+const VALID_UUID = '123e4567-e89b-12d3-a456-426614174000';
+
 describe('AdminValidation', () => {
   describe('CREATE schema', () => {
-    it('should accept valid create input with all required fields', () => {
+    it('should accept OUTLET_ADMIN without outletId', () => {
       const data = {
         name: 'John Admin',
         email: 'admin@example.com',
@@ -13,33 +15,67 @@ describe('AdminValidation', () => {
       expect(result).toEqual(data);
     });
 
-    it('should accept valid create input with different valid roles (OUTLET_ADMIN, WORKER, DRIVER)', () => {
-      const validRoles = ['OUTLET_ADMIN', 'WORKER', 'DRIVER'];
-      validRoles.forEach((role) => {
-        const data = {
-          name: 'Test Admin',
-          email: 'test@example.com',
-          role,
-        };
-        const result = Validation.validate(AdminValidation.CREATE, data);
-        expect(result).toEqual(data);
-      });
+    it('should accept OUTLET_ADMIN with outletId', () => {
+      const data = {
+        name: 'John Admin',
+        email: 'admin@example.com',
+        role: 'OUTLET_ADMIN',
+        outletId: VALID_UUID,
+      };
+      const result = Validation.validate(AdminValidation.CREATE, data);
+      expect(result).toEqual(data);
     });
 
-    it('should accept valid create input with or without optional outletId', () => {
-      const dataWithOutletId = {
-        name: 'Alice Admin',
-        email: 'alice@example.com',
-        role: 'OUTLET_ADMIN',
-        outletId: 'outlet-123',
+    it('should accept WORKER with outletId and workerType', () => {
+      const data = {
+        name: 'Worker Jane',
+        email: 'worker@example.com',
+        role: 'WORKER',
+        outletId: VALID_UUID,
+        workerType: 'WASHING',
       };
-      const dataWithoutOutletId = {
-        name: 'Bob Admin',
-        email: 'bob@example.com',
-        role: 'OUTLET_ADMIN',
+      const result = Validation.validate(AdminValidation.CREATE, data);
+      expect(result).toEqual(data);
+    });
+
+    it('should accept DRIVER with outletId', () => {
+      const data = {
+        name: 'Driver Dave',
+        email: 'driver@example.com',
+        role: 'DRIVER',
+        outletId: VALID_UUID,
       };
-      expect(Validation.validate(AdminValidation.CREATE, dataWithOutletId)).toEqual(dataWithOutletId);
-      expect(Validation.validate(AdminValidation.CREATE, dataWithoutOutletId)).toEqual(dataWithoutOutletId);
+      const result = Validation.validate(AdminValidation.CREATE, data);
+      expect(result).toEqual(data);
+    });
+
+    it('should reject WORKER without outletId', () => {
+      const data = {
+        name: 'Worker Jane',
+        email: 'worker@example.com',
+        role: 'WORKER',
+        workerType: 'WASHING',
+      };
+      expect(() => Validation.validate(AdminValidation.CREATE, data)).toThrow();
+    });
+
+    it('should reject WORKER without workerType', () => {
+      const data = {
+        name: 'Worker Jane',
+        email: 'worker@example.com',
+        role: 'WORKER',
+        outletId: VALID_UUID,
+      };
+      expect(() => Validation.validate(AdminValidation.CREATE, data)).toThrow();
+    });
+
+    it('should reject DRIVER without outletId', () => {
+      const data = {
+        name: 'Driver Dave',
+        email: 'driver@example.com',
+        role: 'DRIVER',
+      };
+      expect(() => Validation.validate(AdminValidation.CREATE, data)).toThrow();
     });
 
     it('should reject empty name', () => {
@@ -135,12 +171,13 @@ describe('AdminValidation', () => {
     it('should accept valid update with any optional field combination', () => {
       const testCases = [
         { role: 'WORKER' },
-        { outletId: 'outlet-456' },
+        { outletId: VALID_UUID },
         { isActive: true },
-        { role: 'OUTLET_ADMIN', outletId: 'outlet-789' },
+        { role: 'OUTLET_ADMIN', outletId: VALID_UUID },
         { role: 'DRIVER', isActive: false },
-        { outletId: 'outlet-111', isActive: true },
-        { role: 'OUTLET_ADMIN', outletId: 'outlet-222', isActive: true },
+        { outletId: VALID_UUID, isActive: true },
+        { role: 'OUTLET_ADMIN', outletId: VALID_UUID, isActive: true },
+        { workerType: 'IRONING' },
         {},
       ];
       testCases.forEach((data) => {
@@ -161,6 +198,10 @@ describe('AdminValidation', () => {
         isActive: 'true',
       };
       expect(() => Validation.validate(AdminValidation.UPDATE, data)).toThrow();
+    });
+
+    it('should reject invalid workerType', () => {
+      expect(() => Validation.validate(AdminValidation.UPDATE, { workerType: 'INVALID' })).toThrow();
     });
   });
 });
