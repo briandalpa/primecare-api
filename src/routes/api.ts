@@ -1,36 +1,19 @@
-// Protected Routes (Authentication Required)
-
 import express from 'express';
 import { requireAuth, requireStaffRole } from '@/middleware/auth-middleware';
 import { UserController } from '@/features/users/user-controller';
-import { AdminController } from '@/features/admin/admin-controller';
+import { AdminUserController } from '@/features/admin-users/admin-user-controller';
+import { AdminOrderController } from '@/features/admin-orders/admin-order-controller';
 
 export const apiRouter = express.Router();
 
-// Get current user profile
 apiRouter.get('/users/me', requireAuth, UserController.getMe);
 
-// Admin - Get users (SUPER_ADMIN & OUTLET_ADMIN)
-apiRouter.get('/admin/users', requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'), AdminController.getAdminUsers);
-
-// Admin - Get orders (PCS-118)
-apiRouter.get('/admin/orders', requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'), AdminController.getAdminOrders);
-
-// Admin - Get order detail (PCS-119)
-apiRouter.get('/admin/orders/:id', requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'), AdminController.getAdminOrderDetail);
-
-// Admin - Get pickup requests awaiting order creation (PCS-122)
-apiRouter.get("/admin/pickup-requests", requireStaffRole("SUPER_ADMIN", "OUTLET_ADMIN"), AdminController.getAdminPickupRequests);
-
-// Admin - Create order (PCS-123)
-apiRouter.post("/admin/orders", requireStaffRole("SUPER_ADMIN", "OUTLET_ADMIN"), AdminController.createAdminOrder);
-
-// Admin - Create user (SUPER_ADMIN only)
-apiRouter.post('/admin/users', requireStaffRole('SUPER_ADMIN'), AdminController.createAdminUser);
-
-// Admin - Update user (SUPER_ADMIN only)
-apiRouter.patch('/admin/users/:id', requireStaffRole('SUPER_ADMIN'), AdminController.updateAdminUser);
-
-// Admin - Delete user (SUPER_ADMIN only)
-apiRouter.delete('/admin/users/:id', requireStaffRole('SUPER_ADMIN'), AdminController.deleteAdminUser);
+apiRouter.get('/admin/users', requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'), AdminUserController.getAdminUsers);
+apiRouter.get('/admin/orders', requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'), AdminOrderController.getAdminOrders);
+apiRouter.get('/admin/orders/:id', requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'), AdminOrderController.getAdminOrderDetail);
+apiRouter.get('/admin/pickup-requests', requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'), AdminOrderController.getAdminPickupRequests);
+apiRouter.post('/admin/orders', requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'), AdminOrderController.createAdminOrder);
+apiRouter.post('/admin/users', requireStaffRole('SUPER_ADMIN'), AdminUserController.createAdminUser);
+apiRouter.patch('/admin/users/:id', requireStaffRole('SUPER_ADMIN'), AdminUserController.updateAdminUser);
+apiRouter.delete('/admin/users/:id', requireStaffRole('SUPER_ADMIN'), AdminUserController.deleteAdminUser);
 
