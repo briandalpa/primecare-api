@@ -10,13 +10,13 @@ jest.mock('@/utils/mailer', () => ({
   sendEmail: jest.fn().mockResolvedValue(true),
 }));
 
-import { AdminService } from '@/features/admin/admin-service';
+import { AdminUserService } from '@/features/admin-users/admin-user-service';
 import { prisma } from '@/application/database';
 import { sendEmail } from '@/utils/mailer';
 
 const defaultQuery = { page: 1, limit: 10 };
 
-describe('AdminService', () => {
+describe('AdminUserService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -30,7 +30,7 @@ describe('AdminService', () => {
       (prisma.user.findMany as jest.Mock).mockResolvedValue(mockUsers);
       (prisma.user.count as jest.Mock).mockResolvedValue(2);
 
-      const result = await AdminService.getAdminUsers({ role: 'SUPER_ADMIN', outletId: null }, defaultQuery);
+      const result = await AdminUserService.getAdminUsers({ role: 'SUPER_ADMIN', outletId: null }, defaultQuery);
       expect(result.data).toHaveLength(2);
       expect(result.data[0]).toHaveProperty('id');
       expect(result.data[0]).toHaveProperty('name');
@@ -44,7 +44,7 @@ describe('AdminService', () => {
       (prisma.user.findMany as jest.Mock).mockResolvedValue(mockUsers);
       (prisma.user.count as jest.Mock).mockResolvedValue(1);
 
-      const result = await AdminService.getAdminUsers({ role: 'OUTLET_ADMIN', outletId: 'outlet-1' }, defaultQuery);
+      const result = await AdminUserService.getAdminUsers({ role: 'OUTLET_ADMIN', outletId: 'outlet-1' }, defaultQuery);
       expect(result.data).toHaveLength(1);
       expect(result.data[0]!.id).toBe('user-1');
       expect(result.data[0]!.email).toBe('charlie@example.com');
@@ -53,13 +53,13 @@ describe('AdminService', () => {
     it('should throw 403 for WORKER role', async () => {
       const mockStaff = { role: 'WORKER' as const, outletId: null };
 
-      await expect(AdminService.getAdminUsers(mockStaff, defaultQuery)).rejects.toMatchObject({ status: 403 });
+      await expect(AdminUserService.getAdminUsers(mockStaff, defaultQuery)).rejects.toMatchObject({ status: 403 });
     });
 
     it('should throw 403 for DRIVER role', async () => {
       const mockStaff = { role: 'DRIVER' as const, outletId: null };
 
-      await expect(AdminService.getAdminUsers(mockStaff, defaultQuery)).rejects.toMatchObject({ status: 403 });
+      await expect(AdminUserService.getAdminUsers(mockStaff, defaultQuery)).rejects.toMatchObject({ status: 403 });
     });
   });
 
@@ -80,7 +80,7 @@ describe('AdminService', () => {
       (prisma.verification.create as jest.Mock).mockResolvedValue({ token: 'invite-token' });
       (sendEmail as jest.Mock).mockResolvedValue(true);
 
-      const result = await AdminService.createAdminUser({
+      const result = await AdminUserService.createAdminUser({
         name: 'Charlie',
         email: 'charlie@example.com',
         role: 'OUTLET_ADMIN',
@@ -96,7 +96,7 @@ describe('AdminService', () => {
       (prisma.user.findUnique as jest.Mock).mockResolvedValue({ id: 'user-1' });
 
       await expect(
-        AdminService.createAdminUser({
+        AdminUserService.createAdminUser({
           name: 'Charlie',
           email: 'charlie@example.com',
           role: 'WORKER',
@@ -121,7 +121,7 @@ describe('AdminService', () => {
       (prisma.verification.create as jest.Mock).mockResolvedValue({ token: 'token' });
       (sendEmail as jest.Mock).mockResolvedValue(true);
 
-      const result = await AdminService.createAdminUser({
+      const result = await AdminUserService.createAdminUser({
         name: 'David',
         email: 'david@example.com',
         role: 'DRIVER',
@@ -151,14 +151,14 @@ describe('AdminService', () => {
         isActive: true,
       });
 
-      const result = await AdminService.updateAdminUser('user-1', { role: 'OUTLET_ADMIN' });
+      const result = await AdminUserService.updateAdminUser('user-1', { role: 'OUTLET_ADMIN' });
       expect(result.role).toBe('OUTLET_ADMIN');
     });
 
     it('should throw 404 when staff not found', async () => {
       (prisma.staff.findUnique as jest.Mock).mockResolvedValue(null);
 
-      await expect(AdminService.updateAdminUser('nonexistent', { role: 'WORKER' })).rejects.toMatchObject({ status: 404 });
+      await expect(AdminUserService.updateAdminUser('nonexistent', { role: 'WORKER' })).rejects.toMatchObject({ status: 404 });
     });
 
     it('should update isActive status', async () => {
@@ -178,7 +178,7 @@ describe('AdminService', () => {
         isActive: false,
       });
 
-      const result = await AdminService.updateAdminUser('user-1', { isActive: false });
+      const result = await AdminUserService.updateAdminUser('user-1', { isActive: false });
       expect(result.isActive).toBe(false);
     });
 
@@ -199,7 +199,7 @@ describe('AdminService', () => {
         isActive: true,
       });
 
-      const result = await AdminService.updateAdminUser('user-1', { outletId: 'outlet-2' });
+      const result = await AdminUserService.updateAdminUser('user-1', { outletId: 'outlet-2' });
       expect(result.role).toBe('WORKER');
       expect(result.outletId).toBe('outlet-2');
       expect(result.isActive).toBe(true);
@@ -215,7 +215,7 @@ describe('AdminService', () => {
       (prisma.staff.delete as jest.Mock).mockResolvedValue({ id: 'staff-1' });
       (prisma.user.delete as jest.Mock).mockResolvedValue({ id: 'user-1' });
 
-      await AdminService.deleteAdminUser('user-1');
+      await AdminUserService.deleteAdminUser('user-1');
       expect(prisma.staff.delete).toHaveBeenCalled();
       expect(prisma.user.delete).toHaveBeenCalled();
     });
@@ -223,7 +223,7 @@ describe('AdminService', () => {
     it('should throw 404 when staff not found', async () => {
       (prisma.staff.findUnique as jest.Mock).mockResolvedValue(null);
 
-      await expect(AdminService.deleteAdminUser('nonexistent')).rejects.toMatchObject({ status: 404 });
+      await expect(AdminUserService.deleteAdminUser('nonexistent')).rejects.toMatchObject({ status: 404 });
     });
 
     it('should call both staff and user delete', async () => {
@@ -231,7 +231,7 @@ describe('AdminService', () => {
       (prisma.staff.delete as jest.Mock).mockResolvedValue({ id: 'staff-1' });
       (prisma.user.delete as jest.Mock).mockResolvedValue({ id: 'user-1' });
 
-      await AdminService.deleteAdminUser('user-1');
+      await AdminUserService.deleteAdminUser('user-1');
       expect(prisma.staff.delete).toHaveBeenCalledWith({ where: { userId: 'user-1' } });
       expect(prisma.user.delete).toHaveBeenCalledWith({ where: { id: 'user-1' } });
     });

@@ -8,7 +8,6 @@ import { toNodeHandler } from 'better-auth/node';
 
 export const app = express();
 
-// CORS middleware
 app.use(
   cors({
     origin: 'http://localhost:5173',
@@ -17,11 +16,14 @@ app.use(
   }),
 );
 
-// better-auth handler (must be before express.json())
+// Critical ordering: better-auth must be before express.json() to handle raw request bodies.
+// better-auth manages all /api/auth/* routes including sign-in, sign-up, OAuth callbacks.
 app.all('/api/auth/*splat', toNodeHandler(auth));
 
 app.use(express.json());
 
+// publicRouter = unauthenticated routes (webhooks, password reset, etc.)
+// apiRouter = authenticated routes (requireAuth or requireStaffAuth middleware applied)
 app.use('/api/v1', publicRouter);
 app.use('/api/v1', apiRouter);
 

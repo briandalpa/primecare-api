@@ -1,10 +1,3 @@
-export type CreateAdminOrderInput = {
-  pickupRequestId: string;
-  pricePerKg: number;
-  totalWeightKg: number;
-  items: { laundryItemId: string; quantity: number }[];
-};
-
 export type CreateAdminUserInput = {
   name: string;
   email: string;
@@ -36,17 +29,6 @@ export type GetAdminUsersQuery = {
   page: number;
   limit: number;
   role?: string;
-  sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
-};
-
-export type GetAdminOrdersQuery = {
-  page: number;
-  limit: number;
-  status?: string;
-  outletId?: string;
-  dateFrom?: string;
-  dateTo?: string;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
 };

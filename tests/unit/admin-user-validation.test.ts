@@ -1,9 +1,9 @@
-import { AdminValidation } from '@/validations/admin-validation';
+import { AdminUserValidation } from '@/validations/admin-user-validation';
 import { Validation } from '@/validations/validation';
 
 const VALID_UUID = '123e4567-e89b-12d3-a456-426614174000';
 
-describe('AdminValidation', () => {
+describe('AdminUserValidation', () => {
   describe('CREATE schema', () => {
     it('should accept OUTLET_ADMIN without outletId', () => {
       const data = {
@@ -11,7 +11,7 @@ describe('AdminValidation', () => {
         email: 'admin@example.com',
         role: 'OUTLET_ADMIN',
       };
-      const result = Validation.validate(AdminValidation.CREATE, data);
+      const result = Validation.validate(AdminUserValidation.CREATE, data);
       expect(result).toEqual(data);
     });
 
@@ -22,7 +22,7 @@ describe('AdminValidation', () => {
         role: 'OUTLET_ADMIN',
         outletId: VALID_UUID,
       };
-      const result = Validation.validate(AdminValidation.CREATE, data);
+      const result = Validation.validate(AdminUserValidation.CREATE, data);
       expect(result).toEqual(data);
     });
 
@@ -34,7 +34,7 @@ describe('AdminValidation', () => {
         outletId: VALID_UUID,
         workerType: 'WASHING',
       };
-      const result = Validation.validate(AdminValidation.CREATE, data);
+      const result = Validation.validate(AdminUserValidation.CREATE, data);
       expect(result).toEqual(data);
     });
 
@@ -45,7 +45,7 @@ describe('AdminValidation', () => {
         role: 'DRIVER',
         outletId: VALID_UUID,
       };
-      const result = Validation.validate(AdminValidation.CREATE, data);
+      const result = Validation.validate(AdminUserValidation.CREATE, data);
       expect(result).toEqual(data);
     });
 
@@ -56,7 +56,7 @@ describe('AdminValidation', () => {
         role: 'WORKER',
         workerType: 'WASHING',
       };
-      expect(() => Validation.validate(AdminValidation.CREATE, data)).toThrow();
+      expect(() => Validation.validate(AdminUserValidation.CREATE, data)).toThrow();
     });
 
     it('should reject WORKER without workerType', () => {
@@ -66,7 +66,7 @@ describe('AdminValidation', () => {
         role: 'WORKER',
         outletId: VALID_UUID,
       };
-      expect(() => Validation.validate(AdminValidation.CREATE, data)).toThrow();
+      expect(() => Validation.validate(AdminUserValidation.CREATE, data)).toThrow();
     });
 
     it('should reject DRIVER without outletId', () => {
@@ -75,7 +75,7 @@ describe('AdminValidation', () => {
         email: 'driver@example.com',
         role: 'DRIVER',
       };
-      expect(() => Validation.validate(AdminValidation.CREATE, data)).toThrow();
+      expect(() => Validation.validate(AdminUserValidation.CREATE, data)).toThrow();
     });
 
     it('should reject empty name', () => {
@@ -84,7 +84,7 @@ describe('AdminValidation', () => {
         email: 'admin@example.com',
         role: 'OUTLET_ADMIN',
       };
-      expect(() => Validation.validate(AdminValidation.CREATE, data)).toThrow();
+      expect(() => Validation.validate(AdminUserValidation.CREATE, data)).toThrow();
     });
 
     it('should reject missing name field', () => {
@@ -92,7 +92,7 @@ describe('AdminValidation', () => {
         email: 'admin@example.com',
         role: 'OUTLET_ADMIN',
       };
-      expect(() => Validation.validate(AdminValidation.CREATE, data)).toThrow();
+      expect(() => Validation.validate(AdminUserValidation.CREATE, data)).toThrow();
     });
 
     it('should reject invalid email format', () => {
@@ -101,7 +101,7 @@ describe('AdminValidation', () => {
         email: 'not-an-email',
         role: 'OUTLET_ADMIN',
       };
-      expect(() => Validation.validate(AdminValidation.CREATE, data)).toThrow();
+      expect(() => Validation.validate(AdminUserValidation.CREATE, data)).toThrow();
     });
 
     it('should reject email without domain', () => {
@@ -110,7 +110,7 @@ describe('AdminValidation', () => {
         email: 'admin@',
         role: 'OUTLET_ADMIN',
       };
-      expect(() => Validation.validate(AdminValidation.CREATE, data)).toThrow();
+      expect(() => Validation.validate(AdminUserValidation.CREATE, data)).toThrow();
     });
 
     it('should reject email without local part', () => {
@@ -119,7 +119,7 @@ describe('AdminValidation', () => {
         email: '@example.com',
         role: 'OUTLET_ADMIN',
       };
-      expect(() => Validation.validate(AdminValidation.CREATE, data)).toThrow();
+      expect(() => Validation.validate(AdminUserValidation.CREATE, data)).toThrow();
     });
 
     it('should reject missing email field', () => {
@@ -127,7 +127,7 @@ describe('AdminValidation', () => {
         name: 'John Admin',
         role: 'OUTLET_ADMIN',
       };
-      expect(() => Validation.validate(AdminValidation.CREATE, data)).toThrow();
+      expect(() => Validation.validate(AdminUserValidation.CREATE, data)).toThrow();
     });
 
     it('should reject invalid role value', () => {
@@ -136,7 +136,7 @@ describe('AdminValidation', () => {
         email: 'admin@example.com',
         role: 'INVALID_ROLE',
       };
-      expect(() => Validation.validate(AdminValidation.CREATE, data)).toThrow();
+      expect(() => Validation.validate(AdminUserValidation.CREATE, data)).toThrow();
     });
 
     it('should reject CUSTOMER role', () => {
@@ -145,7 +145,7 @@ describe('AdminValidation', () => {
         email: 'admin@example.com',
         role: 'CUSTOMER',
       };
-      expect(() => Validation.validate(AdminValidation.CREATE, data)).toThrow();
+      expect(() => Validation.validate(AdminUserValidation.CREATE, data)).toThrow();
     });
 
     it('should reject SUPER_ADMIN role', () => {
@@ -154,7 +154,7 @@ describe('AdminValidation', () => {
         email: 'admin@example.com',
         role: 'SUPER_ADMIN',
       };
-      expect(() => Validation.validate(AdminValidation.CREATE, data)).toThrow();
+      expect(() => Validation.validate(AdminUserValidation.CREATE, data)).toThrow();
     });
 
     it('should reject missing role field', () => {
@@ -162,7 +162,7 @@ describe('AdminValidation', () => {
         name: 'John Admin',
         email: 'admin@example.com',
       };
-      expect(() => Validation.validate(AdminValidation.CREATE, data)).toThrow();
+      expect(() => Validation.validate(AdminUserValidation.CREATE, data)).toThrow();
     });
 
   });
@@ -181,7 +181,7 @@ describe('AdminValidation', () => {
         {},
       ];
       testCases.forEach((data) => {
-        const result = Validation.validate(AdminValidation.UPDATE, data);
+        const result = Validation.validate(AdminUserValidation.UPDATE, data);
         expect(result).toEqual(data);
       });
     });
@@ -189,7 +189,7 @@ describe('AdminValidation', () => {
     it('should reject invalid roles (CUSTOMER, SUPER_ADMIN, or unknown)', () => {
       const invalidRoles = ['INVALID_ROLE', 'CUSTOMER', 'SUPER_ADMIN'];
       invalidRoles.forEach((role) => {
-        expect(() => Validation.validate(AdminValidation.UPDATE, { role })).toThrow();
+        expect(() => Validation.validate(AdminUserValidation.UPDATE, { role })).toThrow();
       });
     });
 
@@ -197,11 +197,11 @@ describe('AdminValidation', () => {
       const data = {
         isActive: 'true',
       };
-      expect(() => Validation.validate(AdminValidation.UPDATE, data)).toThrow();
+      expect(() => Validation.validate(AdminUserValidation.UPDATE, data)).toThrow();
     });
 
     it('should reject invalid workerType', () => {
-      expect(() => Validation.validate(AdminValidation.UPDATE, { workerType: 'INVALID' })).toThrow();
+      expect(() => Validation.validate(AdminUserValidation.UPDATE, { workerType: 'INVALID' })).toThrow();
     });
   });
 });

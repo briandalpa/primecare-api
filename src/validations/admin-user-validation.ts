@@ -1,27 +1,12 @@
 import { z, ZodType } from 'zod';
 import type {
-  CreateAdminOrderInput,
   CreateAdminUserInput,
   UpdateAdminUserInput,
-} from '@/features/admin/admin-model';
+} from '@/features/admin-users/admin-user-model';
 
 const workerTypeSchema = z.enum(['WASHING', 'IRONING', 'PACKING']);
 
-export class AdminValidation {
-  static readonly CREATE_ORDER: ZodType<CreateAdminOrderInput> = z.object({
-    pickupRequestId: z.string().uuid(),
-    pricePerKg: z.number().positive(),
-    totalWeightKg: z.number().positive(),
-    items: z
-      .array(
-        z.object({
-          laundryItemId: z.string().uuid(),
-          quantity: z.number().int().positive(),
-        })
-      )
-      .min(1),
-  });
-
+export class AdminUserValidation {
   static readonly CREATE = z
     .object({
       name: z.string().min(2),
@@ -30,6 +15,8 @@ export class AdminValidation {
       outletId: z.string().uuid().optional(),
       workerType: workerTypeSchema.optional(),
     })
+    // Custom validation: role-dependent required fields.
+    // Workers and Drivers must belong to an outlet; Workers must specify their station type.
     .superRefine((data, ctx) => {
       if ((data.role === 'WORKER' || data.role === 'DRIVER') && !data.outletId) {
         ctx.addIssue({
