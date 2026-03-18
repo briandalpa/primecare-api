@@ -28,7 +28,7 @@ export const auth = betterAuth({
   },
 
   session: {
-    expiresIn: 60 * 60 * 24 * 7, // 7 days in seconds
+    expiresIn: 60 * 60 * 24 * 7,
     updateAge: 60 * 60 * 24, // Extend session expiry once per day to avoid forcing re-login too often.
   },
 

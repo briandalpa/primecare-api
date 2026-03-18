@@ -1,5 +1,3 @@
-// Public Routes (No Authentication Required)
-
 import { UserController } from '@/features/users/user-controller';
 import express from 'express';
 
