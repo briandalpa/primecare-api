@@ -3,6 +3,8 @@ jest.mock('@/application/database', () => ({
     user: { findUnique: jest.fn(), create: jest.fn(), delete: jest.fn(), findMany: jest.fn(), count: jest.fn() },
     staff: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn(), findMany: jest.fn() },
     verification: { create: jest.fn(), deleteMany: jest.fn() },
+    // deleteAdminUser wraps staff + user delete in a transaction; execute all ops sequentially.
+    $transaction: jest.fn().mockImplementation(async (ops: Promise<unknown>[]) => Promise.all(ops)),
   },
 }));
 
