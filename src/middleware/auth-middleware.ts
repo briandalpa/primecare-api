@@ -74,6 +74,33 @@ export const requireStaffAuth = async (
   }
 };
 
+// Use on customer-only routes. Rejects staff members who might otherwise impersonate customers.
+export const requireCustomerAuth = async (
+  req: UserRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const result = await getSessionUser(req);
+    if (!result) {
+      res.status(401).json({ message: 'Unauthorized' });
+      return;
+    }
+
+    const staff = await prisma.staff.findUnique({ where: { userId: result.user.id } });
+    if (staff) {
+      res.status(403).json({ message: 'Forbidden' });
+      return;
+    }
+
+    req.user = result.user;
+    req.session = result.session;
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
+
 // Factory: returns a middleware that restricts access to staff with one of the given roles.
 // Usage: requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN')
 export const requireStaffRole = (...roles: StaffRole[]) => {
