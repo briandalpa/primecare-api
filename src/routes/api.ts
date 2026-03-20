@@ -1,14 +1,25 @@
 import express from 'express';
-import { requireAuth, requireStaffRole } from '@/middleware/auth-middleware';
+import { requireAuth, requireCustomerAuth, requireStaffRole } from '@/middleware/auth-middleware';
 import { UserController } from '@/features/users/user-controller';
 import { AdminUserController } from '@/features/admin-users/admin-user-controller';
 import { AdminOrderController } from '@/features/admin-orders/admin-order-controller';
 import { OrderController } from '@/features/orders/order-controller';
-import { requireCustomerAuth } from '@/middleware/auth-middleware';
+import { AddressController } from '@/features/addresses/address-controller';
+import { RegionController } from '@/features/region-data/region-controller';
 
 export const apiRouter = express.Router();
 
 apiRouter.get('/users/me', requireAuth, UserController.getMe);
+
+apiRouter.get('/regions/provinces', requireAuth, RegionController.listProvinces);
+apiRouter.get('/regions/cities/:provinceId', requireAuth, RegionController.listCities);
+apiRouter.get('/regions/geocode', requireAuth, RegionController.geocode);
+
+apiRouter.get('/users/addresses', requireCustomerAuth, AddressController.list);
+apiRouter.post('/users/addresses', requireCustomerAuth, AddressController.create);
+apiRouter.patch('/users/addresses/:id/primary', requireCustomerAuth, AddressController.setPrimary);
+apiRouter.patch('/users/addresses/:id', requireCustomerAuth, AddressController.update);
+apiRouter.delete('/users/addresses/:id', requireCustomerAuth, AddressController.remove);
 
 apiRouter.get('/admin/dashboard', requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'), UserController.getDashboardStats);
 apiRouter.get('/admin/users', requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'), AdminUserController.getAdminUsers);
