@@ -15,5 +15,5 @@ apiRouter.get('/admin/pickup-requests', requireStaffRole('SUPER_ADMIN', 'OUTLET_
 apiRouter.post('/admin/orders', requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'), AdminOrderController.createAdminOrder);
 apiRouter.post('/admin/users', requireStaffRole('SUPER_ADMIN'), AdminUserController.createAdminUser);
 apiRouter.patch('/admin/users/:id', requireStaffRole('SUPER_ADMIN'), AdminUserController.updateAdminUser);
+apiRouter.get('/admin/laundry-items', requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'), AdminOrderController.getLaundryItems);
 apiRouter.delete('/admin/users/:id', requireStaffRole('SUPER_ADMIN'), AdminUserController.deleteAdminUser);
-
