@@ -3,6 +3,7 @@ import { requireAuth, requireStaffRole } from '@/middleware/auth-middleware';
 import { UserController } from '@/features/users/user-controller';
 import { AdminUserController } from '@/features/admin-users/admin-user-controller';
 import { AdminOrderController } from '@/features/admin-orders/admin-order-controller';
+import { BypassRequestController } from '@/features/bypass-requests/bypass-request-controller';
 
 export const apiRouter = express.Router();
 
@@ -16,4 +17,5 @@ apiRouter.post('/admin/orders', requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'),
 apiRouter.post('/admin/users', requireStaffRole('SUPER_ADMIN'), AdminUserController.createAdminUser);
 apiRouter.patch('/admin/users/:id', requireStaffRole('SUPER_ADMIN'), AdminUserController.updateAdminUser);
 apiRouter.delete('/admin/users/:id', requireStaffRole('SUPER_ADMIN'), AdminUserController.deleteAdminUser);
+apiRouter.post('/admin/bypass-requests', requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'), BypassRequestController.create);
 
