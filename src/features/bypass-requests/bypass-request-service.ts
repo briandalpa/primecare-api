@@ -1,9 +1,6 @@
-import { prisma } from '@/application/database';
-import { ResponseError } from '@/error/response-error';
-import {
-  CreateBypassRequestInput,
-  toBypassResponse,
-} from './bypass-request-model';
+import { prisma } from "@/application/database";
+import { ResponseError } from "@/error/response-error";
+import { CreateBypassRequestInput, toBypassResponse,} from "./bypass-request-model";
 
 const checkStationRecordExists = async (stationRecordId: string) => {
   const record = await prisma.stationRecord.findUnique({
@@ -11,7 +8,7 @@ const checkStationRecordExists = async (stationRecordId: string) => {
   });
 
   if (!record) {
-    throw new ResponseError(404, 'Station record not found');
+    throw new ResponseError(404, "Station record not found");
   }
 
   return record;
@@ -21,12 +18,12 @@ const checkPendingBypass = async (stationRecordId: string) => {
   const existing = await prisma.bypassRequest.findFirst({
     where: {
       stationRecordId,
-      status: 'PENDING',
+      status: "PENDING",
     },
   });
 
   if (existing) {
-    throw new ResponseError(409, 'Bypass already requested');
+    throw new ResponseError(409, "Bypass already requested");
   }
 };
 
@@ -42,12 +39,46 @@ export class BypassRequestService {
       data: {
         stationRecordId: data.stationRecordId,
         workerId: stationRecord.staffId,
-        adminId: adminId,
-        status: 'PENDING',
+        adminId,
+        status: "PENDING",
         problemDescription: data.mismatchDetails,
       },
     });
 
     return toBypassResponse(bypass);
+  }
+
+  static async findAll(
+    adminId: string,
+    role: string,
+    outletId?: string
+  ) {
+    const where: any = {
+      status: "PENDING",
+    };
+
+    if (role === "OUTLET_ADMIN") {
+      where.stationRecord = {
+        outletId: outletId,
+      };
+    }
+
+    const bypasses = await prisma.bypassRequest.findMany({
+      where,
+      include: {
+        stationRecord: {
+          include: {
+            order: true,
+          },
+        },
+        worker: true,
+        admin: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    return bypasses.map(toBypassResponse);
   }
 }
