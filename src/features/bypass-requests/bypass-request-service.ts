@@ -115,4 +115,28 @@ export class BypassRequestService {
 
     return bypasses.map(toBypassResponse);
   }
+
+  static async reject(adminId: string, bypassId: string) {
+  const bypass = await prisma.bypassRequest.findUnique({
+    where: { id: bypassId },
+  });
+
+  if (!bypass) {
+    throw new ResponseError(404, "Bypass request not found");
+  }
+
+  if (bypass.status !== "PENDING") {
+    throw new ResponseError(400, "Bypass already processed");
+  }
+
+  const updated = await prisma.bypassRequest.update({
+    where: { id: bypassId },
+    data: {
+      status: "REJECTED",
+      adminId,
+    },
+  });
+
+  return updated;
+}
 }

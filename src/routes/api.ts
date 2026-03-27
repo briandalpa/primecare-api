@@ -6,7 +6,6 @@ import { AdminUserController } from '@/features/admin-users/admin-user-controlle
 import { AdminOrderController } from '@/features/admin-orders/admin-order-controller';
 import { AddressController } from '@/features/addresses/address-controller';
 import { RegionController } from '@/features/region-data/region-controller';
-import { OrderController } from '@/features/orders/order-controller';
 import { BypassRequestController } from '@/features/bypass-requests/bypass-request-controller';
 
 export const apiRouter = express.Router();
@@ -73,3 +72,6 @@ apiRouter.patch(
 apiRouter.get('/orders', requireCustomerAuth, OrderController.listOrders);
 apiRouter.get('/orders/:id', requireCustomerAuth, OrderController.getOrderDetail);
 apiRouter.post('/orders/:id/confirm', requireCustomerAuth, OrderController.confirmReceipt);
+
+apiRouter.patch( "/admin/bypass-requests/:id/reject", requireStaffRole("SUPER_ADMIN", "OUTLET_ADMIN"), BypassRequestController.reject );
+apiRouter.get( "/admin/bypass-requests", requireStaffRole("SUPER_ADMIN", "OUTLET_ADMIN"), BypassRequestController.findAll);

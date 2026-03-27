@@ -80,4 +80,29 @@ export class BypassRequestController {
 
   res.status(200).json(result);
 }
+
+static async reject(req: Request, res: Response) {
+  const user = (req as any).user;
+
+  if (!user) {
+    throw new ResponseError(401, "Unauthorized");
+  }
+
+  const staff = await prisma.staff.findUnique({
+    where: { userId: user.id },
+  });
+
+  if (!staff) {
+    throw new ResponseError(404, "Staff not found");
+  }
+
+  const id = req.params.id as string;
+
+  const result = await BypassRequestService.reject(
+    staff.id,
+    id
+  );
+
+  res.status(200).json(result);
+}
 }
