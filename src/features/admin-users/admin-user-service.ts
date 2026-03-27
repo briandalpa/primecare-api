@@ -1,6 +1,7 @@
 import { prisma } from '@/application/database'
 import { ResponseError } from '@/error/response-error'
 import { sendEmail } from '@/utils/mailer'
+import { createHash } from 'crypto'
 import { v4 as uuid } from 'uuid'
 import {
   CreateAdminUserInput,
@@ -8,6 +9,8 @@ import {
   UpdateAdminUserInput,
   toAdminUserResponse
 } from './admin-user-model'
+
+const hashToken = (token: string) => createHash('sha256').update(token).digest('hex');
 
 // Scopes user query by outlet and role. OUTLET_ADMIN sees only users from their outlet.
 const buildUsersWhere = (outletId: string | null | undefined, role?: string) => {
@@ -75,12 +78,12 @@ const createInviteToken = async (email: string) => {
 
   const token = uuid()
 
-  // Token expires in 1 hour (verification links are single-use and time-limited).
+  // Store hash in DB; return raw token for email. DB compromise cannot yield usable tokens.
   await prisma.verification.create({
     data: {
       id: uuid(),
       identifier: email,
-      value: token,
+      value: hashToken(token),
       expiresAt: new Date(Date.now() + 3600 * 1000)
     }
   })

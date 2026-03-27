@@ -70,7 +70,7 @@ describe('UserValidation', () => {
 
   describe('SET_PASSWORD schema', () => {
     it('should accept valid set password input', () => {
-      const data = { token: 'token-123', password: 'securepass123' };
+      const data = { token: 'token-123', password: 'Securepass123' };
       const result = Validation.validate(UserValidation.SET_PASSWORD, data);
       expect(result).toEqual(data);
     });
@@ -100,7 +100,7 @@ describe('UserValidation', () => {
     });
 
     it('should accept password with exactly 8 characters', () => {
-      const data = { token: 'token-123', password: 'password' };
+      const data = { token: 'token-123', password: 'Password1' };
       const result = Validation.validate(UserValidation.SET_PASSWORD, data);
       expect(result).toEqual(data);
     });
@@ -127,13 +127,13 @@ describe('UserValidation', () => {
     });
 
     it('should accept token with special characters', () => {
-      const data = { token: 'token-123-!@#$%^&*()', password: 'securepass123' };
+      const data = { token: 'token-123-!@#$%^&*()', password: 'Securepass123' };
       const result = Validation.validate(UserValidation.SET_PASSWORD, data);
       expect(result).toEqual(data);
     });
 
     it('should accept single character token', () => {
-      const data = { token: 'a', password: 'securepass123' };
+      const data = { token: 'a', password: 'Securepass123' };
       const result = Validation.validate(UserValidation.SET_PASSWORD, data);
       expect(result).toEqual(data);
     });
@@ -194,10 +194,11 @@ describe('UserValidation', () => {
       expect(() => Validation.validate(UserValidation.RESEND_VERIFICATION, data)).toThrow();
     });
 
-    it('should accept email with uppercase letters', () => {
+    it('should normalize uppercase email to lowercase', () => {
       const data = { email: 'John@Example.COM' };
       const result = Validation.validate(UserValidation.RESEND_VERIFICATION, data);
-      expect(result).toEqual(data);
+      // Email is normalized to lowercase to prevent duplicate accounts.
+      expect(result).toEqual({ email: 'john@example.com' });
     });
 
     it('should accept email with dot in local part', () => {
