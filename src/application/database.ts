@@ -6,15 +6,20 @@ import { logger } from '@/application/logging';
 const connectionString = `${process.env.DATABASE_URL}`;
 
 const adapter = new PrismaPg({ connectionString });
+// In production, query logging is disabled to prevent SQL statements (including
+// parameterized values) from appearing in log aggregators. Only errors are emitted.
+const isProduction = process.env.NODE_ENV === 'production';
+
 const prisma = new PrismaClient({
   adapter,
-  log: [
-    // Routes all DB events to winston so query and error logs appear in structured output.
-    { emit: 'event', level: 'query' },
-    { emit: 'event', level: 'error' },
-    { emit: 'event', level: 'info' },
-    { emit: 'event', level: 'warn' },
-  ],
+  log: isProduction
+    ? [{ emit: 'event', level: 'error' }]
+    : [
+        { emit: 'event', level: 'query' },
+        { emit: 'event', level: 'error' },
+        { emit: 'event', level: 'info' },
+        { emit: 'event', level: 'warn' },
+      ],
 });
 
 prisma.$on('error', (e) => {

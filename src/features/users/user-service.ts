@@ -2,17 +2,22 @@ import { prisma } from '@/application/database';
 import { ResponseError } from '@/error/response-error';
 import { sendEmail } from '@/utils/mailer';
 import bcrypt from 'bcrypt';
+import { createHash } from 'crypto';
 import { v4 as uuid } from 'uuid';
-import { RegisterInput, ResendVerificationInput, SetPasswordInput, toUserResponse } from './user-model';
+import { DashboardStatsResponse, RegisterInput, ResendVerificationInput, SetPasswordInput, toUserResponse } from './user-model';
+
+// Store SHA-256 of the token in the DB; email the raw token.
+// If the verification table is compromised, hashes are useless without the raw token.
+const hashToken = (token: string) => createHash('sha256').update(token).digest('hex');
 
 // Clears any existing tokens for this email before issuing a new one, preventing stale links.
 const createVerificationToken = async (email: string): Promise<string> => {
   await prisma.verification.deleteMany({ where: { identifier: email } });
   const token = uuid();
   await prisma.verification.create({
-    data: { id: uuid(), identifier: email, value: token, expiresAt: new Date(Date.now() + 3600 * 1000) }, // expires in 1 hour
+    data: { id: uuid(), identifier: email, value: hashToken(token), expiresAt: new Date(Date.now() + 3600 * 1000) }, // expires in 1 hour
   });
-  return token;
+  return token; // Return raw token for email delivery; only the hash is persisted.
 };
 
 const sendSetPasswordEmail = (email: string, token: string) => {
@@ -27,7 +32,7 @@ const sendSetPasswordEmail = (email: string, token: string) => {
 
 // Validates token existence and expiry in one query; throws if either check fails.
 const verifyToken = async (token: string) => {
-  const verification = await prisma.verification.findFirst({ where: { value: token } });
+  const verification = await prisma.verification.findFirst({ where: { value: hashToken(token) } });
   if (!verification || verification.expiresAt < new Date()) {
     throw new ResponseError(400, 'Invalid or expired token');
   }
@@ -76,11 +81,54 @@ export class UserService {
     if (!user) return { message: 'Verification email sent' }; // Silent success: avoids leaking whether an email is registered.
 
     const existingAccount = await prisma.account.findFirst({ where: { userId: user.id, providerId: 'credential' } });
-    if (existingAccount) throw new ResponseError(409, 'Account already verified');
+    // Silent success: avoids leaking whether the email is registered and verified.
+    if (existingAccount) return { message: 'Verification email sent' };
 
     const token = await createVerificationToken(data.email);
     sendSetPasswordEmail(data.email, token);
     return { message: 'Verification email sent' };
+  }
+
+  static async getDashboardStats(outletId: string | null): Promise<DashboardStatsResponse> {
+    const outletFilter = outletId ? { outletId } : {};
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const [totalOrders, activeOutlets, registeredUsers, revenueResult, recentOrders] = await prisma.$transaction([
+      prisma.order.count({ where: outletFilter }),
+      prisma.outlet.count({ where: { isActive: true } }),
+      prisma.user.count({ where: { staff: null } }),
+      prisma.order.aggregate({
+        _sum: { totalPrice: true },
+        where: { ...outletFilter, paymentStatus: 'PAID', createdAt: { gte: startOfMonth } },
+      }),
+      prisma.order.findMany({
+        where: outletFilter,
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        select: {
+          id: true,
+          status: true,
+          createdAt: true,
+          outlet: { select: { name: true } },
+          pickupRequest: { select: { customerUser: { select: { name: true } } } },
+        },
+      }),
+    ]);
+
+    return {
+      totalOrders,
+      activeOutlets,
+      registeredUsers,
+      revenueMtd: revenueResult._sum.totalPrice ?? 0,
+      recentOrders: recentOrders.map((o) => ({
+        id: o.id,
+        customerName: o.pickupRequest.customerUser.name ?? 'Unknown',
+        status: o.status,
+        outletName: o.outlet.name,
+        createdAt: o.createdAt,
+      })),
+    };
   }
 
   static async getMe(userId: string) {

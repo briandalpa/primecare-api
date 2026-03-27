@@ -15,3 +15,9 @@ export type GetAdminOrdersQuery = {
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
 };
+
+export type LaundryItemResponse = {
+  id: string;
+  name: string;
+  slug: string;
+};
