@@ -57,20 +57,24 @@ describe('errorMiddleware', () => {
     ]);
     errorMiddleware(zodError as any, req as Request, res as Response, next);
     expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ errors: expect.stringContaining('Validation Error') }));
+    // Returns sanitized issues array, not the full ZodError internals.
+    expect(res.json).toHaveBeenCalledWith({
+      errors: [{ path: ['name'], message: 'Expected string' }],
+    });
   });
 
   it('should handle generic Error with 500 status', () => {
     const error = new Error('Unexpected error');
     errorMiddleware(error, req as Request, res as Response, next);
     expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith({ errors: 'Unexpected error' });
+    // Generic message prevents leaking DB internals or stack traces to the client.
+    expect(res.json).toHaveBeenCalledWith({ errors: 'Internal server error' });
   });
 
   it('should handle unknown error type with 500 status', () => {
     const error = { message: 'Unknown error' };
     errorMiddleware(error as any, req as Request, res as Response, next);
     expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith({ errors: 'Unknown error' });
+    expect(res.json).toHaveBeenCalledWith({ errors: 'Internal server error' });
   });
 });
