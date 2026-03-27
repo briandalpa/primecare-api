@@ -4,7 +4,7 @@ import { sendEmail } from '@/utils/mailer';
 import bcrypt from 'bcrypt';
 import { createHash } from 'crypto';
 import { v4 as uuid } from 'uuid';
-import { RegisterInput, ResendVerificationInput, SetPasswordInput, toUserResponse } from './user-model';
+import { DashboardStatsResponse, RegisterInput, ResendVerificationInput, SetPasswordInput, toUserResponse } from './user-model';
 
 // Store SHA-256 of the token in the DB; email the raw token.
 // If the verification table is compromised, hashes are useless without the raw token.
@@ -87,6 +87,48 @@ export class UserService {
     const token = await createVerificationToken(data.email);
     sendSetPasswordEmail(data.email, token);
     return { message: 'Verification email sent' };
+  }
+
+  static async getDashboardStats(outletId: string | null): Promise<DashboardStatsResponse> {
+    const outletFilter = outletId ? { outletId } : {};
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const [totalOrders, activeOutlets, registeredUsers, revenueResult, recentOrders] = await prisma.$transaction([
+      prisma.order.count({ where: outletFilter }),
+      prisma.outlet.count({ where: { isActive: true } }),
+      prisma.user.count({ where: { staff: null } }),
+      prisma.order.aggregate({
+        _sum: { totalPrice: true },
+        where: { ...outletFilter, paymentStatus: 'PAID', createdAt: { gte: startOfMonth } },
+      }),
+      prisma.order.findMany({
+        where: outletFilter,
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        select: {
+          id: true,
+          status: true,
+          createdAt: true,
+          outlet: { select: { name: true } },
+          pickupRequest: { select: { customerUser: { select: { name: true } } } },
+        },
+      }),
+    ]);
+
+    return {
+      totalOrders,
+      activeOutlets,
+      registeredUsers,
+      revenueMtd: revenueResult._sum.totalPrice ?? 0,
+      recentOrders: recentOrders.map((o) => ({
+        id: o.id,
+        customerName: o.pickupRequest.customerUser.name ?? 'Unknown',
+        status: o.status,
+        outletName: o.outlet.name,
+        createdAt: o.createdAt,
+      })),
+    };
   }
 
   static async getMe(userId: string) {

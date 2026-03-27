@@ -8,6 +8,7 @@ export const apiRouter = express.Router();
 
 apiRouter.get('/users/me', requireAuth, UserController.getMe);
 
+apiRouter.get('/admin/dashboard', requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'), UserController.getDashboardStats);
 apiRouter.get('/admin/users', requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'), AdminUserController.getAdminUsers);
 apiRouter.get('/admin/orders', requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'), AdminOrderController.getAdminOrders);
 apiRouter.get('/admin/orders/:id', requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'), AdminOrderController.getAdminOrderDetail);
