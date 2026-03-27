@@ -1,7 +1,10 @@
 import { prisma } from '@/application/database'
 import { ResponseError } from '@/error/response-error'
 import { v4 as uuid } from 'uuid'
-import { CreateAdminOrderInput, GetAdminOrdersQuery } from './admin-order-model'
+import { CreateAdminOrderInput, GetAdminOrdersQuery, LaundryItemResponse } from './admin-order-model'
+
+const VALID_ORDER_SORT = ['createdAt', 'totalPrice', 'totalWeightKg'] as const;
+type OrderSortField = typeof VALID_ORDER_SORT[number];
 
 // Simple price calculation. Total = weight × price per kg.
 const calculateOrderPrice = (
@@ -36,8 +39,11 @@ export class AdminOrderService {
 
     const skip = (query.page - 1) * query.limit
     const where = buildOrdersWhere(staff, query)
-    const sortBy = query.sortBy ?? 'createdAt'
-    const sortOrder = query.sortOrder ?? 'desc'
+    // Allowlist sortBy to prevent probing internal field names via Prisma error messages.
+    const sortBy: OrderSortField = VALID_ORDER_SORT.includes(query.sortBy as OrderSortField)
+      ? (query.sortBy as OrderSortField)
+      : 'createdAt'
+    const sortOrder = query.sortOrder === 'asc' ? 'asc' : 'desc'
 
     const orders = await prisma.order.findMany({
       where,
@@ -69,7 +75,10 @@ export class AdminOrderService {
       where: { id: orderId },
       include: {
         pickupRequest: {
-          include: { customerUser: true }
+          include: {
+            // Select only non-sensitive fields; never expose password hashes or tokens.
+            customerUser: { select: { id: true, name: true, email: true, phone: true } }
+          }
         },
         outlet: true,
         items: {
@@ -77,7 +86,7 @@ export class AdminOrderService {
         },
         stationRecords: {
           include: {
-            staff: { include: { user: true } },
+            staff: { include: { user: { select: { id: true, name: true, email: true } } } },
             stationItems: { include: { laundryItem: true } },
             bypassRequests: true
           }
@@ -114,7 +123,8 @@ export class AdminOrderService {
       skip,
       take: limit,
       include: {
-        customerUser: true,
+        // Select only non-sensitive fields; never expose password hashes or tokens.
+        customerUser: { select: { id: true, name: true, email: true, phone: true } },
         outlet: true,
         address: true
       }
@@ -187,5 +197,12 @@ export class AdminOrderService {
     ])
 
     return order
+  }
+
+  static async getLaundryItems(): Promise<LaundryItemResponse[]> {
+    return prisma.laundryItem.findMany({
+      select: { id: true, name: true, slug: true },
+      orderBy: { name: 'asc' },
+    });
   }
 }
