@@ -12,6 +12,9 @@ import {
 
 const hashToken = (token: string) => createHash('sha256').update(token).digest('hex');
 
+const VALID_USER_SORT = ['createdAt', 'name', 'email'] as const;
+type UserSortField = typeof VALID_USER_SORT[number];
+
 // Scopes user query by outlet and role. OUTLET_ADMIN sees only users from their outlet.
 const buildUsersWhere = (outletId: string | null | undefined, role?: string) => {
   const where: Record<string, unknown> = {}
@@ -24,10 +27,15 @@ const buildUsersWhere = (outletId: string | null | undefined, role?: string) => 
 
 const fetchUsers = async (where: object, page: number, limit: number, sortBy = 'createdAt', sortOrder = 'desc') => {
   const skip = (page - 1) * limit
+  // Allowlist sortBy to prevent probing internal field names via Prisma error messages.
+  const validSortBy: UserSortField = VALID_USER_SORT.includes(sortBy as UserSortField)
+    ? (sortBy as UserSortField)
+    : 'createdAt'
+  const validSortOrder = sortOrder === 'asc' ? 'asc' : 'desc'
   const users = await prisma.user.findMany({
     where,
     include: { staff: true },
-    orderBy: { [sortBy]: sortOrder },
+    orderBy: { [validSortBy]: validSortOrder },
     skip,
     take: limit,
   })
@@ -151,15 +159,17 @@ export class AdminUserService {
       throw new ResponseError(404, 'User staff not found')
     }
 
-    return prisma.staff.update({
+    const updated = await prisma.staff.update({
       where: { userId },
       data: {
         role: data.role ?? staff.role,
         outletId: data.outletId ?? staff.outletId,
         isActive: data.isActive ?? staff.isActive,
         workerType: data.workerType ?? staff.workerType
-      }
+      },
+      include: { user: true }
     })
+    return toAdminUserResponse({ ...updated.user, staff: updated })
   }
 
   static async deleteAdminUser(userId: string) {
@@ -172,13 +182,11 @@ export class AdminUserService {
       throw new ResponseError(404, 'User staff not found')
     }
 
-    await prisma.staff.delete({
-      where: { userId }
-    })
-
-    await prisma.user.delete({
-      where: { id: userId }
-    })
+    // Atomic: if user deletion fails after staff deletion, neither operation persists.
+    await prisma.$transaction([
+      prisma.staff.delete({ where: { userId } }),
+      prisma.user.delete({ where: { id: userId } })
+    ])
 
     return {
       message: 'User deleted successfully'
