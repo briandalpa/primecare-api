@@ -39,3 +39,17 @@ export function toUserResponse(user: User): CustomerRegistrationResponse {
     emailVerified: user.emailVerified,
   };
 }
+
+export type DashboardStatsResponse = {
+  totalOrders: number;
+  activeOutlets: number;
+  registeredUsers: number;
+  revenueMtd: number;
+  recentOrders: {
+    id: string;
+    customerName: string;
+    status: string;
+    outletName: string;
+    createdAt: Date;
+  }[];
+};
