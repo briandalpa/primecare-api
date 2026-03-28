@@ -1,15 +1,15 @@
-import { Request, Response } from "express";
-import { prisma } from "@/application/database";
-import { ResponseError } from "@/error/response-error";
-import { BypassRequestService } from "./bypass-request-service";
-import { CreateBypassRequestInput } from "./bypass-request-model";
+import { Request, Response } from 'express';
+import { prisma } from '../../application/database';
+import { ResponseError } from '../../error/response-error';
+import { BypassRequestService } from './bypass-request-service';
+import { CreateBypassRequestInput } from './bypass-request-model';
 
 export class BypassRequestController {
   static async create(req: Request, res: Response) {
     const user = (req as any).user;
 
     if (!user) {
-      throw new ResponseError(401, "Unauthorized");
+      throw new ResponseError(401, 'Unauthorized');
     }
 
     const staff = await prisma.staff.findUnique({
@@ -17,7 +17,7 @@ export class BypassRequestController {
     });
 
     if (!staff) {
-      throw new ResponseError(404, "Staff not found");
+      throw new ResponseError(404, 'Staff not found');
     }
 
     const request: CreateBypassRequestInput = req.body;
@@ -27,15 +27,14 @@ export class BypassRequestController {
       request
     );
 
-    res.status(200).json(result);
+    res.status(201).json(result);
   }
 
-  // ✅ PCS-128
   static async findAll(req: Request, res: Response) {
     const user = (req as any).user;
 
     if (!user) {
-      throw new ResponseError(401, "Unauthorized");
+      throw new ResponseError(401, 'Unauthorized');
     }
 
     const staff = await prisma.staff.findUnique({
@@ -43,7 +42,7 @@ export class BypassRequestController {
     });
 
     if (!staff) {
-      throw new ResponseError(404, "Staff not found");
+      throw new ResponseError(404, 'Staff not found');
     }
 
     const result = await BypassRequestService.findAll(
