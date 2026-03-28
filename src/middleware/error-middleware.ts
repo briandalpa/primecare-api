@@ -1,6 +1,7 @@
 import type { Response, Request, NextFunction } from 'express';
 import { ZodError } from 'zod';
 import { ResponseError } from '@/error/response-error';
+import { logger } from '@/application/logging';
 
 export const errorMiddleware = async (
   error: Error,
@@ -9,9 +10,9 @@ export const errorMiddleware = async (
   next: NextFunction,
 ) => {
   if (error instanceof ZodError) {
-    // Input validation failure from Validation.validate(); always returns 400.
+    // Return only field paths and messages; never expose the full ZodError internals.
     res.status(400).json({
-      errors: `Validation Error: ${JSON.stringify(error)}`,
+      errors: error.issues.map((i) => ({ path: i.path, message: i.message })),
     });
   } else if (error instanceof ResponseError) {
     // Expected business logic error thrown with an explicit HTTP status code.
@@ -19,9 +20,11 @@ export const errorMiddleware = async (
       errors: error.message,
     });
   } else {
-    // Unhandled or unexpected error; always returns 500.
+    // Log the real error server-side; return a generic message to the client
+    // to avoid leaking DB internals, stack traces, or constraint names.
+    logger.error({ message: error.message, stack: error.stack });
     res.status(500).json({
-      errors: error.message,
+      errors: 'Internal server error',
     });
   }
 };
