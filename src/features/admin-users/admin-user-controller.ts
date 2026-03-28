@@ -15,7 +15,7 @@ export class AdminUserController {
 
       const result = await AdminUserService.getAdminUsers(req.staff!, {
         page: Number(req.query.page) || 1,
-        limit: Number(req.query.limit) || 10,
+        limit: Math.min(Number(req.query.limit) || 10, 100),
         role: req.query.role as string | undefined,
         sortBy: req.query.sortBy as string | undefined,
         sortOrder: (req.query.sortOrder as 'asc' | 'desc') || undefined,

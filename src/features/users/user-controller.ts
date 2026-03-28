@@ -43,4 +43,14 @@ export class UserController {
       next(error);
     }
   }
+
+  static async getDashboardStats(req: UserRequest, res: Response, next: NextFunction) {
+    try {
+      const outletId = req.staff?.outletId ?? null;
+      const result = await UserService.getDashboardStats(outletId);
+      res.status(200).json({ status: 'success', message: 'Dashboard stats retrieved', data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
