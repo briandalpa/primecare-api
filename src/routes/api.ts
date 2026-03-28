@@ -17,5 +17,4 @@ apiRouter.post('/admin/orders', requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'),
 apiRouter.post('/admin/users', requireStaffRole('SUPER_ADMIN'), AdminUserController.createAdminUser);
 apiRouter.patch('/admin/users/:id', requireStaffRole('SUPER_ADMIN'), AdminUserController.updateAdminUser);
 apiRouter.delete('/admin/users/:id', requireStaffRole('SUPER_ADMIN'), AdminUserController.deleteAdminUser);
-apiRouter.post('/admin/bypass-requests', requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'), BypassRequestController.create);
-
+apiRouter.post( "/admin/bypass-requests", requireStaffRole("WORKER"), BypassRequestController.create);

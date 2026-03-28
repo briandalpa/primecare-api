@@ -1,34 +1,25 @@
-import { Request, Response } from "express";
-import { prisma } from "@/application/database";
-import { ResponseError } from "@/error/response-error";
+import { Request, Response, NextFunction } from "express";
 import { BypassRequestService } from "./bypass-request-service";
-import { CreateBypassRequestInput } from "./bypass-request-model";
+
+import { Validation } from "../../validations/validation";
+import { BypassRequestValidation } from "../../validations/bypass-request-validation";
 
 export class BypassRequestController {
-  static async create(req: Request, res: Response) {
-    //FIX: pakai any supaya tidak ubah typing project
-    const user = (req as any).user;
+  static async create(req: Request, res: Response, next: NextFunction) {
+    try {
+      const request = Validation.validate(
+        BypassRequestValidation.CREATE,
+        req.body
+      );
 
-    if (!user) {
-      throw new ResponseError(401, "Unauthorized");
+      const result = await BypassRequestService.create(
+        (req as any).user.id, // ✅ FIX
+        request
+      );
+
+      res.status(201).json(result); // ✅ FIX 201
+    } catch (e) {
+      next(e);
     }
-
-    //FIX: mapping user → staff
-    const staff = await prisma.staff.findUnique({
-      where: { userId: user.id },
-    });
-
-    if (!staff) {
-      throw new ResponseError(404, "Staff not found");
-    }
-
-    const request: CreateBypassRequestInput = req.body;
-
-    const result = await BypassRequestService.create(
-      staff.id, //
-      request
-    );
-
-    res.status(200).json(result);
   }
 }

@@ -1,7 +1,7 @@
-import { z } from 'zod';
+import { z } from "zod";
 
 export class BypassRequestValidation {
-  static readonly CREATE = z.object({
+  static CREATE = z.object({
     stationRecordId: z.string().uuid(),
     mismatchDetails: z.string().min(1),
   });
