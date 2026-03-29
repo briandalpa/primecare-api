@@ -34,6 +34,7 @@ apiRouter.get('/admin/laundry-items', requireStaffRole('SUPER_ADMIN', 'OUTLET_AD
 apiRouter.delete('/admin/users/:id', requireStaffRole('SUPER_ADMIN'), AdminUserController.deleteAdminUser);
 apiRouter.patch( "/admin/bypass-requests/:id/approve", requireStaffRole("SUPER_ADMIN", "OUTLET_ADMIN"), BypassRequestController.approve);
 apiRouter.get( "/admin/bypass-requests", requireStaffRole("SUPER_ADMIN", "OUTLET_ADMIN"), BypassRequestController.findAll);
+apiRouter.post( '/admin/bypass-requests', requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'), BypassRequestController.create);
 
 apiRouter.get('/orders', requireCustomerAuth, OrderController.listOrders);
 apiRouter.get('/orders/:id', requireCustomerAuth, OrderController.getOrderDetail);
