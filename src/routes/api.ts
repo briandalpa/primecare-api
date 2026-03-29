@@ -3,6 +3,7 @@ import { requireAuth, requireCustomerAuth, requireStaffRole } from '@/middleware
 import { UserController } from '@/features/users/user-controller';
 import { AdminUserController } from '@/features/admin-users/admin-user-controller';
 import { AdminOrderController } from '@/features/admin-orders/admin-order-controller';
+import { BypassRequestController } from '@/features/bypass-requests/bypass-request-controller';
 import { OrderController } from '@/features/orders/order-controller';
 import { AddressController } from '@/features/addresses/address-controller';
 import { RegionController } from '@/features/region-data/region-controller';
@@ -31,6 +32,9 @@ apiRouter.post('/admin/users', requireStaffRole('SUPER_ADMIN'), AdminUserControl
 apiRouter.patch('/admin/users/:id', requireStaffRole('SUPER_ADMIN'), AdminUserController.updateAdminUser);
 apiRouter.get('/admin/laundry-items', requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'), AdminOrderController.getLaundryItems);
 apiRouter.delete('/admin/users/:id', requireStaffRole('SUPER_ADMIN'), AdminUserController.deleteAdminUser);
+apiRouter.patch( "/admin/bypass-requests/:id/approve", requireStaffRole("SUPER_ADMIN", "OUTLET_ADMIN"), BypassRequestController.approve);
+apiRouter.get( "/admin/bypass-requests", requireStaffRole("SUPER_ADMIN", "OUTLET_ADMIN"), BypassRequestController.findAll);
+apiRouter.post( '/admin/bypass-requests', requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'), BypassRequestController.create);
 
 apiRouter.get('/orders', requireCustomerAuth, OrderController.listOrders);
 apiRouter.get('/orders/:id', requireCustomerAuth, OrderController.getOrderDetail);
