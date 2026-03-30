@@ -13,11 +13,11 @@ export class BypassRequestController {
       );
 
       const result = await BypassRequestService.create(
-        (req as any).user.id, // ✅ FIX
+        (req as any).user.id, // FIX
         request
       );
 
-      res.status(201).json(result); // ✅ FIX 201
+      res.status(201).json(result); // FIX 201
     } catch (e) {
       next(e);
     }
