@@ -73,5 +73,5 @@ apiRouter.get('/orders', requireCustomerAuth, OrderController.listOrders);
 apiRouter.get('/orders/:id', requireCustomerAuth, OrderController.getOrderDetail);
 apiRouter.post('/orders/:id/confirm', requireCustomerAuth, OrderController.confirmReceipt);
 
-apiRouter.patch( "/admin/bypass-requests/:id/reject", requireStaffRole("SUPER_ADMIN", "OUTLET_ADMIN"), BypassRequestController.reject );
-apiRouter.get( "/admin/bypass-requests", requireStaffRole("SUPER_ADMIN", "OUTLET_ADMIN"), BypassRequestController.findAll);
+apiRouter.patch('/admin/bypass-requests/:id/approve', requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'), BypassRequestController.approve);
+apiRouter.patch('/admin/bypass-requests/:id/reject', requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'), BypassRequestController.reject);

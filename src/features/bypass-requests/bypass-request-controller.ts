@@ -1,108 +1,52 @@
-import { Request, Response } from "express";
-import { prisma } from "@/application/database";
-import { ResponseError } from "@/error/response-error";
-import { BypassRequestService } from "./bypass-request-service";
-import { CreateBypassRequestInput } from "./bypass-request-model";
+import { Response } from 'express';
+import { BypassRequestService } from './bypass-request-service';
+import { UserRequest } from '@/types/user-request';
+import { Validation } from '@/validations/validation';
+import {
+  approveBypassSchema,
+  rejectBypassSchema,
+} from './bypass-request-model';
 
 export class BypassRequestController {
-  static async create(req: Request, res: Response) {
-    //FIX: pakai any supaya tidak ubah typing project
-    const user = (req as any).user;
+  static async approve(req: UserRequest, res: Response) {
+    const user = req.user;
 
-    if (!user) {
-      throw new ResponseError(401, "Unauthorized");
-    }
+    const request = Validation.validate(
+      approveBypassSchema,
+      req.body
+    );
 
-    //FIX: mapping user → staff
-    const staff = await prisma.staff.findUnique({
-      where: { userId: user.id },
-    });
+    const bypassId = req.params.id as string;
 
-    if (!staff) {
-      throw new ResponseError(404, "Staff not found");
-    }
-
-    const request: CreateBypassRequestInput = req.body;
-
-    const result = await BypassRequestService.create(
-      staff.id, //
+    const result = await BypassRequestService.approve(
+      user,
+      bypassId,
       request
     );
 
-    res.status(200).json(result);
+    res.json({
+      data: result,
+    });
   }
 
-  static async approve(req: Request, res: Response) {
-    const user = (req as any).user;
+  static async reject(req: UserRequest, res: Response) {
+    const user = req.user;
 
-    if (!user) {
-      throw new ResponseError(401, "Unauthorized");
-    }
-
-    const staff = await prisma.staff.findUnique({
-      where: { userId: user.id },
-    });
-
-    if (!staff) {
-    throw new ResponseError(404, "Staff not found");
-    }
-
-  const id = req.params.id as string;
-
-  const result = await BypassRequestService.approve(
-    staff.id,
-    id
+    const request = Validation.validate(
+      rejectBypassSchema,
+      req.body
     );
 
-    res.status(200).json(result);
+    const bypassId = req.params.id as string;
+
+    const result = await BypassRequestService.reject(
+      user,
+      bypassId,
+      request
+    );
+
+    res.json({
+      data: result,
+    });
   }
-
-    static async findAll(req: Request, res: Response) {
-  const user = (req as any).user;
-
-  if (!user) {
-    throw new ResponseError(401, "Unauthorized");
-  }
-
-  const staff = await prisma.staff.findUnique({
-    where: { userId: user.id },
-  });
-
-  if (!staff) {
-    throw new ResponseError(404, "Staff not found");
-  }
-
-  const result = await BypassRequestService.findAll(
-    staff.id,
-    staff.role,
-    staff.outletId ?? undefined
-  );
-
-  res.status(200).json(result);
-}
-
-static async reject(req: Request, res: Response) {
-  const user = (req as any).user;
-
-  if (!user) {
-    throw new ResponseError(401, "Unauthorized");
-  }
-
-  const staff = await prisma.staff.findUnique({
-    where: { userId: user.id },
-  });
-
-  if (!staff) {
-    throw new ResponseError(404, "Staff not found");
-  }
-
-  const id = req.params.id as string;
-
-  const result = await BypassRequestService.reject(
-    staff.id,
-    id
-  );
-
-  res.status(200).json(result);
-}
 }
