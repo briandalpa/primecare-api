@@ -1,28 +1,11 @@
-import type { BypassRequest } from '@/generated/prisma/client';
+import { z } from 'zod';
 
-export type CreateBypassRequestInput = {
-  stationRecordId: string;
-  mismatchDetails: string;
-};
+export const approveBypassSchema = z.object({
+  password: z.string().min(1),
+  problemDescription: z.string().min(1),
+});
 
-export type BypassRequestResponse = {
-  id: string;
-  stationRecordId: string;
-  adminId: string | null;
-  status: string;
-  problemDescription: string | null;
-  createdAt: Date;
-};
-
-export function toBypassResponse(
-  bypass: BypassRequest
-): BypassRequestResponse {
-  return {
-    id: bypass.id,
-    stationRecordId: bypass.stationRecordId,
-    adminId: bypass.adminId,
-    status: bypass.status,
-    problemDescription: bypass.problemDescription,
-    createdAt: bypass.createdAt,
-  };
-}
+export const rejectBypassSchema = z.object({
+  password: z.string().min(1),
+  problemDescription: z.string().min(1),
+});
