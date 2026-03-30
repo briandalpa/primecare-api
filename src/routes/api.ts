@@ -3,9 +3,7 @@ import { requireAuth, requireCustomerAuth, requireStaffRole } from '@/middleware
 import { UserController } from '@/features/users/user-controller';
 import { AdminUserController } from '@/features/admin-users/admin-user-controller';
 import { AdminOrderController } from '@/features/admin-orders/admin-order-controller';
-import { OrderController } from '@/features/orders/order-controller';
-import { AddressController } from '@/features/addresses/address-controller';
-import { RegionController } from '@/features/region-data/region-controller';
+import { BypassRequestController } from '@/features/bypass-requests/bypass-request-controller';
 
 export const apiRouter = express.Router();
 
@@ -31,7 +29,4 @@ apiRouter.post('/admin/users', requireStaffRole('SUPER_ADMIN'), AdminUserControl
 apiRouter.patch('/admin/users/:id', requireStaffRole('SUPER_ADMIN'), AdminUserController.updateAdminUser);
 apiRouter.get('/admin/laundry-items', requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'), AdminOrderController.getLaundryItems);
 apiRouter.delete('/admin/users/:id', requireStaffRole('SUPER_ADMIN'), AdminUserController.deleteAdminUser);
-
-apiRouter.get('/orders', requireCustomerAuth, OrderController.listOrders);
-apiRouter.get('/orders/:id', requireCustomerAuth, OrderController.getOrderDetail);
-apiRouter.post('/orders/:id/confirm', requireCustomerAuth, OrderController.confirmReceipt);
+apiRouter.post( "/admin/bypass-requests", requireStaffRole("WORKER"), BypassRequestController.create);
