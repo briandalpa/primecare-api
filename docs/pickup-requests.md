@@ -76,6 +76,8 @@ Customer creates a new laundry pickup request. The server automatically assigns 
 
 ## GET /api/v1/pickup-requests/my
 
+> ⚠️ Not yet implemented
+
 List the authenticated customer's own pickup requests.
 
 **Access:** `CUSTOMER`
@@ -106,7 +108,8 @@ List the authenticated customer's own pickup requests.
   "meta": {
     "page": 1,
     "limit": 10,
-    "total": 3
+    "total": 3,
+    "totalPages": 1
   }
 }
 ```
@@ -152,7 +155,8 @@ List available pickup requests for the driver's outlet. Only shows `PENDING` req
   "meta": {
     "page": 1,
     "limit": 10,
-    "total": 2
+    "total": 2,
+    "totalPages": 1
   }
 }
 ```
@@ -163,7 +167,7 @@ List available pickup requests for the driver's outlet. Only shows `PENDING` req
 
 ---
 
-## PATCH /api/v1/pickup-requests/:id/accept
+## PATCH /api/v1/pickup-requests/:id
 
 Driver accepts a pickup request. Sets the order status to `LAUNDRY_EN_ROUTE_TO_OUTLET`.
 
@@ -222,6 +226,8 @@ Driver accepts a pickup request. Sets the order status to `LAUNDRY_EN_ROUTE_TO_O
 
 ## PATCH /api/v1/pickup-requests/:id/complete
 
+> ⚠️ Not yet implemented
+
 Driver marks the pickup as complete, laundry has been collected and is arriving at the outlet.
 
 **Access:** `DRIVER`
@@ -262,3 +268,58 @@ Driver marks the pickup as complete, laundry has been collected and is arriving 
 - Only the assigned driver (the one who accepted) can complete this request.
 - Advances the linked order status to `LAUNDRY_ARRIVED_AT_OUTLET`.
 - Triggers a notification to the outlet admin that laundry has arrived.
+
+---
+
+## GET /api/v1/pickup-requests/history
+
+> ⚠️ Not yet implemented
+
+List the driver's own completed pickup history, paginated and filterable by date.
+
+**Access:** `DRIVER`
+
+**Query Parameters:**
+
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `page` | number | `1` | Page number |
+| `limit` | number | `10` | Items per page |
+| `fromDate` | string | — | ISO 8601 date; filter `createdAt >= fromDate` |
+| `toDate` | string | — | ISO 8601 date; filter `createdAt <= toDate` |
+| `sortBy` | string | `createdAt` | Sort field |
+| `order` | string | `desc` | `asc` or `desc` |
+
+**Response (Success — 200):**
+
+```json
+{
+  "status": "success",
+  "message": "Pickup history retrieved",
+  "data": [
+    {
+      "id": "pkup_abc123",
+      "orderId": "ord_xyz789",
+      "customerName": "John Doe",
+      "pickupAddress": {
+        "label": "Home",
+        "street": "Jl. Sudirman No. 1",
+        "city": "Jakarta"
+      },
+      "status": "PICKED_UP",
+      "completedAt": "2026-03-10T09:45:00.000Z"
+    }
+  ],
+  "meta": {
+    "page": 1,
+    "limit": 10,
+    "total": 24,
+    "totalPages": 3
+  }
+}
+```
+
+**Notes:**
+
+- Returns only pickups where `PickupRequest.driverId = currentDriver.id` AND `status = 'PICKED_UP'`.
+- All pagination and filtering is performed server-side.

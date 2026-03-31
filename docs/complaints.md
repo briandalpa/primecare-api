@@ -45,7 +45,7 @@ Customer files a complaint about a completed order.
 }
 ```
 
-**Response (Error — 403):**
+**Response (Error — 409):**
 
 ```json
 {
@@ -111,7 +111,8 @@ List complaints with server-side pagination and filtering.
   "meta": {
     "page": 1,
     "limit": 10,
-    "total": 2
+    "total": 2,
+    "totalPages": 1
   }
 }
 ```

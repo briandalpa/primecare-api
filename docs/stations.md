@@ -17,6 +17,56 @@ All endpoints are under `/api/v1/orders/:id/stations`.
 
 ---
 
+## GET /api/v1/stations/queue
+
+> ⚠️ Not yet implemented
+
+Returns the list of orders currently waiting at the authenticated worker's station, scoped to their outlet. Station and outlet are determined from `Staff.workerType` and `Staff.outletId` — no query parameter needed.
+
+**Access:** `WORKER` (must be on an active shift)
+
+**Query Parameters:**
+
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `page` | number | `1` | Page number |
+| `limit` | number | `10` | Items per page |
+| `sortBy` | string | `createdAt` | Sort field |
+| `order` | string | `desc` | `asc` or `desc` |
+
+**Response (Success — 200):**
+
+```json
+{
+  "status": "success",
+  "message": "Station queue retrieved",
+  "data": [
+    {
+      "id": "ord_xyz789",
+      "status": "LAUNDRY_BEING_WASHED",
+      "totalWeightKg": 3.5,
+      "createdAt": "2026-03-06T12:00:00.000Z"
+    }
+  ],
+  "meta": {
+    "page": 1,
+    "limit": 10,
+    "total": 3,
+    "totalPages": 1
+  }
+}
+```
+
+**Notes:**
+
+- Order `status` filtered by station:
+  - `WASHING` worker → `LAUNDRY_BEING_WASHED`
+  - `IRONING` worker → `LAUNDRY_BEING_IRONED`
+  - `PACKING` worker → `LAUNDRY_BEING_PACKED`
+- Returns `403` if the worker is not on an active shift.
+
+---
+
 ## GET /api/v1/orders/:id/stations
 
 Get all station records for an order, including item quantities entered at each station.

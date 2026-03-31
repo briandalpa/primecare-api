@@ -24,6 +24,7 @@ List all outlets. Super Admin sees all; Outlet Admin sees only their own.
 |-------|------|---------|-------------|
 | `page` | number | `1` | Page number |
 | `limit` | number | `10` | Items per page |
+| `search` | string | — | Search by outlet name |
 | `isActive` | boolean | — | Filter by active status |
 | `sortBy` | string | `createdAt` | Sort field |
 | `order` | string | `desc` | `asc` or `desc` |
@@ -51,7 +52,8 @@ List all outlets. Super Admin sees all; Outlet Admin sees only their own.
   "meta": {
     "page": 1,
     "limit": 10,
-    "total": 5
+    "total": 5,
+    "totalPages": 1
   }
 }
 ```

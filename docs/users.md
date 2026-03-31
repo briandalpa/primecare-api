@@ -145,8 +145,6 @@ Resend the set-password email if the previous link has expired.
 
 ## Authenticated Endpoints
 
-Manages user profiles and saved addresses. All endpoints are under `/api/v1/users`.
-
 **Auth:** All endpoints require a valid session cookie (`better-auth.session_token`).
 
 **Response Envelope:**
@@ -183,11 +181,13 @@ Get the currently authenticated user's profile.
 }
 ```
 
-> `staff` is `null` for customers. For staff members it contains: `{ role, workerType, outletId, isActive }`. Use this field to determine the user's role and permissions.
+> `staff` is `null` for customers. For staff members it contains: `{ id, role, workerType, outletId, isActive }`. Use this field to determine the user's role and permissions on the frontend.
 
 ---
 
 ## PATCH /api/v1/users/me
+
+> ⚠️ Not yet implemented
 
 Update the authenticated user's own profile.
 
@@ -198,6 +198,7 @@ Update the authenticated user's own profile.
 ```json
 {
   "name": "John Doe Updated",
+  "phone": "+6281234567890",
   "avatarUrl": "https://example.com/new-avatar.jpg"
 }
 ```
@@ -211,6 +212,7 @@ Update the authenticated user's own profile.
   "data": {
     "id": "usr_abc123",
     "name": "John Doe Updated",
+    "phone": "+6281234567890",
     "email": "john@example.com",
     "avatarUrl": "https://example.com/new-avatar.jpg",
     "updatedAt": "2026-03-06T11:00:00.000Z"
@@ -222,13 +224,16 @@ Update the authenticated user's own profile.
 
 - Avatar upload must be `jpg`, `png`, or `webp`; max 2 MB.
 - Email cannot be changed via this endpoint.
-- Role and staff related fields cannot be changed via this endpoint, use `PATCH /api/v1/users/:id` (admin only).
+- Role and staff-related fields cannot be changed via this endpoint — use `PATCH /api/v1/admin/users/:id` (SUPER_ADMIN only).
 
 ---
 
-## GET /api/v1/users
+## GET /api/v1/admin/users
 
-List all users. Outlet Admin sees only users in their own outlet.
+List all users. Scoped by role:
+
+- **SUPER_ADMIN:** All users across all outlets, including customers (users without a Staff record).
+- **OUTLET_ADMIN:** Only staff users belonging to their own outlet.
 
 **Access:** `OUTLET_ADMIN`, `SUPER_ADMIN`
 
@@ -238,6 +243,7 @@ List all users. Outlet Admin sees only users in their own outlet.
 | ---------- | ------ | ----------- | -------------------------------------------------- |
 | `page`     | number | `1`         | Page number                                        |
 | `limit`    | number | `10`        | Items per page                                     |
+| `search`   | string | —           | Search by name or email                            |
 | `role`     | string | —           | Filter by role: `OUTLET_ADMIN`, `WORKER`, `DRIVER` |
 | `outletId` | string | —           | Filter by outlet (SUPER_ADMIN only)                |
 | `sortBy`   | string | `createdAt` | Sort field                                         |
@@ -265,18 +271,19 @@ List all users. Outlet Admin sees only users in their own outlet.
   "meta": {
     "page": 1,
     "limit": 10,
-    "total": 42
+    "total": 42,
+    "totalPages": 5
   }
 }
 ```
 
 ---
 
-## POST /api/v1/users
+## POST /api/v1/admin/users
 
 Create a new staff user account. Sends an invitation email for password setup.
 
-**Access:** `OUTLET_ADMIN` (own outlet only), `SUPER_ADMIN`
+**Access:** `SUPER_ADMIN`
 
 **Request Body:**
 
@@ -322,12 +329,13 @@ Create a new staff user account. Sends an invitation email for password setup.
 **Notes:**
 
 - `workerType` is required when `role` is `WORKER` (`WASHING`, `IRONING`, or `PACKING`).
-- Outlet Admin can only assign users to their own outlet.
-- The invitation email contains a one time password setup link (expires 1 hour).
+- The invitation email contains a one-time password setup link (expires 1 hour).
 
 ---
 
-## GET /api/v1/users/:id
+## GET /api/v1/admin/users/:id
+
+> ⚠️ Not yet implemented
 
 Get a specific user by ID.
 
@@ -370,11 +378,11 @@ Get a specific user by ID.
 
 ---
 
-## PATCH /api/v1/users/:id
+## PATCH /api/v1/admin/users/:id
 
 Update a staff user's details.
 
-**Access:** `OUTLET_ADMIN` (own outlet only), `SUPER_ADMIN`
+**Access:** `SUPER_ADMIN`
 
 **Path Params:**
 
@@ -387,7 +395,8 @@ Update a staff user's details.
 ```json
 {
   "name": "Jane Worker Updated",
-  "workerType": "IRONING"
+  "workerType": "IRONING",
+  "isActive": false
 }
 ```
 
@@ -401,7 +410,7 @@ Update a staff user's details.
     "id": "usr_def456",
     "name": "Jane Worker Updated",
     "workerType": "IRONING",
-    "isActive": true,
+    "isActive": false,
     "updatedAt": "2026-03-06T12:00:00.000Z"
   }
 }
@@ -409,11 +418,11 @@ Update a staff user's details.
 
 ---
 
-## DELETE /api/v1/users/:id
+## DELETE /api/v1/admin/users/:id
 
 Delete a staff user account.
 
-**Access:** `OUTLET_ADMIN` (own outlet only), `SUPER_ADMIN`
+**Access:** `SUPER_ADMIN`
 
 **Path Params:**
 
@@ -447,7 +456,7 @@ Delete a staff user account.
 
 ---
 
-## GET /api/v1/users/me/addresses
+## GET /api/v1/users/addresses
 
 List all saved addresses of the authenticated customer.
 
@@ -488,7 +497,7 @@ List all saved addresses of the authenticated customer.
 
 ---
 
-## POST /api/v1/users/me/addresses
+## POST /api/v1/users/addresses
 
 Add a new saved address.
 
@@ -535,7 +544,7 @@ Add a new saved address.
 
 ---
 
-## PATCH /api/v1/users/me/addresses/:id
+## PATCH /api/v1/users/addresses/:id
 
 Update a saved address.
 
@@ -590,7 +599,7 @@ Update a saved address.
 
 ---
 
-## DELETE /api/v1/users/me/addresses/:id
+## DELETE /api/v1/users/addresses/:id
 
 Delete a saved address.
 
@@ -618,7 +627,7 @@ Delete a saved address.
 
 ---
 
-## PATCH /api/v1/users/me/addresses/:id/set-primary
+## PATCH /api/v1/users/addresses/:id/primary
 
 Set an address as the primary address. Clears `isPrimary` on all other addresses for this user.
 
