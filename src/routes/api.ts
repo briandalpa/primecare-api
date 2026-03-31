@@ -143,16 +143,8 @@ apiRouter.patch(
 
 // ORDER
 apiRouter.get('/orders', requireCustomerAuth, OrderController.listOrders);
-apiRouter.get(
-  '/orders/:id',
-  requireCustomerAuth,
-  OrderController.getOrderDetail,
-);
-apiRouter.post(
-  '/orders/:id/confirm',
-  requireCustomerAuth,
-  OrderController.confirmReceipt,
-);
+apiRouter.get('/orders/:id', requireCustomerAuth, OrderController.getOrderDetail);
+apiRouter.patch('/orders/:id/confirm', requireCustomerAuth, OrderController.confirmReceipt);
 
 // WORKER
 apiRouter.get(
