@@ -14,6 +14,7 @@ import { BypassRequestController } from '@/features/bypass-requests/bypass-reque
 import { OrderController } from '@/features/orders/order-controller';
 import { WorkerOrderController } from '@/features/worker-orders/worker-order-controller';
 import { WorkerNotificationController } from '@/features/worker-notifications/worker-notification-controller';
+import { PickupRequestController } from '@/features/pickup-requests/pickup-request-controller';
 
 export const apiRouter = express.Router();
 
@@ -107,6 +108,11 @@ apiRouter.delete(
   requireStaffRole('SUPER_ADMIN'),
   AdminUserController.deleteAdminUser,
 );
+
+// PICKUP REQUEST
+apiRouter.post('/pickup-requests', requireCustomerAuth, PickupRequestController.create);
+apiRouter.get('/pickup-requests', requireStaffRole('DRIVER'), PickupRequestController.list);
+apiRouter.patch('/pickup-requests/:id', requireStaffRole('DRIVER'), PickupRequestController.accept);
 
 // BYPASS REQUEST
 apiRouter.post(
