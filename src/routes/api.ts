@@ -15,6 +15,7 @@ import { OrderController } from '@/features/orders/order-controller';
 import { WorkerOrderController } from '@/features/worker-orders/worker-order-controller';
 import { WorkerNotificationController } from '@/features/worker-notifications/worker-notification-controller';
 import { PickupRequestController } from '@/features/pickup-requests/pickup-request-controller';
+import { PaymentController } from '@/features/payments/payment-controller';
 
 export const apiRouter = express.Router();
 
@@ -145,6 +146,9 @@ apiRouter.patch(
 apiRouter.get('/orders', requireCustomerAuth, OrderController.listOrders);
 apiRouter.get('/orders/:id', requireCustomerAuth, OrderController.getOrderDetail);
 apiRouter.patch('/orders/:id/confirm', requireCustomerAuth, OrderController.confirmReceipt);
+
+// PAYMENT
+apiRouter.post('/orders/:id/payments', requireCustomerAuth, PaymentController.initiate);
 
 // WORKER
 apiRouter.get(
