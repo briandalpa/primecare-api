@@ -200,4 +200,14 @@ describe('PaymentService.handleWebhook', () => {
 
     await expect(PaymentService.handleWebhook(makeWebhookPayload(PAYMENT_ID, 'settlement', SERVER_KEY))).resolves.toBeUndefined();
   });
+
+  it('does not call processSettlement when payment is already PAID', async () => {
+    paymentMock.findUnique.mockResolvedValue(
+      makePayment({ status: 'PAID', order: makeOrder() }) as never
+    );
+
+    await PaymentService.handleWebhook(makeWebhookPayload(PAYMENT_ID, 'settlement', SERVER_KEY));
+
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
 });
