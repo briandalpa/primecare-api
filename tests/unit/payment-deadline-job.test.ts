@@ -87,14 +87,14 @@ describe('sendPackingHeadsUp', () => {
     );
   });
 
-  it('swallows email failure and still updates reminderSentAt', async () => {
+  it('swallows email failure and does not update reminderSentAt', async () => {
     orderMock.findMany
       .mockResolvedValueOnce([makePackingOrder()])
       .mockResolvedValueOnce([]);
     sendEmailMock.mockRejectedValueOnce(new Error('SMTP timeout'));
 
     await expect(cronCallback()).resolves.toBeUndefined();
-    expect(paymentMock.update).toHaveBeenCalled();
+    expect(paymentMock.update).not.toHaveBeenCalled();
   });
 
   it('skips notification when query returns no eligible orders', async () => {
@@ -127,14 +127,14 @@ describe('sendPaymentReminder', () => {
     );
   });
 
-  it('swallows email failure and still updates reminderSentAt', async () => {
+  it('swallows email failure and does not update reminderSentAt', async () => {
     orderMock.findMany
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([makeReminderOrder()]);
     sendEmailMock.mockRejectedValueOnce(new Error('SMTP error'));
 
     await expect(cronCallback()).resolves.toBeUndefined();
-    expect(paymentMock.update).toHaveBeenCalled();
+    expect(paymentMock.update).not.toHaveBeenCalled();
   });
 
   it('skips notification when query returns no eligible orders', async () => {

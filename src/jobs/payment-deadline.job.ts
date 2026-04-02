@@ -4,7 +4,7 @@ import { logger } from '@/application/logging';
 import { sendEmail } from '@/utils/mailer';
 
 const PACKING_THRESHOLD_MS = 30 * 60 * 1000;
-const PAYMENT_REMINDER_MS  = 2 * 60 * 60 * 1000;
+const PAYMENT_REMINDER_MS = 2 * 60 * 60 * 1000;
 
 const packingEmailHtml = (name: string | null, orderId: string): string => `
   <p>Hi ${name ?? 'there'},</p>
@@ -15,7 +15,11 @@ const packingEmailHtml = (name: string | null, orderId: string): string => `
   <p>Thank you for choosing PrimeCare!</p>
 `;
 
-const reminderEmailHtml = (name: string | null, orderId: string, frontendUrl: string): string => `
+const reminderEmailHtml = (
+  name: string | null,
+  orderId: string,
+  frontendUrl: string,
+): string => `
   <p>Hi ${name ?? 'there'},</p>
   <p>Your laundry order <strong>#${orderId}</strong> is packed and waiting for
   payment before we can arrange delivery.</p>
@@ -27,13 +31,15 @@ const reminderEmailHtml = (name: string | null, orderId: string, frontendUrl: st
 const fetchPackingOrders = async (threshold: Date) =>
   prisma.order.findMany({
     where: {
-      status:    'LAUNDRY_BEING_PACKED',
+      status: 'LAUNDRY_BEING_PACKED',
       updatedAt: { lte: threshold },
-      payment:   { reminderSentAt: null },
+      payment: { reminderSentAt: null },
     },
     include: {
-      payment:       true,
-      pickupRequest: { include: { customerUser: { select: { email: true, name: true } } } },
+      payment: true,
+      pickupRequest: {
+        include: { customerUser: { select: { email: true, name: true } } },
+      },
     },
   });
 
@@ -42,13 +48,23 @@ type PackingOrder = Awaited<ReturnType<typeof fetchPackingOrders>>[number];
 const notifyPackingOrder = async (order: PackingOrder) => {
   const { email, name } = order.pickupRequest.customerUser;
   try {
-    await sendEmail({ to: email, subject: 'Your laundry is almost ready — payment coming up', html: packingEmailHtml(name, order.id) });
+    await sendEmail({
+      to: email,
+      subject: 'Your laundry is almost ready — payment coming up',
+      html: packingEmailHtml(name, order.id),
+    });
+    if (order.payment)
+      await prisma.payment.update({
+        where: { id: order.payment.id },
+        data: { reminderSentAt: new Date() },
+      });
+    logger.info(`Packing heads-up sent for order ${order.id} to ${email}`);
   } catch (err) {
-    logger.warn(`Failed to send packing heads-up for order ${order.id} to ${email}`, err);
+    logger.warn(
+      `Failed to send packing heads-up for order ${order.id} to ${email}`,
+      err,
+    );
   }
-  if (order.payment)
-    await prisma.payment.update({ where: { id: order.payment.id }, data: { reminderSentAt: new Date() } });
-  logger.info(`Packing heads-up sent for order ${order.id} to ${email}`);
 };
 
 const sendPackingHeadsUp = async () => {
@@ -60,13 +76,15 @@ const sendPackingHeadsUp = async () => {
 const fetchReminderOrders = async (threshold: Date) =>
   prisma.order.findMany({
     where: {
-      status:    'WAITING_FOR_PAYMENT',
+      status: 'WAITING_FOR_PAYMENT',
       updatedAt: { lte: threshold },
-      payment:   { reminderSentAt: null },
+      payment: { reminderSentAt: null },
     },
     include: {
-      payment:       { select: { id: true } },
-      pickupRequest: { include: { customerUser: { select: { email: true, name: true } } } },
+      payment: { select: { id: true } },
+      pickupRequest: {
+        include: { customerUser: { select: { email: true, name: true } } },
+      },
     },
   });
 
@@ -77,17 +95,23 @@ const notifyReminderOrder = async (order: ReminderOrder) => {
   const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:5173';
   try {
     await sendEmail({
-      to:      email,
+      to: email,
       subject: 'Action required: complete your laundry payment',
-      html:    reminderEmailHtml(name, order.id, frontendUrl),
+      html: reminderEmailHtml(name, order.id, frontendUrl),
     });
+    if (order.payment) {
+      await prisma.payment.update({
+        where: { id: order.payment.id },
+        data: { reminderSentAt: new Date() },
+      });
+    }
+    logger.info(`Payment reminder sent for order ${order.id} to ${email}`);
   } catch (err) {
-    logger.warn(`Failed to send payment reminder for order ${order.id} to ${email}`, err);
+    logger.warn(
+      `Failed to send payment reminder for order ${order.id} to ${email}`,
+      err,
+    );
   }
-  if (order.payment) {
-    await prisma.payment.update({ where: { id: order.payment.id }, data: { reminderSentAt: new Date() } });
-  }
-  logger.info(`Payment reminder sent for order ${order.id} to ${email}`);
 };
 
 const sendPaymentReminder = async () => {
