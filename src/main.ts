@@ -1,6 +1,7 @@
 import { configDotenv } from 'dotenv';
 import { app } from '@/application/app';
 import { logger } from '@/application/logging';
+import { startPaymentDeadlineJob } from '@/jobs/payment-deadline.job';
 
 configDotenv();
 
@@ -8,6 +9,8 @@ const PORT = process.env.PORT;
 
 (async () => {
   try {
+    startPaymentDeadlineJob();
+
     const server = app.listen(PORT, () => {
       logger.info(`Listening on Port: ${PORT}`);
     });
