@@ -1,14 +1,14 @@
 import { NextFunction, Response } from 'express';
 import { UserRequest } from '@/types/user-request';
 import { Validation } from '@/validations/validation';
-import { OrderListQuerySchema, OrderParamsSchema } from './order-model';
+import { OrderValidation } from '@/validations/order-validation';
 import { OrderService } from './order-service';
 
 export class OrderController {
 
   static async listOrders(req: UserRequest, res: Response, next: NextFunction) {
     try {
-      const query = Validation.validate(OrderListQuerySchema, req.query);
+      const query = Validation.validate(OrderValidation.LIST_QUERY, req.query);
       const result = await OrderService.listOrders(req.user!.id, query);
       res.status(200).json({
         status:  'success',
@@ -23,7 +23,7 @@ export class OrderController {
 
   static async getOrderDetail(req: UserRequest, res: Response, next: NextFunction) {
     try {
-      const { id: orderId } = Validation.validate(OrderParamsSchema, req.params);
+      const { id: orderId } = Validation.validate(OrderValidation.ID_PARAM, req.params);
       const result = await OrderService.getOrderDetail(req.user!.id, orderId);
       res.status(200).json({
         status:  'success',
@@ -37,7 +37,7 @@ export class OrderController {
 
   static async confirmReceipt(req: UserRequest, res: Response, next: NextFunction) {
     try {
-      const { id } = Validation.validate(OrderParamsSchema, req.params);
+      const { id } = Validation.validate(OrderValidation.ID_PARAM, req.params);
       const result = await OrderService.confirmReceipt(req.user!.id, id);
       res.status(200).json({
         status:  'success',
