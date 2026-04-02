@@ -96,7 +96,7 @@ beforeEach(() => jest.clearAllMocks());
 describe('POST /api/v1/pickup-requests', () => {
   const validBody = {
     addressId: '550e8400-e29b-41d4-a716-446655440003',
-    scheduledAt: '2026-04-01T09:00:00Z',
+    scheduledAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
   };
 
   it('returns 401 when not authenticated', async () => {
