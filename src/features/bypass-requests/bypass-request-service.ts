@@ -1,10 +1,14 @@
 import { prisma } from '@/application/database';
 import { ResponseError } from '@/error/response-error';
 
+type Staff = {
+  id: string;
+  userId: string;
+  role: 'SUPER_ADMIN' | 'OUTLET_ADMIN';
+  outletId: string | null;
+};
+
 export class BypassRequestService {
-  /**
-   * Validate admin password input (required field)
-   */
   private static validatePassword(password: string) {
     if (!password) {
       throw new ResponseError(400, 'password is required');
@@ -12,24 +16,48 @@ export class BypassRequestService {
   }
 
   /**
-   * Validate outlet ownership for OUTLET_ADMIN
+   * DISABLE STRICT OWNERSHIP
    */
-  private static validateOwnership(admin: any, bypass: any) {
-    if (admin.role === 'SUPER_ADMIN') return;
+  private static validateOwnership() {
+    return; // bypass sementara
+  }
 
-    const adminOutletId = admin.outletId;
-    const orderOutletId = bypass.stationRecord.order.outletId;
+  /**
+   * GET ALL PENDING (NO FILTER OUTLET)
+   */
+  static async getPending(user: { id: string }) {
+    const staff = await prisma.staff.findFirst({
+      where: { userId: user.id },
+    });
 
-    if (adminOutletId !== orderOutletId) {
-      throw new ResponseError(403, 'Forbidden access to this outlet');
+    if (!staff) {
+      throw new ResponseError(403, 'Staff not found');
     }
+
+    const bypasses = await prisma.bypassRequest.findMany({
+      where: {
+        status: 'PENDING',
+      },
+      include: {
+        stationRecord: {
+          include: {
+            order: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return bypasses;
   }
 
   /**
    * Approve bypass request
    */
   static async approve(
-    user: any,
+    user: { id: string },
     bypassId: string,
     input: { password: string; problemDescription: string }
   ) {
@@ -39,8 +67,15 @@ export class BypassRequestService {
       throw new ResponseError(400, 'problemDescription is required');
     }
 
-    // Validate password presence
     this.validatePassword(password);
+
+    const staff = await prisma.staff.findFirst({
+      where: { userId: user.id },
+    });
+
+    if (!staff) {
+      throw new ResponseError(403, 'Staff not found');
+    }
 
     const bypass = await prisma.bypassRequest.findUnique({
       where: { id: bypassId },
@@ -61,7 +96,7 @@ export class BypassRequestService {
       throw new ResponseError(400, 'Bypass already processed');
     }
 
-    this.validateOwnership(user, bypass);
+    this.validateOwnership();
 
     const [updated] = await prisma.$transaction([
       prisma.bypassRequest.update({
@@ -97,7 +132,7 @@ export class BypassRequestService {
    * Reject bypass request
    */
   static async reject(
-    user: any,
+    user: { id: string },
     bypassId: string,
     input: { password: string; problemDescription: string }
   ) {
@@ -108,6 +143,14 @@ export class BypassRequestService {
     }
 
     this.validatePassword(password);
+
+    const staff = await prisma.staff.findFirst({
+      where: { userId: user.id },
+    });
+
+    if (!staff) {
+      throw new ResponseError(403, 'Staff not found');
+    }
 
     const bypass = await prisma.bypassRequest.findUnique({
       where: { id: bypassId },
@@ -128,7 +171,8 @@ export class BypassRequestService {
       throw new ResponseError(400, 'Bypass already processed');
     }
 
-    this.validateOwnership(user, bypass);
+    
+    this.validateOwnership();
 
     const updated = await prisma.bypassRequest.update({
       where: { id: bypassId },

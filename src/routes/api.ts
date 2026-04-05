@@ -7,6 +7,9 @@ import { AdminOrderController } from '@/features/admin-orders/admin-order-contro
 import { AddressController } from '@/features/addresses/address-controller';
 import { RegionController } from '@/features/region-data/region-controller';
 import { BypassRequestController } from '@/features/bypass-requests/bypass-request-controller';
+import { BypassRequestService } from '@/features/bypass-requests/bypass-request-service';
+
+import { UserRequest } from '@/types/user-request';
 
 export const apiRouter = express.Router();
 
@@ -73,5 +76,30 @@ apiRouter.get('/orders', requireCustomerAuth, OrderController.listOrders);
 apiRouter.get('/orders/:id', requireCustomerAuth, OrderController.getOrderDetail);
 apiRouter.post('/orders/:id/confirm', requireCustomerAuth, OrderController.confirmReceipt);
 
-apiRouter.patch('/admin/bypass-requests/:id/approve', requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'), BypassRequestController.approve);
-apiRouter.patch('/admin/bypass-requests/:id/reject', requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'), BypassRequestController.reject);
+apiRouter.get(
+  '/admin/bypass-requests',
+  requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'),
+  async (req: UserRequest, res, next) => {
+    try {
+      const result = await BypassRequestService.getPending(req.user!);
+
+      res.json({
+        data: result,
+      });
+    } catch (e) {
+      next(e);
+    }
+  }
+);
+
+apiRouter.patch(
+  '/admin/bypass-requests/:id/approve',
+  requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'),
+  BypassRequestController.approve
+);
+
+apiRouter.patch(
+  '/admin/bypass-requests/:id/reject',
+  requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'),
+  BypassRequestController.reject
+);

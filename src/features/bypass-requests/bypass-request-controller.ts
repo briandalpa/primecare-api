@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { BypassRequestService } from './bypass-request-service';
 import { UserRequest } from '@/types/user-request';
 import { Validation } from '@/validations/validation';
+import { ResponseError } from '@/error/response-error';
 import {
   approveBypassSchema,
   rejectBypassSchema,
@@ -9,7 +10,13 @@ import {
 
 export class BypassRequestController {
   static async approve(req: UserRequest, res: Response) {
-    const user = req.user;
+    if (!req.user || !req.user.id) {
+      throw new ResponseError(401, 'Unauthorized');
+    }
+
+    const user = {
+      id: req.user.id,
+    };
 
     const request = Validation.validate(
       approveBypassSchema,
@@ -30,7 +37,13 @@ export class BypassRequestController {
   }
 
   static async reject(req: UserRequest, res: Response) {
-    const user = req.user;
+    if (!req.user || !req.user.id) {
+      throw new ResponseError(401, 'Unauthorized');
+    }
+
+    const user = {
+      id: req.user.id,
+    };
 
     const request = Validation.validate(
       rejectBypassSchema,
