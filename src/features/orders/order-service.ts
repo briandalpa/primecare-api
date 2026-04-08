@@ -11,6 +11,7 @@ const buildListWhere = (customerId: string, query: OrderListQuery) => {
     pickupRequest: { customerId },
   };
   if (query.status) where.status = query.status;
+  if (query.excludeCompleted) where.status = { not: 'COMPLETED' };
   if (query.search) where.id = { contains: query.search, mode: 'insensitive' };
   if (query.fromDate || query.toDate) {
     where.createdAt = {

@@ -11,18 +11,26 @@ import {
 } from './payment-model';
 
 let _snap: InstanceType<typeof MidtransClient.Snap> | null = null;
+let _core: InstanceType<typeof MidtransClient.CoreApi> | null = null;
+
+const getMidtransConfig = () => {
+  if (!process.env.MIDTRANS_SERVER_KEY)
+    throw new ResponseError(500, 'Payment gateway misconfigured');
+  return {
+    isProduction: process.env.MIDTRANS_IS_PRODUCTION === 'true',
+    serverKey: process.env.MIDTRANS_SERVER_KEY,
+    clientKey: process.env.MIDTRANS_CLIENT_KEY ?? '',
+  };
+};
 
 const getSnap = () => {
-  if (!_snap) {
-    if (!process.env.MIDTRANS_SERVER_KEY)
-      throw new ResponseError(500, 'Payment gateway misconfigured');
-    _snap = new MidtransClient.Snap({
-      isProduction: process.env.MIDTRANS_IS_PRODUCTION === 'true',
-      serverKey: process.env.MIDTRANS_SERVER_KEY,
-      clientKey: process.env.MIDTRANS_CLIENT_KEY ?? '',
-    });
-  }
+  if (!_snap) _snap = new MidtransClient.Snap(getMidtransConfig());
   return _snap;
+};
+
+const getCoreApi = () => {
+  if (!_core) _core = new MidtransClient.CoreApi(getMidtransConfig());
+  return _core;
 };
 
 const verifySignature = (payload: MidtransWebhookPayload): boolean => {
@@ -121,6 +129,25 @@ export class PaymentService {
       order.totalPrice,
     );
     return toInitiatePaymentResponse(payment, snapToken);
+  }
+
+  static async verifyPayment(customerId: string, orderId: string): Promise<void> {
+    const order = await fetchOrderForPayment(orderId);
+    if (!order) throw new ResponseError(404, 'Order not found');
+    if (order.pickupRequest.customerId !== customerId)
+      throw new ResponseError(403, 'You are not authorized to verify this payment');
+    if (order.paymentStatus === 'PAID') return;
+    if (!order.payment) throw new ResponseError(404, 'No payment initiated for this order');
+
+    const { transaction_status, fraud_status } =
+      await getCoreApi().transaction.status(order.payment.id);
+
+    if (transaction_status === 'settlement' && fraud_status !== 'deny')
+      await processSettlement(order.payment.id, orderId, order.status);
+    else if (transaction_status === 'expire')
+      await processFailure(order.payment.id, 'EXPIRED');
+    else if (transaction_status === 'cancel' || transaction_status === 'deny')
+      await processFailure(order.payment.id, 'FAILED');
   }
 
   static async handleWebhook(payload: MidtransWebhookPayload): Promise<void> {

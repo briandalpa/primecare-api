@@ -15,6 +15,16 @@ export class PaymentController {
     }
   }
 
+  static async verify(req: UserRequest, res: Response, next: NextFunction) {
+    try {
+      const orderId = Validation.validate(PaymentValidation.ID_PARAM, req.params.id);
+      await PaymentService.verifyPayment(req.user!.id, orderId);
+      res.status(200).json({ status: 'success', message: 'Payment verified', data: null });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async handleWebhook(req: Request, res: Response, next: NextFunction) {
     try {
       const payload = Validation.validate(PaymentValidation.WEBHOOK, req.body);

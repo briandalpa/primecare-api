@@ -4,6 +4,7 @@ export type OrderListQuery = {
   page: number;
   limit: number;
   status?: OrderStatus;
+  excludeCompleted?: boolean;
   fromDate?: string;
   toDate?: string;
   search?: string;

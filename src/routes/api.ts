@@ -149,6 +149,7 @@ apiRouter.patch('/orders/:id/confirm', requireCustomerAuth, OrderController.conf
 
 // PAYMENT
 apiRouter.post('/orders/:id/payments', requireCustomerAuth, PaymentController.initiate);
+apiRouter.post('/orders/:id/payments/verify', requireCustomerAuth, PaymentController.verify);
 
 // WORKER
 apiRouter.get(

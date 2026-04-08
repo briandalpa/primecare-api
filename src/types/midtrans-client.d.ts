@@ -22,11 +22,21 @@ declare module 'midtrans-client' {
 
   class Snap {
     constructor(config: MidtransConfig);
-    createTransaction(param: SnapTransactionParam): Promise<SnapTransactionResult>;
+    createTransaction(
+      param: SnapTransactionParam,
+    ): Promise<SnapTransactionResult>;
+  }
+
+  interface TransactionStatusResponse {
+    transaction_status: string;
+    fraud_status?: string;
   }
 
   class CoreApi {
     constructor(config: MidtransConfig);
+    transaction: {
+      status(transactionId: string): Promise<TransactionStatusResponse>;
+    };
   }
 
   export { Snap, CoreApi };
