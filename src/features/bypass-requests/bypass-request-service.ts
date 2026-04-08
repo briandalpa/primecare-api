@@ -1,13 +1,6 @@
 import { prisma } from '@/application/database';
 import { ResponseError } from '@/error/response-error';
 
-type Staff = {
-  id: string;
-  userId: string;
-  role: 'SUPER_ADMIN' | 'OUTLET_ADMIN';
-  outletId: string | null;
-};
-
 export class BypassRequestService {
   private static validatePassword(password: string) {
     if (!password) {
@@ -103,7 +96,7 @@ export class BypassRequestService {
         where: { id: bypassId },
         data: {
           status: 'APPROVED',
-          adminId: user.id,
+          adminId: staff.id,
           problemDescription,
           resolvedAt: new Date(),
         },
@@ -178,7 +171,7 @@ export class BypassRequestService {
       where: { id: bypassId },
       data: {
         status: 'REJECTED',
-        adminId: user.id,
+        adminId: staff.id,
         problemDescription,
         resolvedAt: new Date(),
       },
