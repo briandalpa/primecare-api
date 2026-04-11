@@ -1,5 +1,5 @@
 jest.mock('@/application/database', () => {
-  const txOrderMock = { findUnique: jest.fn(), update: jest.fn() };
+  const txOrderMock = { findUnique: jest.fn(), update: jest.fn(), findMany: jest.fn(), count: jest.fn() };
   return {
     prisma: {
       $transaction: jest.fn().mockImplementation(async (cb: Function) =>
@@ -84,5 +84,63 @@ describe('OrderService.confirmReceipt', () => {
 
     await expect(OrderService.confirmReceipt(CUSTOMER_ID, ORDER_ID))
       .rejects.toMatchObject({ status: 409, message: 'Order cannot be confirmed at this stage' });
+  });
+});
+
+// ── OrderService.listOrders ───────────────────────────────────────────────────
+
+describe('OrderService.listOrders', () => {
+  const defaultQuery = { page: 1, limit: 10, sortBy: 'createdAt', order: 'desc' as const };
+
+  const makeOrderRow = (overrides: object = {}) => ({
+    id: ORDER_ID,
+    outlet: { name: 'PrimeCare Kemang' },
+    pickupRequest: { customerUser: { name: 'Test Customer' } },
+    totalPrice: 35000,
+    paymentStatus: 'UNPAID',
+    status: 'WAITING_FOR_PAYMENT',
+    createdAt: new Date(),
+    ...overrides,
+  });
+
+  it('returns paginated list with correct meta', async () => {
+    txOrderMock.findMany.mockResolvedValue([makeOrderRow()] as never);
+    txOrderMock.count.mockResolvedValue(1 as never);
+
+    const result = await OrderService.listOrders(CUSTOMER_ID, defaultQuery);
+
+    expect(result.data).toHaveLength(1);
+    expect(result.meta).toEqual({ page: 1, limit: 10, total: 1, totalPages: 1 });
+    expect(result.data[0]).toHaveProperty('outletName', 'PrimeCare Kemang');
+  });
+
+  it('passes excludeCompleted filter as status not:COMPLETED to Prisma', async () => {
+    txOrderMock.findMany.mockResolvedValue([] as never);
+    txOrderMock.count.mockResolvedValue(0 as never);
+
+    await OrderService.listOrders(CUSTOMER_ID, { ...defaultQuery, excludeCompleted: true });
+
+    const findManyCall = txOrderMock.findMany.mock.calls[0]?.[0] as { where: Record<string, unknown> };
+    expect(findManyCall.where.status).toEqual({ not: 'COMPLETED' });
+  });
+
+  it('passes status filter directly to Prisma when excludeCompleted is not set', async () => {
+    txOrderMock.findMany.mockResolvedValue([] as never);
+    txOrderMock.count.mockResolvedValue(0 as never);
+
+    await OrderService.listOrders(CUSTOMER_ID, { ...defaultQuery, status: 'WAITING_FOR_PAYMENT' as never });
+
+    const findManyCall = txOrderMock.findMany.mock.calls[0]?.[0] as { where: Record<string, unknown> };
+    expect(findManyCall.where.status).toBe('WAITING_FOR_PAYMENT');
+  });
+
+  it('falls back to createdAt sort when an invalid sortBy field is provided', async () => {
+    txOrderMock.findMany.mockResolvedValue([] as never);
+    txOrderMock.count.mockResolvedValue(0 as never);
+
+    await OrderService.listOrders(CUSTOMER_ID, { ...defaultQuery, sortBy: 'invalidField' });
+
+    const findManyCall = txOrderMock.findMany.mock.calls[0]?.[0] as { orderBy: Record<string, string> };
+    expect(findManyCall.orderBy).toEqual({ createdAt: 'desc' });
   });
 });
