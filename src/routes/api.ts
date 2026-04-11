@@ -34,6 +34,7 @@ apiRouter.get(
   RegionController.listCities,
 );
 apiRouter.get('/regions/geocode', requireAuth, RegionController.geocode);
+apiRouter.get('/regions/reverse-geocode', requireAuth, RegionController.reverseGeocode);
 
 // ADDRESS
 apiRouter.get('/users/addresses', requireCustomerAuth, AddressController.list);
