@@ -13,6 +13,14 @@ export class BypassRequestService {
         throw new ResponseError(404, "Station record not found");
       }
 
+      if (stationRecord.staffId !== workerId) {
+        throw new ResponseError(403, "You are not assigned to this station");
+      }
+
+      if (!data.mismatchDetails) {
+        throw new ResponseError(400, "Mismatch details required");
+      }
+
       const existing = await tx.bypassRequest.findFirst({
         where: {
           stationRecordId: data.stationRecordId,
@@ -30,7 +38,15 @@ export class BypassRequestService {
           workerId: workerId,
           adminId: null,
           status: "PENDING",
-          problemDescription: data.mismatchDetails,
+          problemDescription: null, // ✅ FIX
+        },
+      });
+
+      // ✅ update status sesuai reviewer
+      await tx.stationRecord.update({
+        where: { id: data.stationRecordId },
+        data: {
+          status: "BYPASS_REQUESTED",
         },
       });
 
