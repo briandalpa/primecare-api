@@ -13,10 +13,12 @@ export class BypassRequestService {
         throw new ResponseError(404, "Station record not found");
       }
 
+      // Ownership validation
       if (stationRecord.staffId !== workerId) {
         throw new ResponseError(403, "You are not assigned to this station");
       }
 
+      // Basic mismatch validation
       if (!data.mismatchDetails) {
         throw new ResponseError(400, "Mismatch details required");
       }
@@ -32,17 +34,18 @@ export class BypassRequestService {
         throw new ResponseError(409, "Bypass already requested");
       }
 
+      // Create bypass (problemDescription MUST be null)
       const bypass = await tx.bypassRequest.create({
         data: {
           stationRecordId: data.stationRecordId,
           workerId: workerId,
           adminId: null,
           status: "PENDING",
-          problemDescription: null, // ✅ FIX
+          problemDescription: null,
         },
       });
 
-      // ✅ update status sesuai reviewer
+      // IMPORTANT: update station status
       await tx.stationRecord.update({
         where: { id: data.stationRecordId },
         data: {

@@ -12,13 +12,8 @@ export class BypassRequestController {
         req.body
       );
 
-      if (!req.staff) {
-        res.status(403).json({ message: "Forbidden" });
-        return;
-      }
-
       const result = await BypassRequestService.create(
-        req.staff.id,
+        req.staff!.id,
         request
       );
 

@@ -38,14 +38,14 @@ apiRouter.patch('/admin/users/:id', requireStaffRole('SUPER_ADMIN'), AdminUserCo
 apiRouter.get('/admin/laundry-items', requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'), AdminOrderController.getLaundryItems);
 apiRouter.delete('/admin/users/:id', requireStaffRole('SUPER_ADMIN'), AdminUserController.deleteAdminUser);
 
-// ORDER (CUSTOMER)
-apiRouter.get('/orders', requireCustomerAuth, OrderController.listOrders);
-apiRouter.get('/orders/:id', requireCustomerAuth, OrderController.getOrderDetail);
-apiRouter.post('/orders/:id/confirm', requireCustomerAuth, OrderController.confirmReceipt);
-
-// BYPASS REQUEST
+// BYPASS REQUEST (PCS-127)
 apiRouter.post(
   '/admin/bypass-requests',
   requireStaffRole('WORKER'),
   BypassRequestController.create
 );
+
+// ORDER
+apiRouter.get('/orders', requireCustomerAuth, OrderController.listOrders);
+apiRouter.get('/orders/:id', requireCustomerAuth, OrderController.getOrderDetail);
+apiRouter.post('/orders/:id/confirm', requireCustomerAuth, OrderController.confirmReceipt);
