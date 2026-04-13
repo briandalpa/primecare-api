@@ -68,8 +68,8 @@ export function toBypassResponse(
 ): BypassRequestResponse {
   return {
     id: bypass.id,
-    orderId: bypass.stationRecord.order.id,
-    station: bypass.stationRecord.station,
+    orderId: bypass.stationRecord?.order?.id ?? '',
+    station: bypass.stationRecord?.station ?? '',
     workerName: bypass.worker?.user?.name ?? 'Unknown',
     status: bypass.status as BypassStatus,
     createdAt: bypass.createdAt,
