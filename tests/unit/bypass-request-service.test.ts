@@ -19,12 +19,17 @@ const mockTx = {
 jest.mock('@/application/database', () => ({
   prisma: {
     $transaction: jest.fn((callback: (tx: typeof mockTx) => Promise<any>) => callback(mockTx)),
+    bypassRequest: {
+      findMany: jest.fn(),
+      count: jest.fn(),
+    },
   },
 }));
 
 import { BypassRequestService } from '@/features/bypass-requests/bypass-request-service';
 import { prisma } from '@/application/database';
 import { ResponseError } from '@/error/response-error';
+import { BypassStatus } from '@/features/bypass-requests/bypass-request-model';
 
 describe('BypassRequestService', () => {
   beforeEach(() => {
@@ -32,6 +37,8 @@ describe('BypassRequestService', () => {
     (prisma.$transaction as jest.Mock).mockImplementation(
       (callback: (tx: typeof mockTx) => Promise<any>) => callback(mockTx)
     );
+    (prisma.bypassRequest.findMany as jest.Mock).mockResolvedValue([]);
+    (prisma.bypassRequest.count as jest.Mock).mockResolvedValue(0);
   });
 
   describe('create', () => {
@@ -189,8 +196,7 @@ describe('BypassRequestService', () => {
       });
 
       expect(result).toEqual({
-        bypassRequestId: 'bp-1',
-        stationRecordId,
+        id: 'bp-1',
         status: 'PENDING',
         createdAt: createdBypass.createdAt,
       });
@@ -239,6 +245,178 @@ describe('BypassRequestService', () => {
         },
         include: { stationItems: true },
       });
+    });
+
+    it('uses correct reference source for PACKING station', async () => {
+      mockTx.stationRecord.findUnique
+        .mockResolvedValueOnce({
+          id: stationRecordId,
+          orderId,
+          station: 'PACKING',
+          staffId: workerId,
+          status: 'IN_PROGRESS',
+          stationItems: [],
+        })
+        .mockResolvedValueOnce({
+          id: 'sr-ironing',
+          orderId,
+          station: 'IRONING',
+          stationItems: [{ laundryItemId: 'item-1', quantity: 5 }],
+        });
+
+      mockTx.bypassRequest.findFirst.mockResolvedValue(null);
+      mockTx.stationItem.deleteMany.mockResolvedValue({ count: 0 });
+      mockTx.stationItem.create.mockResolvedValue({});
+      mockTx.bypassRequest.create.mockResolvedValue({
+        id: 'bp-1',
+        stationRecordId,
+        workerId,
+        adminId: null,
+        problemDescription: null,
+        status: 'PENDING',
+        createdAt: new Date(),
+      });
+      mockTx.stationRecord.update.mockResolvedValue({});
+
+      await BypassRequestService.create(workerId, orderId, 'PACKING', {
+        items: [{ laundryItemId: 'item-1', quantity: 3 }], // mismatch
+      });
+
+      expect(mockTx.stationRecord.findUnique).toHaveBeenCalledTimes(2);
+      expect(mockTx.stationRecord.findUnique).toHaveBeenNthCalledWith(2, {
+        where: {
+          orderId_station: { orderId, station: 'IRONING' },
+        },
+        include: { stationItems: true },
+      });
+    });
+
+    it('throws 422 when previous station record not found', async () => {
+      mockTx.stationRecord.findUnique
+        .mockResolvedValueOnce({
+          id: stationRecordId,
+          orderId,
+          station: 'IRONING',
+          staffId: workerId,
+          status: 'IN_PROGRESS',
+          stationItems: [],
+        })
+        .mockResolvedValueOnce(null); // prev station missing
+
+      await expect(
+        BypassRequestService.create(workerId, orderId, 'IRONING', {
+          items: [{ laundryItemId: 'item-1', quantity: 3 }],
+        })
+      ).rejects.toThrow(
+        new ResponseError(422, 'Previous station has no completed records. Cannot proceed.')
+      );
+    });
+  });
+
+  describe('getAll', () => {
+    const makeBypass = (overrides = {}) => ({
+      id: 'bp-1',
+      stationRecord: {
+        station: 'IRONING',
+        order: { id: 'ord-1', outletId: 'outlet-1' },
+      },
+      worker: { user: { name: 'Bob Ironing' } },
+      admin: null,
+      status: 'PENDING',
+      createdAt: new Date('2026-03-07T11:00:00.000Z'),
+      resolvedAt: null,
+      ...overrides,
+    });
+
+    it('SUPER_ADMIN: does not add outlet filter to where clause', async () => {
+      (prisma.bypassRequest.findMany as jest.Mock).mockResolvedValue([makeBypass()]);
+      (prisma.bypassRequest.count as jest.Mock).mockResolvedValue(1);
+
+      await BypassRequestService.getAll('admin-1', 'SUPER_ADMIN', undefined, {
+        page: 1,
+        limit: 10,
+      });
+
+      const findManyCall = (prisma.bypassRequest.findMany as jest.Mock).mock.calls[0][0];
+      expect(findManyCall.where).not.toHaveProperty('stationRecord');
+    });
+
+    it('OUTLET_ADMIN with outletId: adds stationRecord.order.outletId filter', async () => {
+      (prisma.bypassRequest.findMany as jest.Mock).mockResolvedValue([makeBypass()]);
+      (prisma.bypassRequest.count as jest.Mock).mockResolvedValue(1);
+
+      await BypassRequestService.getAll('admin-1', 'OUTLET_ADMIN', 'outlet-1', {
+        page: 1,
+        limit: 10,
+      });
+
+      const findManyCall = (prisma.bypassRequest.findMany as jest.Mock).mock.calls[0][0];
+      expect(findManyCall.where).toMatchObject({
+        stationRecord: { order: { outletId: 'outlet-1' } },
+      });
+    });
+
+    it('applies status filter when provided', async () => {
+      (prisma.bypassRequest.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.bypassRequest.count as jest.Mock).mockResolvedValue(0);
+
+      await BypassRequestService.getAll('admin-1', 'SUPER_ADMIN', undefined, {
+        page: 1,
+        limit: 10,
+        status: BypassStatus.PENDING,
+      });
+
+      const findManyCall = (prisma.bypassRequest.findMany as jest.Mock).mock.calls[0][0];
+      expect(findManyCall.where).toMatchObject({ status: 'PENDING' });
+    });
+
+    it('returns correct data and meta shape', async () => {
+      const bypass = makeBypass();
+      (prisma.bypassRequest.findMany as jest.Mock).mockResolvedValue([bypass]);
+      (prisma.bypassRequest.count as jest.Mock).mockResolvedValue(1);
+
+      const result = await BypassRequestService.getAll('admin-1', 'SUPER_ADMIN', undefined, {
+        page: 1,
+        limit: 10,
+      });
+
+      expect(result.meta).toEqual({ page: 1, limit: 10, total: 1, totalPages: 1 });
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0]).toMatchObject({
+        id: 'bp-1',
+        orderId: 'ord-1',
+        station: 'IRONING',
+        workerName: 'Bob Ironing',
+        status: 'PENDING',
+        resolvedAt: null,
+      });
+    });
+
+    it('orderBy respects the order param (asc)', async () => {
+      (prisma.bypassRequest.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.bypassRequest.count as jest.Mock).mockResolvedValue(0);
+
+      await BypassRequestService.getAll('admin-1', 'SUPER_ADMIN', undefined, {
+        page: 1,
+        limit: 10,
+        order: 'asc',
+      });
+
+      const findManyCall = (prisma.bypassRequest.findMany as jest.Mock).mock.calls[0][0];
+      expect(findManyCall.orderBy).toEqual({ createdAt: 'asc' });
+    });
+
+    it('orderBy defaults to desc when order param is omitted', async () => {
+      (prisma.bypassRequest.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.bypassRequest.count as jest.Mock).mockResolvedValue(0);
+
+      await BypassRequestService.getAll('admin-1', 'SUPER_ADMIN', undefined, {
+        page: 1,
+        limit: 10,
+      });
+
+      const findManyCall = (prisma.bypassRequest.findMany as jest.Mock).mock.calls[0][0];
+      expect(findManyCall.orderBy).toEqual({ createdAt: 'desc' });
     });
   });
 });

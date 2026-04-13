@@ -1,7 +1,7 @@
 import { prisma } from '@/application/database';
 import { ResponseError } from '@/error/response-error';
-import { CreateBypassRequestInput, toBypassResponse } from './bypass-request-model';
-import type { StationType } from '@/generated/prisma/client';
+import { CreateBypassRequestInput, toBypassResponse, toBypassCreateResponse, BypassStatus } from './bypass-request-model';
+import type { StationType, Prisma } from '@/generated/prisma/client';
 
 export class BypassRequestService {
   static async create(
@@ -136,7 +136,71 @@ export class BypassRequestService {
         },
       });
 
-      return toBypassResponse(bypass);
+      return toBypassCreateResponse(bypass);
     });
+  }
+
+  // PCS-128: Get bypass requests for admin
+  static async getAll(
+    adminId: string,
+    role: string,
+    outletId: string | undefined,
+    options: { page: number; limit: number; status?: BypassStatus; order?: 'asc' | 'desc' }
+  ) {
+    const { page, limit, status, order = 'desc' } = options;
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.BypassRequestWhereInput = {};
+
+    // Filter by status if provided
+    if (status) {
+      where.status = status;
+    }
+
+    // Filter by outlet if OUTLET_ADMIN
+    if (role === 'OUTLET_ADMIN' && outletId) {
+      where.stationRecord = {
+        order: {
+          outletId,
+        },
+      };
+    }
+
+    const [data, total] = await Promise.all([
+      prisma.bypassRequest.findMany({
+        where,
+        include: {
+          stationRecord: {
+            include: {
+              order: true,
+            },
+          },
+          worker: {
+            include: {
+              user: true,
+            },
+          },
+          admin: {
+            include: {
+              user: true,
+            },
+          },
+        },
+        orderBy: { createdAt: order },
+        skip,
+        take: limit,
+      }),
+      prisma.bypassRequest.count({ where }),
+    ]);
+
+    return {
+      data: data.map(toBypassResponse),
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 }
