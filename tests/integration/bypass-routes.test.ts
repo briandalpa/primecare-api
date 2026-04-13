@@ -271,7 +271,7 @@ describe('Bypass Routes Integration Tests', () => {
       expect(response.body.status).toBe('success');
       expect(response.body.message).toBe('Bypass requests retrieved');
       expect(Array.isArray(response.body.data)).toBe(true);
-      expect(response.body.meta).toMatchObject({ page: 1, limit: 10, total: 1 });
+      expect(response.body.meta).toMatchObject({ page: 1, limit: 10, total: 1, totalPages: 1 });
     });
 
     it('filters correctly when ?status=PENDING is provided', async () => {
@@ -297,6 +297,32 @@ describe('Bypass Routes Integration Tests', () => {
         .query({ status: 'INVALID_STATUS' });
 
       expect(response.status).toBe(400);
+    });
+
+    it('returns 400 for invalid order value', async () => {
+      mockAuthenticatedAdmin();
+
+      const response = await request(app)
+        .get('/api/v1/bypass-requests')
+        .query({ order: 'INVALID_ORDER' });
+
+      expect(response.status).toBe(400);
+    });
+
+    it('returns 200 for SUPER_ADMIN role', async () => {
+      const mockUser = { id: 'user-super', email: 'super@example.com' };
+      const mockStaff = { id: 'staff-super', role: 'SUPER_ADMIN', isActive: true, outletId: null };
+
+      (auth.api.getSession as jest.Mock).mockResolvedValue({ user: mockUser, session: 'token' });
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
+      (prisma.staff.findUnique as jest.Mock).mockResolvedValue(mockStaff);
+      (prisma.bypassRequest.findMany as jest.Mock).mockResolvedValue([makeBypassRecord()]);
+      (prisma.bypassRequest.count as jest.Mock).mockResolvedValue(1);
+
+      const response = await request(app).get('/api/v1/bypass-requests');
+
+      expect(response.status).toBe(200);
+      expect(response.body.status).toBe('success');
     });
   });
 });

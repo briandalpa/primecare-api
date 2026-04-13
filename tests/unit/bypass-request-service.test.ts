@@ -16,13 +16,6 @@ const mockTx = {
   },
 };
 
-const mockPrisma = {
-  bypassRequest: {
-    findMany: jest.fn(),
-    count: jest.fn(),
-  },
-};
-
 jest.mock('@/application/database', () => ({
   prisma: {
     $transaction: jest.fn((callback: (tx: typeof mockTx) => Promise<any>) => callback(mockTx)),
@@ -253,6 +246,71 @@ describe('BypassRequestService', () => {
         include: { stationItems: true },
       });
     });
+
+    it('uses correct reference source for PACKING station', async () => {
+      mockTx.stationRecord.findUnique
+        .mockResolvedValueOnce({
+          id: stationRecordId,
+          orderId,
+          station: 'PACKING',
+          staffId: workerId,
+          status: 'IN_PROGRESS',
+          stationItems: [],
+        })
+        .mockResolvedValueOnce({
+          id: 'sr-ironing',
+          orderId,
+          station: 'IRONING',
+          stationItems: [{ laundryItemId: 'item-1', quantity: 5 }],
+        });
+
+      mockTx.bypassRequest.findFirst.mockResolvedValue(null);
+      mockTx.stationItem.deleteMany.mockResolvedValue({ count: 0 });
+      mockTx.stationItem.create.mockResolvedValue({});
+      mockTx.bypassRequest.create.mockResolvedValue({
+        id: 'bp-1',
+        stationRecordId,
+        workerId,
+        adminId: null,
+        problemDescription: null,
+        status: 'PENDING',
+        createdAt: new Date(),
+      });
+      mockTx.stationRecord.update.mockResolvedValue({});
+
+      await BypassRequestService.create(workerId, orderId, 'PACKING', {
+        items: [{ laundryItemId: 'item-1', quantity: 3 }], // mismatch
+      });
+
+      expect(mockTx.stationRecord.findUnique).toHaveBeenCalledTimes(2);
+      expect(mockTx.stationRecord.findUnique).toHaveBeenNthCalledWith(2, {
+        where: {
+          orderId_station: { orderId, station: 'IRONING' },
+        },
+        include: { stationItems: true },
+      });
+    });
+
+    it('throws 422 when previous station record not found', async () => {
+      mockTx.stationRecord.findUnique
+        .mockResolvedValueOnce({
+          id: stationRecordId,
+          orderId,
+          station: 'IRONING',
+          staffId: workerId,
+          status: 'IN_PROGRESS',
+          stationItems: [],
+        })
+        .mockResolvedValueOnce(null); // prev station missing
+
+      await expect(
+        BypassRequestService.create(workerId, orderId, 'IRONING', {
+          items: [{ laundryItemId: 'item-1', quantity: 3 }],
+        })
+      ).rejects.toThrow(
+        new ResponseError(422, 'Previous station has no completed records. Cannot proceed.')
+      );
+    });
   });
 
   describe('getAll', () => {
@@ -322,7 +380,7 @@ describe('BypassRequestService', () => {
         limit: 10,
       });
 
-      expect(result.meta).toEqual({ page: 1, limit: 10, total: 1 });
+      expect(result.meta).toEqual({ page: 1, limit: 10, total: 1, totalPages: 1 });
       expect(result.data).toHaveLength(1);
       expect(result.data[0]).toMatchObject({
         id: 'bp-1',

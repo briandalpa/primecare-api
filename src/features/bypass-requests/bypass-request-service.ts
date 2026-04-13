@@ -199,6 +199,7 @@ export class BypassRequestService {
         page,
         limit,
         total,
+        totalPages: Math.ceil(total / limit),
       },
     };
   }
