@@ -4,6 +4,7 @@ import { Validation } from '@/validations/validation';
 import { BypassRequestValidation } from '@/validations/bypass-request-validation';
 import { UserRequest } from '@/types/user-request';
 import type { StationType } from '@/generated/prisma/client';
+import { BypassStatus } from './bypass-request-model';
 
 export class BypassRequestController {
   static async create(req: UserRequest, res: Response, next: NextFunction) {
@@ -29,6 +30,39 @@ export class BypassRequestController {
         status: 'success',
         message: 'Bypass request submitted. Awaiting admin approval.',
         data: result,
+      });
+    } catch (e) {
+      next(e);
+    }
+  }
+
+  // PCS-128: Get bypass requests for admin review
+  static async getAll(req: UserRequest, res: Response, next: NextFunction) {
+    try {
+      const page = Number(req.query.page) || 1;
+      const limit = Number(req.query.limit) || 10;
+
+      // Validate status parameter if provided
+      let status: BypassStatus | undefined;
+      if (req.query.status) {
+        status = Validation.validate(
+          BypassRequestValidation.STATUS_ENUM,
+          req.query.status
+        );
+      }
+
+      const result = await BypassRequestService.getAll(
+        req.staff!.id,
+        req.staff!.role,
+        req.staff!.outletId ?? undefined,
+        { page, limit, status }
+      );
+
+      res.status(200).json({
+        status: 'success',
+        message: 'Bypass requests fetched',
+        data: result.data,
+        meta: result.meta,
       });
     } catch (e) {
       next(e);

@@ -45,6 +45,13 @@ apiRouter.post(
   BypassRequestController.create
 );
 
+// BYPASS REQUEST (PCS-128)
+apiRouter.get(
+  '/bypass-requests',
+  requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'),
+  BypassRequestController.getAll
+);
+
 // ORDER
 apiRouter.get('/orders', requireCustomerAuth, OrderController.listOrders);
 apiRouter.get('/orders/:id', requireCustomerAuth, OrderController.getOrderDetail);

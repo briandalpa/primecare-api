@@ -189,8 +189,7 @@ describe('BypassRequestService', () => {
       });
 
       expect(result).toEqual({
-        bypassRequestId: 'bp-1',
-        stationRecordId,
+        id: 'bp-1',
         status: 'PENDING',
         createdAt: createdBypass.createdAt,
       });

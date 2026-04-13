@@ -177,8 +177,7 @@ describe('Bypass Routes Integration Tests', () => {
         status: 'success',
         message: 'Bypass request submitted. Awaiting admin approval.',
         data: {
-          bypassRequestId: bypassId,
-          stationRecordId,
+          id: bypassId,
           status: 'PENDING',
           createdAt: now.toISOString(),
         },
