@@ -145,9 +145,9 @@ export class BypassRequestService {
     adminId: string,
     role: string,
     outletId: string | undefined,
-    options: { page: number; limit: number; status?: BypassStatus }
+    options: { page: number; limit: number; status?: BypassStatus; order?: 'asc' | 'desc' }
   ) {
-    const { page, limit, status } = options;
+    const { page, limit, status, order = 'desc' } = options;
     const skip = (page - 1) * limit;
 
     const where: Prisma.BypassRequestWhereInput = {};
@@ -186,7 +186,7 @@ export class BypassRequestService {
             },
           },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: order },
         skip,
         take: limit,
       }),

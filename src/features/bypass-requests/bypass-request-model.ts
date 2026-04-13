@@ -22,7 +22,7 @@ export type BypassRequestResponse = {
   workerName: string;
   status: BypassStatus;
   createdAt: Date;
-  resolvedAt?: Date | null;
+  resolvedAt: Date | null;
 };
 
 // For CREATE response (minimal)
@@ -73,6 +73,6 @@ export function toBypassResponse(
     workerName: bypass.worker?.user?.name ?? 'Unknown',
     status: bypass.status as BypassStatus,
     createdAt: bypass.createdAt,
-    resolvedAt: bypass.resolvedAt ?? undefined,
+    resolvedAt: bypass.resolvedAt,
   };
 }

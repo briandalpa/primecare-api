@@ -42,7 +42,6 @@ export class BypassRequestController {
       const page = Number(req.query.page) || 1;
       const limit = Number(req.query.limit) || 10;
 
-      // Validate status parameter if provided
       let status: BypassStatus | undefined;
       if (req.query.status) {
         status = Validation.validate(
@@ -51,16 +50,20 @@ export class BypassRequestController {
         );
       }
 
+      const rawOrder = req.query.order;
+      const order: 'asc' | 'desc' =
+        rawOrder === 'asc' || rawOrder === 'desc' ? rawOrder : 'desc';
+
       const result = await BypassRequestService.getAll(
         req.staff!.id,
         req.staff!.role,
         req.staff!.outletId ?? undefined,
-        { page, limit, status }
+        { page, limit, status, order }
       );
 
       res.status(200).json({
         status: 'success',
-        message: 'Bypass requests fetched',
+        message: 'Bypass requests retrieved',
         data: result.data,
         meta: result.meta,
       });

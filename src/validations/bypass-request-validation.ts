@@ -19,4 +19,8 @@ export class BypassRequestValidation {
     BypassStatus.APPROVED,
     BypassStatus.REJECTED,
   ] as const) as ZodType<BypassStatus>;
+
+  static readonly SORT_BY: ZodType<string> = z.enum(['createdAt']);
+
+  static readonly ORDER: ZodType<'asc' | 'desc'> = z.enum(['asc', 'desc']);
 }
