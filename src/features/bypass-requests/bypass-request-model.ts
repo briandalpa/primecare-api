@@ -1,16 +1,18 @@
 import type { BypassRequest } from '@/generated/prisma/client';
 
+export type BypassItemInput = {
+  laundryItemId: string;
+  quantity: number;
+};
+
 export type CreateBypassRequestInput = {
-  stationRecordId: string;
-  mismatchDetails: string;
+  items: BypassItemInput[];
 };
 
 export type BypassRequestResponse = {
-  id: string;
+  bypassRequestId: string;
   stationRecordId: string;
-  adminId: string | null;
   status: string;
-  problemDescription: string | null;
   createdAt: Date;
 };
 
@@ -18,11 +20,9 @@ export function toBypassResponse(
   bypass: BypassRequest
 ): BypassRequestResponse {
   return {
-    id: bypass.id,
+    bypassRequestId: bypass.id,
     stationRecordId: bypass.stationRecordId,
-    adminId: bypass.adminId,
     status: bypass.status,
-    problemDescription: bypass.problemDescription,
     createdAt: bypass.createdAt,
   };
 }

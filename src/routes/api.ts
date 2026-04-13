@@ -40,7 +40,7 @@ apiRouter.delete('/admin/users/:id', requireStaffRole('SUPER_ADMIN'), AdminUserC
 
 // BYPASS REQUEST (PCS-127)
 apiRouter.post(
-  '/admin/bypass-requests',
+  '/orders/:id/stations/:station/bypass',
   requireStaffRole('WORKER'),
   BypassRequestController.create
 );
