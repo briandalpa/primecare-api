@@ -49,7 +49,8 @@ List bypass requests for the outlet admin's outlet. Pending requests should be p
   "meta": {
     "page": 1,
     "limit": 10,
-    "total": 3
+    "total": 3,
+    "totalPages": 1
   }
 }
 ```
