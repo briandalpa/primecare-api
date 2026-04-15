@@ -1,3 +1,7 @@
+jest.mock('bcrypt', () => ({
+  compare: jest.fn(),
+}));
+
 const mockTx = {
   stationRecord: {
     findUnique: jest.fn(),
@@ -12,6 +16,17 @@ const mockTx = {
   },
   bypassRequest: {
     findFirst: jest.fn(),
+    findUnique: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+  },
+  account: {
+    findFirst: jest.fn(),
+  },
+  order: {
+    update: jest.fn(),
+  },
+  delivery: {
     create: jest.fn(),
   },
 };
@@ -21,7 +36,14 @@ jest.mock('@/application/database', () => ({
     $transaction: jest.fn((callback: (tx: typeof mockTx) => Promise<any>) => callback(mockTx)),
     bypassRequest: {
       findMany: jest.fn(),
+      findUnique: jest.fn(),
       count: jest.fn(),
+    },
+    orderItem: {
+      findMany: jest.fn(),
+    },
+    stationRecord: {
+      findUnique: jest.fn(),
     },
   },
 }));
@@ -30,6 +52,7 @@ import { BypassRequestService } from '@/features/bypass-requests/bypass-request-
 import { prisma } from '@/application/database';
 import { ResponseError } from '@/error/response-error';
 import { BypassStatus } from '@/features/bypass-requests/bypass-request-model';
+import bcrypt from 'bcrypt';
 
 describe('BypassRequestService', () => {
   beforeEach(() => {
@@ -39,6 +62,7 @@ describe('BypassRequestService', () => {
     );
     (prisma.bypassRequest.findMany as jest.Mock).mockResolvedValue([]);
     (prisma.bypassRequest.count as jest.Mock).mockResolvedValue(0);
+    (bcrypt.compare as jest.Mock).mockResolvedValue(true);
   });
 
   describe('create', () => {
@@ -417,6 +441,294 @@ describe('BypassRequestService', () => {
 
       const findManyCall = (prisma.bypassRequest.findMany as jest.Mock).mock.calls[0][0];
       expect(findManyCall.orderBy).toEqual({ createdAt: 'desc' });
+    });
+  });
+
+  describe('approve', () => {
+    const adminStaffId = 'staff-admin';
+    const adminUserId = 'user-admin';
+    const bypassId = 'bp-1';
+    const password = 'correct-password';
+    const problemDescription = 'One item was damaged.';
+
+    const makeBypass = (status = 'PENDING', paymentStatus = 'UNPAID', orderStatus = 'LAUNDRY_BEING_WASHED') => ({
+      id: bypassId,
+      stationRecordId: 'sr-1',
+      status,
+      stationRecord: {
+        order: { id: 'ord-1', status: orderStatus, paymentStatus, outletId: 'outlet-1' },
+      },
+    });
+
+    const approve = (overrides: { role?: string; outletId?: string } = {}) =>
+      BypassRequestService.approve(
+        adminStaffId,
+        adminUserId,
+        overrides.role ?? 'OUTLET_ADMIN',
+        overrides.outletId ?? 'outlet-1',
+        bypassId,
+        password,
+        problemDescription
+      );
+
+    beforeEach(() => {
+      mockTx.account.findFirst.mockResolvedValue({ password: 'hashed-password' });
+    });
+
+    it('throws 401 when password is incorrect', async () => {
+      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+      await expect(approve()).rejects.toThrow(new ResponseError(401, 'Incorrect password'));
+    });
+
+    it('throws 401 when credential account not found', async () => {
+      mockTx.account.findFirst.mockResolvedValue(null);
+      await expect(approve()).rejects.toThrow(new ResponseError(401, 'Incorrect password'));
+    });
+
+    it('throws 404 when bypass not found', async () => {
+      mockTx.bypassRequest.findUnique.mockResolvedValue(null);
+      await expect(approve()).rejects.toThrow(new ResponseError(404, 'Bypass request not found'));
+    });
+
+    it('throws 409 when bypass is not PENDING', async () => {
+      mockTx.bypassRequest.findUnique.mockResolvedValue(makeBypass('APPROVED'));
+      await expect(approve()).rejects.toThrow(new ResponseError(409, 'Bypass request is not in PENDING state'));
+    });
+
+    it('throws 403 when OUTLET_ADMIN accesses a bypass from another outlet', async () => {
+      mockTx.bypassRequest.findUnique.mockResolvedValue(makeBypass('PENDING', 'UNPAID', 'LAUNDRY_BEING_WASHED'));
+      await expect(approve({ outletId: 'outlet-other' })).rejects.toThrow(new ResponseError(403, 'Access denied'));
+    });
+
+    it('advances WASHING order to LAUNDRY_BEING_IRONED', async () => {
+      const resolvedAt = new Date();
+      mockTx.bypassRequest.findUnique.mockResolvedValue(makeBypass('PENDING', 'UNPAID', 'LAUNDRY_BEING_WASHED'));
+      mockTx.bypassRequest.update.mockResolvedValue({
+        id: bypassId, status: 'APPROVED', adminId: adminStaffId, problemDescription, resolvedAt,
+      });
+      mockTx.stationRecord.update.mockResolvedValue({});
+      mockTx.order.update.mockResolvedValue({});
+
+      const result = await approve();
+
+      expect(mockTx.order.update).toHaveBeenCalledWith({ where: { id: 'ord-1' }, data: { status: 'LAUNDRY_BEING_IRONED' } });
+      expect(result.orderStatus).toBe('LAUNDRY_BEING_IRONED');
+    });
+
+    it('advances IRONING order to LAUNDRY_BEING_PACKED', async () => {
+      mockTx.bypassRequest.findUnique.mockResolvedValue(makeBypass('PENDING', 'UNPAID', 'LAUNDRY_BEING_IRONED'));
+      mockTx.bypassRequest.update.mockResolvedValue({
+        id: bypassId, status: 'APPROVED', adminId: adminStaffId, problemDescription, resolvedAt: new Date(),
+      });
+      mockTx.stationRecord.update.mockResolvedValue({});
+      mockTx.order.update.mockResolvedValue({});
+
+      const result = await approve();
+
+      expect(mockTx.order.update).toHaveBeenCalledWith(expect.objectContaining({ data: { status: 'LAUNDRY_BEING_PACKED' } }));
+      expect(result.orderStatus).toBe('LAUNDRY_BEING_PACKED');
+    });
+
+    it('forks PACKING to WAITING_FOR_PAYMENT when order is UNPAID', async () => {
+      mockTx.bypassRequest.findUnique.mockResolvedValue(makeBypass('PENDING', 'UNPAID', 'LAUNDRY_BEING_PACKED'));
+      mockTx.bypassRequest.update.mockResolvedValue({
+        id: bypassId, status: 'APPROVED', adminId: adminStaffId, problemDescription, resolvedAt: new Date(),
+      });
+      mockTx.stationRecord.update.mockResolvedValue({});
+      mockTx.order.update.mockResolvedValue({});
+
+      const result = await approve();
+
+      expect(result.orderStatus).toBe('WAITING_FOR_PAYMENT');
+      expect(mockTx.delivery.create).not.toHaveBeenCalled();
+    });
+
+    it('forks PACKING to LAUNDRY_READY_FOR_DELIVERY and creates Delivery when PAID', async () => {
+      mockTx.bypassRequest.findUnique.mockResolvedValue(makeBypass('PENDING', 'PAID', 'LAUNDRY_BEING_PACKED'));
+      mockTx.bypassRequest.update.mockResolvedValue({
+        id: bypassId, status: 'APPROVED', adminId: adminStaffId, problemDescription, resolvedAt: new Date(),
+      });
+      mockTx.stationRecord.update.mockResolvedValue({});
+      mockTx.order.update.mockResolvedValue({});
+      mockTx.delivery.create.mockResolvedValue({ id: 'del-1', orderId: 'ord-1' });
+
+      const result = await approve();
+
+      expect(result.orderStatus).toBe('LAUNDRY_READY_FOR_DELIVERY');
+      expect(mockTx.delivery.create).toHaveBeenCalledWith({ data: { orderId: 'ord-1' } });
+    });
+  });
+
+  describe('reject', () => {
+    const adminStaffId = 'staff-admin';
+    const adminUserId = 'user-admin';
+    const bypassId = 'bp-1';
+
+    const makePendingBypass = () => ({
+      id: bypassId,
+      stationRecordId: 'sr-1',
+      status: 'PENDING',
+      stationRecord: { order: { id: 'ord-1', status: 'LAUNDRY_BEING_WASHED', paymentStatus: 'UNPAID', outletId: 'outlet-1' } },
+    });
+
+    const reject = (overrides: { outletId?: string; password?: string } = {}) =>
+      BypassRequestService.reject(adminStaffId, adminUserId, 'OUTLET_ADMIN', overrides.outletId ?? 'outlet-1', bypassId, overrides.password ?? 'password');
+
+    beforeEach(() => {
+      mockTx.account.findFirst.mockResolvedValue({ password: 'hashed-password' });
+    });
+
+    it('throws 401 when password is incorrect', async () => {
+      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+      await expect(reject()).rejects.toThrow(new ResponseError(401, 'Incorrect password'));
+    });
+
+    it('throws 401 when credential account not found', async () => {
+      mockTx.account.findFirst.mockResolvedValue(null);
+      await expect(reject()).rejects.toThrow(new ResponseError(401, 'Incorrect password'));
+    });
+
+    it('throws 404 when bypass not found', async () => {
+      mockTx.bypassRequest.findUnique.mockResolvedValue(null);
+      await expect(reject()).rejects.toThrow(new ResponseError(404, 'Bypass request not found'));
+    });
+
+    it('throws 409 when bypass is already processed', async () => {
+      mockTx.bypassRequest.findUnique.mockResolvedValue({ ...makePendingBypass(), status: 'APPROVED' });
+      await expect(reject()).rejects.toThrow(new ResponseError(409, 'Bypass request is not in PENDING state'));
+    });
+
+    it('throws 403 when OUTLET_ADMIN accesses a bypass from another outlet', async () => {
+      mockTx.bypassRequest.findUnique.mockResolvedValue(makePendingBypass());
+      await expect(reject({ outletId: 'outlet-other' })).rejects.toThrow(new ResponseError(403, 'Access denied'));
+    });
+
+    it('sets status to REJECTED and reverts stationRecord to IN_PROGRESS', async () => {
+      const resolvedAt = new Date();
+      mockTx.bypassRequest.findUnique.mockResolvedValue(makePendingBypass());
+      mockTx.bypassRequest.update.mockResolvedValue({
+        id: bypassId, status: 'REJECTED', adminId: adminStaffId, resolvedAt,
+      });
+      mockTx.stationRecord.update.mockResolvedValue({});
+
+      await reject();
+
+      expect(mockTx.stationRecord.update).toHaveBeenCalledWith({
+        where: { id: 'sr-1' },
+        data: { status: 'IN_PROGRESS' },
+      });
+    });
+  });
+
+  describe('getById', () => {
+    const bypassId = 'bp-1';
+
+    const makeDetailBypass = (outletId = 'outlet-1') => ({
+      id: bypassId,
+      stationRecordId: 'sr-1',
+      workerId: 'staff-worker',
+      adminId: null,
+      problemDescription: null,
+      status: 'PENDING',
+      createdAt: new Date(),
+      resolvedAt: null,
+      stationRecord: {
+        station: 'WASHING',
+        orderId: 'ord-1',
+        order: { id: 'ord-1', outletId },
+        stationItems: [
+          { laundryItemId: 'item-1', quantity: 3, laundryItem: { name: 'T-Shirt' } },
+        ],
+      },
+      worker: { user: { name: 'Worker Bob' } },
+      admin: null,
+    });
+
+    it('throws 404 when bypass not found', async () => {
+      (prisma.bypassRequest.findUnique as jest.Mock).mockResolvedValue(null);
+
+      await expect(
+        BypassRequestService.getById('OUTLET_ADMIN', 'outlet-1', bypassId)
+      ).rejects.toThrow(new ResponseError(404, 'Bypass request not found'));
+    });
+
+    it('throws 403 for OUTLET_ADMIN accessing wrong outlet', async () => {
+      (prisma.bypassRequest.findUnique as jest.Mock).mockResolvedValue(makeDetailBypass('outlet-other'));
+
+      await expect(
+        BypassRequestService.getById('OUTLET_ADMIN', 'outlet-1', bypassId)
+      ).rejects.toThrow(new ResponseError(403, 'Access denied'));
+    });
+
+    it('returns detail with referenceItems from OrderItems for WASHING station', async () => {
+      (prisma.bypassRequest.findUnique as jest.Mock).mockResolvedValue(makeDetailBypass());
+      (prisma.orderItem.findMany as jest.Mock).mockResolvedValue([
+        { laundryItemId: 'item-1', quantity: 5, laundryItem: { name: 'T-Shirt' } },
+      ]);
+
+      const result = await BypassRequestService.getById('OUTLET_ADMIN', 'outlet-1', bypassId);
+
+      expect(result.referenceItems).toEqual([
+        { laundryItemId: 'item-1', itemName: 'T-Shirt', quantity: 5 },
+      ]);
+      expect(result.workerItems).toEqual([
+        { laundryItemId: 'item-1', itemName: 'T-Shirt', quantity: 3 },
+      ]);
+    });
+
+    it('returns detail with referenceItems from previous station for IRONING', async () => {
+      const ironingBypass = {
+        ...makeDetailBypass(),
+        stationRecord: {
+          ...makeDetailBypass().stationRecord,
+          station: 'IRONING',
+          stationItems: [
+            { laundryItemId: 'item-1', quantity: 2, laundryItem: { name: 'T-Shirt' } },
+          ],
+        },
+      };
+      (prisma.bypassRequest.findUnique as jest.Mock).mockResolvedValue(ironingBypass);
+      (prisma.stationRecord.findUnique as jest.Mock).mockResolvedValue({
+        stationItems: [
+          { laundryItemId: 'item-1', quantity: 5, laundryItem: { name: 'T-Shirt' } },
+        ],
+      });
+
+      const result = await BypassRequestService.getById('OUTLET_ADMIN', 'outlet-1', bypassId);
+
+      expect(result.referenceItems).toEqual([
+        { laundryItemId: 'item-1', itemName: 'T-Shirt', quantity: 5 },
+      ]);
+    });
+
+    it('returns detail with referenceItems from IRONING station for PACKING', async () => {
+      const packingBypass = {
+        ...makeDetailBypass(),
+        stationRecord: {
+          ...makeDetailBypass().stationRecord,
+          station: 'PACKING',
+          stationItems: [
+            { laundryItemId: 'item-1', quantity: 2, laundryItem: { name: 'T-Shirt' } },
+          ],
+        },
+      };
+      (prisma.bypassRequest.findUnique as jest.Mock).mockResolvedValue(packingBypass);
+      (prisma.stationRecord.findUnique as jest.Mock).mockResolvedValue({
+        stationItems: [
+          { laundryItemId: 'item-1', quantity: 4, laundryItem: { name: 'T-Shirt' } },
+        ],
+      });
+
+      const result = await BypassRequestService.getById('OUTLET_ADMIN', 'outlet-1', bypassId);
+
+      expect(prisma.stationRecord.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { orderId_station: { orderId: 'ord-1', station: 'IRONING' } },
+        })
+      );
+      expect(result.referenceItems).toEqual([
+        { laundryItemId: 'item-1', itemName: 'T-Shirt', quantity: 4 },
+      ]);
     });
   });
 });

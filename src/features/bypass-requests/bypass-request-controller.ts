@@ -24,9 +24,11 @@ export class BypassRequestController {
         req.body
       );
 
+      const orderId = Validation.validate(BypassRequestValidation.ID_PARAM, req.params.id);
+
       const result = await BypassRequestService.create(
         req.staff.id,
-        Array.isArray(req.params.id) ? req.params.id[0] : req.params.id,
+        orderId,
         station,
         request
       );
@@ -78,6 +80,87 @@ export class BypassRequestController {
         message: 'Bypass requests retrieved',
         data: result.data,
         meta: result.meta,
+      });
+    } catch (e) {
+      next(e);
+    }
+  }
+
+  // PCS-129: Approve a bypass request
+  static async approve(req: UserRequest, res: Response, next: NextFunction) {
+    try {
+      if (!req.staff) throw new ResponseError(401, 'Authentication required');
+
+      const bypassId = Validation.validate(BypassRequestValidation.ID_PARAM, req.params.id);
+      const { password, problemDescription } = Validation.validate(
+        BypassRequestValidation.APPROVE,
+        req.body
+      );
+
+      const result = await BypassRequestService.approve(
+        req.staff.id,
+        req.staff.userId,
+        req.staff.role,
+        req.staff.outletId ?? undefined,
+        bypassId,
+        password,
+        problemDescription
+      );
+
+      res.status(200).json({
+        status: 'success',
+        message: 'Bypass approved. Order advanced to next station.',
+        data: result,
+      });
+    } catch (e) {
+      next(e);
+    }
+  }
+
+  // PCS-129: Reject a bypass request
+  static async reject(req: UserRequest, res: Response, next: NextFunction) {
+    try {
+      if (!req.staff) throw new ResponseError(401, 'Authentication required');
+
+      const bypassId = Validation.validate(BypassRequestValidation.ID_PARAM, req.params.id);
+      const { password } = Validation.validate(BypassRequestValidation.REJECT, req.body);
+
+      const result = await BypassRequestService.reject(
+        req.staff.id,
+        req.staff.userId,
+        req.staff.role,
+        req.staff.outletId ?? undefined,
+        bypassId,
+        password
+      );
+
+      res.status(200).json({
+        status: 'success',
+        message: 'Bypass rejected. Worker must re-enter correct quantities.',
+        data: result,
+      });
+    } catch (e) {
+      next(e);
+    }
+  }
+
+  // PCS-129: Get bypass request detail
+  static async getById(req: UserRequest, res: Response, next: NextFunction) {
+    try {
+      if (!req.staff) throw new ResponseError(401, 'Authentication required');
+
+      const bypassId = Validation.validate(BypassRequestValidation.ID_PARAM, req.params.id);
+
+      const result = await BypassRequestService.getById(
+        req.staff.role,
+        req.staff.outletId ?? undefined,
+        bypassId
+      );
+
+      res.status(200).json({
+        status: 'success',
+        message: 'Bypass request retrieved',
+        data: result,
       });
     } catch (e) {
       next(e);

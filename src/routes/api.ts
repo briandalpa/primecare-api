@@ -52,6 +52,23 @@ apiRouter.get(
   BypassRequestController.getAll
 );
 
+// BYPASS REQUEST (PCS-129)
+apiRouter.get(
+  '/bypass-requests/:id',
+  requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'),
+  BypassRequestController.getById
+);
+apiRouter.patch(
+  '/bypass-requests/:id/approve',
+  requireStaffRole('OUTLET_ADMIN'),
+  BypassRequestController.approve
+);
+apiRouter.patch(
+  '/bypass-requests/:id/reject',
+  requireStaffRole('OUTLET_ADMIN'),
+  BypassRequestController.reject
+);
+
 // ORDER
 apiRouter.get('/orders', requireCustomerAuth, OrderController.listOrders);
 apiRouter.get('/orders/:id', requireCustomerAuth, OrderController.getOrderDetail);

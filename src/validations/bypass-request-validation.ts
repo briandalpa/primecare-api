@@ -21,4 +21,15 @@ export class BypassRequestValidation {
   ] as const) as ZodType<BypassStatus>;
 
   static readonly ORDER: ZodType<'asc' | 'desc'> = z.enum(['asc', 'desc']);
+
+  static readonly APPROVE = z.object({
+    password: z.string().min(1),
+    problemDescription: z.string().min(1).max(500),
+  });
+
+  static readonly REJECT = z.object({
+    password: z.string().min(1),
+  });
+
+  static readonly ID_PARAM: ZodType<string> = z.string().uuid();
 }
