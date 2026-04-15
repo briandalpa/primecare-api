@@ -460,89 +460,84 @@ describe('BypassRequestService', () => {
       },
     });
 
+    const approve = (overrides: { role?: string; outletId?: string } = {}) =>
+      BypassRequestService.approve(
+        adminStaffId,
+        adminUserId,
+        overrides.role ?? 'OUTLET_ADMIN',
+        overrides.outletId ?? 'outlet-1',
+        bypassId,
+        password,
+        problemDescription
+      );
+
     beforeEach(() => {
       mockTx.account.findFirst.mockResolvedValue({ password: 'hashed-password' });
     });
 
     it('throws 401 when password is incorrect', async () => {
-      mockTx.account.findFirst.mockResolvedValue({ password: 'hashed-password' });
       (bcrypt.compare as jest.Mock).mockResolvedValue(false);
-
-      await expect(
-        BypassRequestService.approve(adminStaffId, adminUserId, bypassId, password, problemDescription)
-      ).rejects.toThrow(new ResponseError(401, 'Incorrect password'));
+      await expect(approve()).rejects.toThrow(new ResponseError(401, 'Incorrect password'));
     });
 
     it('throws 401 when credential account not found', async () => {
       mockTx.account.findFirst.mockResolvedValue(null);
-
-      await expect(
-        BypassRequestService.approve(adminStaffId, adminUserId, bypassId, password, problemDescription)
-      ).rejects.toThrow(new ResponseError(401, 'Incorrect password'));
+      await expect(approve()).rejects.toThrow(new ResponseError(401, 'Incorrect password'));
     });
 
     it('throws 404 when bypass not found', async () => {
       mockTx.bypassRequest.findUnique.mockResolvedValue(null);
-
-      await expect(
-        BypassRequestService.approve(adminStaffId, adminUserId, bypassId, password, problemDescription)
-      ).rejects.toThrow(new ResponseError(404, 'Bypass request not found'));
+      await expect(approve()).rejects.toThrow(new ResponseError(404, 'Bypass request not found'));
     });
 
     it('throws 409 when bypass is not PENDING', async () => {
       mockTx.bypassRequest.findUnique.mockResolvedValue(makeBypass('APPROVED'));
+      await expect(approve()).rejects.toThrow(new ResponseError(409, 'Bypass request is not in PENDING state'));
+    });
 
-      await expect(
-        BypassRequestService.approve(adminStaffId, adminUserId, bypassId, password, problemDescription)
-      ).rejects.toThrow(new ResponseError(409, 'Bypass request is not in PENDING state'));
+    it('throws 403 when OUTLET_ADMIN accesses a bypass from another outlet', async () => {
+      mockTx.bypassRequest.findUnique.mockResolvedValue(makeBypass('PENDING', 'UNPAID', 'LAUNDRY_BEING_WASHED'));
+      await expect(approve({ outletId: 'outlet-other' })).rejects.toThrow(new ResponseError(403, 'Access denied'));
     });
 
     it('advances WASHING order to LAUNDRY_BEING_IRONED', async () => {
       const resolvedAt = new Date();
       mockTx.bypassRequest.findUnique.mockResolvedValue(makeBypass('PENDING', 'UNPAID', 'LAUNDRY_BEING_WASHED'));
       mockTx.bypassRequest.update.mockResolvedValue({
-        id: bypassId, status: 'APPROVED', adminId: adminStaffId,
-        problemDescription, resolvedAt,
+        id: bypassId, status: 'APPROVED', adminId: adminStaffId, problemDescription, resolvedAt,
       });
       mockTx.stationRecord.update.mockResolvedValue({});
       mockTx.order.update.mockResolvedValue({});
 
-      const result = await BypassRequestService.approve(adminStaffId, adminUserId, bypassId, password, problemDescription);
+      const result = await approve();
 
-      expect(mockTx.order.update).toHaveBeenCalledWith({
-        where: { id: 'ord-1' },
-        data: { status: 'LAUNDRY_BEING_IRONED' },
-      });
+      expect(mockTx.order.update).toHaveBeenCalledWith({ where: { id: 'ord-1' }, data: { status: 'LAUNDRY_BEING_IRONED' } });
       expect(result.orderStatus).toBe('LAUNDRY_BEING_IRONED');
     });
 
     it('advances IRONING order to LAUNDRY_BEING_PACKED', async () => {
       mockTx.bypassRequest.findUnique.mockResolvedValue(makeBypass('PENDING', 'UNPAID', 'LAUNDRY_BEING_IRONED'));
       mockTx.bypassRequest.update.mockResolvedValue({
-        id: bypassId, status: 'APPROVED', adminId: adminStaffId,
-        problemDescription, resolvedAt: new Date(),
+        id: bypassId, status: 'APPROVED', adminId: adminStaffId, problemDescription, resolvedAt: new Date(),
       });
       mockTx.stationRecord.update.mockResolvedValue({});
       mockTx.order.update.mockResolvedValue({});
 
-      const result = await BypassRequestService.approve(adminStaffId, adminUserId, bypassId, password, problemDescription);
+      const result = await approve();
 
-      expect(mockTx.order.update).toHaveBeenCalledWith(
-        expect.objectContaining({ data: { status: 'LAUNDRY_BEING_PACKED' } })
-      );
+      expect(mockTx.order.update).toHaveBeenCalledWith(expect.objectContaining({ data: { status: 'LAUNDRY_BEING_PACKED' } }));
       expect(result.orderStatus).toBe('LAUNDRY_BEING_PACKED');
     });
 
     it('forks PACKING to WAITING_FOR_PAYMENT when order is UNPAID', async () => {
       mockTx.bypassRequest.findUnique.mockResolvedValue(makeBypass('PENDING', 'UNPAID', 'LAUNDRY_BEING_PACKED'));
       mockTx.bypassRequest.update.mockResolvedValue({
-        id: bypassId, status: 'APPROVED', adminId: adminStaffId,
-        problemDescription, resolvedAt: new Date(),
+        id: bypassId, status: 'APPROVED', adminId: adminStaffId, problemDescription, resolvedAt: new Date(),
       });
       mockTx.stationRecord.update.mockResolvedValue({});
       mockTx.order.update.mockResolvedValue({});
 
-      const result = await BypassRequestService.approve(adminStaffId, adminUserId, bypassId, password, problemDescription);
+      const result = await approve();
 
       expect(result.orderStatus).toBe('WAITING_FOR_PAYMENT');
       expect(mockTx.delivery.create).not.toHaveBeenCalled();
@@ -551,14 +546,13 @@ describe('BypassRequestService', () => {
     it('forks PACKING to LAUNDRY_READY_FOR_DELIVERY and creates Delivery when PAID', async () => {
       mockTx.bypassRequest.findUnique.mockResolvedValue(makeBypass('PENDING', 'PAID', 'LAUNDRY_BEING_PACKED'));
       mockTx.bypassRequest.update.mockResolvedValue({
-        id: bypassId, status: 'APPROVED', adminId: adminStaffId,
-        problemDescription, resolvedAt: new Date(),
+        id: bypassId, status: 'APPROVED', adminId: adminStaffId, problemDescription, resolvedAt: new Date(),
       });
       mockTx.stationRecord.update.mockResolvedValue({});
       mockTx.order.update.mockResolvedValue({});
       mockTx.delivery.create.mockResolvedValue({ id: 'del-1', orderId: 'ord-1' });
 
-      const result = await BypassRequestService.approve(adminStaffId, adminUserId, bypassId, password, problemDescription);
+      const result = await approve();
 
       expect(result.orderStatus).toBe('LAUNDRY_READY_FOR_DELIVERY');
       expect(mockTx.delivery.create).toHaveBeenCalledWith({ data: { orderId: 'ord-1' } });
@@ -570,43 +564,54 @@ describe('BypassRequestService', () => {
     const adminUserId = 'user-admin';
     const bypassId = 'bp-1';
 
+    const makePendingBypass = () => ({
+      id: bypassId,
+      stationRecordId: 'sr-1',
+      status: 'PENDING',
+      stationRecord: { order: { id: 'ord-1', status: 'LAUNDRY_BEING_WASHED', paymentStatus: 'UNPAID', outletId: 'outlet-1' } },
+    });
+
+    const reject = (overrides: { outletId?: string; password?: string } = {}) =>
+      BypassRequestService.reject(adminStaffId, adminUserId, 'OUTLET_ADMIN', overrides.outletId ?? 'outlet-1', bypassId, overrides.password ?? 'password');
+
     beforeEach(() => {
       mockTx.account.findFirst.mockResolvedValue({ password: 'hashed-password' });
     });
 
     it('throws 401 when password is incorrect', async () => {
       (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+      await expect(reject()).rejects.toThrow(new ResponseError(401, 'Incorrect password'));
+    });
 
-      await expect(
-        BypassRequestService.reject(adminStaffId, adminUserId, bypassId, 'wrong-password')
-      ).rejects.toThrow(new ResponseError(401, 'Incorrect password'));
+    it('throws 401 when credential account not found', async () => {
+      mockTx.account.findFirst.mockResolvedValue(null);
+      await expect(reject()).rejects.toThrow(new ResponseError(401, 'Incorrect password'));
     });
 
     it('throws 404 when bypass not found', async () => {
       mockTx.bypassRequest.findUnique.mockResolvedValue(null);
-
-      await expect(
-        BypassRequestService.reject(adminStaffId, adminUserId, bypassId, 'password')
-      ).rejects.toThrow(new ResponseError(404, 'Bypass request not found'));
+      await expect(reject()).rejects.toThrow(new ResponseError(404, 'Bypass request not found'));
     });
 
     it('throws 409 when bypass is already processed', async () => {
-      mockTx.bypassRequest.findUnique.mockResolvedValue({ id: bypassId, stationRecordId: 'sr-1', status: 'APPROVED' });
+      mockTx.bypassRequest.findUnique.mockResolvedValue({ ...makePendingBypass(), status: 'APPROVED' });
+      await expect(reject()).rejects.toThrow(new ResponseError(409, 'Bypass request is not in PENDING state'));
+    });
 
-      await expect(
-        BypassRequestService.reject(adminStaffId, adminUserId, bypassId, 'password')
-      ).rejects.toThrow(new ResponseError(409, 'Bypass request is not in PENDING state'));
+    it('throws 403 when OUTLET_ADMIN accesses a bypass from another outlet', async () => {
+      mockTx.bypassRequest.findUnique.mockResolvedValue(makePendingBypass());
+      await expect(reject({ outletId: 'outlet-other' })).rejects.toThrow(new ResponseError(403, 'Access denied'));
     });
 
     it('sets status to REJECTED and reverts stationRecord to IN_PROGRESS', async () => {
       const resolvedAt = new Date();
-      mockTx.bypassRequest.findUnique.mockResolvedValue({ id: bypassId, stationRecordId: 'sr-1', status: 'PENDING' });
+      mockTx.bypassRequest.findUnique.mockResolvedValue(makePendingBypass());
       mockTx.bypassRequest.update.mockResolvedValue({
         id: bypassId, status: 'REJECTED', adminId: adminStaffId, resolvedAt,
       });
       mockTx.stationRecord.update.mockResolvedValue({});
 
-      await BypassRequestService.reject(adminStaffId, adminUserId, bypassId, 'password');
+      await reject();
 
       expect(mockTx.stationRecord.update).toHaveBeenCalledWith({
         where: { id: 'sr-1' },
@@ -693,6 +698,36 @@ describe('BypassRequestService', () => {
 
       expect(result.referenceItems).toEqual([
         { laundryItemId: 'item-1', itemName: 'T-Shirt', quantity: 5 },
+      ]);
+    });
+
+    it('returns detail with referenceItems from IRONING station for PACKING', async () => {
+      const packingBypass = {
+        ...makeDetailBypass(),
+        stationRecord: {
+          ...makeDetailBypass().stationRecord,
+          station: 'PACKING',
+          stationItems: [
+            { laundryItemId: 'item-1', quantity: 2, laundryItem: { name: 'T-Shirt' } },
+          ],
+        },
+      };
+      (prisma.bypassRequest.findUnique as jest.Mock).mockResolvedValue(packingBypass);
+      (prisma.stationRecord.findUnique as jest.Mock).mockResolvedValue({
+        stationItems: [
+          { laundryItemId: 'item-1', quantity: 4, laundryItem: { name: 'T-Shirt' } },
+        ],
+      });
+
+      const result = await BypassRequestService.getById('OUTLET_ADMIN', 'outlet-1', bypassId);
+
+      expect(prisma.stationRecord.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { orderId_station: { orderId: 'ord-1', station: 'IRONING' } },
+        })
+      );
+      expect(result.referenceItems).toEqual([
+        { laundryItemId: 'item-1', itemName: 'T-Shirt', quantity: 4 },
       ]);
     });
   });

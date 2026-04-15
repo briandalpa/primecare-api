@@ -91,12 +91,13 @@ export function toApproveBypassResponse(
   bypass: BypassRequest,
   orderStatus: string
 ): ApproveBypassResponse {
+  if (!bypass.resolvedAt) throw new Error('Invariant: resolvedAt must be set on an approved bypass');
   return {
     id: bypass.id,
     status: bypass.status as BypassStatus,
     adminId: bypass.adminId ?? '',
     problemDescription: bypass.problemDescription ?? '',
-    resolvedAt: bypass.resolvedAt!,
+    resolvedAt: bypass.resolvedAt,
     orderStatus,
   };
 }
@@ -110,11 +111,12 @@ export type RejectBypassResponse = {
 };
 
 export function toRejectBypassResponse(bypass: BypassRequest): RejectBypassResponse {
+  if (!bypass.resolvedAt) throw new Error('Invariant: resolvedAt must be set on a rejected bypass');
   return {
     id: bypass.id,
     status: bypass.status as BypassStatus,
     adminId: bypass.adminId ?? '',
-    resolvedAt: bypass.resolvedAt!,
+    resolvedAt: bypass.resolvedAt,
   };
 }
 

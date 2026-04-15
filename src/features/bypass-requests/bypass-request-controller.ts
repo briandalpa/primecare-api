@@ -24,9 +24,11 @@ export class BypassRequestController {
         req.body
       );
 
+      const orderId = Validation.validate(BypassRequestValidation.ID_PARAM, req.params.id);
+
       const result = await BypassRequestService.create(
         req.staff.id,
-        Array.isArray(req.params.id) ? req.params.id[0] : req.params.id,
+        orderId,
         station,
         request
       );
@@ -98,6 +100,8 @@ export class BypassRequestController {
       const result = await BypassRequestService.approve(
         req.staff.id,
         req.staff.userId,
+        req.staff.role,
+        req.staff.outletId ?? undefined,
         bypassId,
         password,
         problemDescription
@@ -124,6 +128,8 @@ export class BypassRequestController {
       const result = await BypassRequestService.reject(
         req.staff.id,
         req.staff.userId,
+        req.staff.role,
+        req.staff.outletId ?? undefined,
         bypassId,
         password
       );

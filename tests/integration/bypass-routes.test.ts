@@ -472,6 +472,16 @@ describe('Bypass Routes Integration Tests', () => {
       expect(response.body.errors).toBe('Bypass request is not in PENDING state');
     });
 
+    it('returns 400 when problemDescription is empty', async () => {
+      mockAuthenticatedAdmin();
+
+      const response = await request(app)
+        .patch(`/api/v1/bypass-requests/${VALID_UUID}/approve`)
+        .send({ password: 'AdminPass123!', problemDescription: '' });
+
+      expect(response.status).toBe(400);
+    });
+
     it('returns 200 with correct envelope on happy path', async () => {
       mockAuthenticatedAdmin();
       (prisma.bypassRequest as any).findUnique.mockResolvedValue(makeBypassForApprove());
@@ -537,10 +547,30 @@ describe('Bypass Routes Integration Tests', () => {
       expect(response.body.errors).toBe('Incorrect password');
     });
 
+    it('returns 409 when bypass is already processed', async () => {
+      mockAuthenticatedAdmin();
+      (prisma.bypassRequest as any).findUnique.mockResolvedValue({
+        id: VALID_UUID,
+        stationRecordId: 'sr-1',
+        status: 'APPROVED',
+        stationRecord: { order: { id: 'ord-1', status: 'LAUNDRY_BEING_IRONED', paymentStatus: 'UNPAID', outletId: 'outlet-1' } },
+      });
+
+      const response = await request(app)
+        .patch(`/api/v1/bypass-requests/${VALID_UUID}/reject`)
+        .send(rejectBody);
+
+      expect(response.status).toBe(409);
+      expect(response.body.errors).toBe('Bypass request is not in PENDING state');
+    });
+
     it('returns 200 with correct envelope on happy path', async () => {
       mockAuthenticatedAdmin();
       (prisma.bypassRequest as any).findUnique.mockResolvedValue({
-        id: VALID_UUID, stationRecordId: 'sr-1', status: 'PENDING',
+        id: VALID_UUID,
+        stationRecordId: 'sr-1',
+        status: 'PENDING',
+        stationRecord: { order: { id: 'ord-1', status: 'LAUNDRY_BEING_WASHED', paymentStatus: 'UNPAID', outletId: 'outlet-1' } },
       });
       (prisma.bypassRequest as any).update.mockResolvedValue({
         id: VALID_UUID, status: 'REJECTED', adminId: 'staff-admin', resolvedAt: new Date(),
