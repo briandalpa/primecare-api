@@ -13,6 +13,7 @@ const mockTx = {
   stationItem: {
     deleteMany: jest.fn(),
     create: jest.fn(),
+    createMany: jest.fn(),
   },
   bypassRequest: {
     findFirst: jest.fn(),
@@ -51,7 +52,6 @@ jest.mock('@/application/database', () => ({
 import { BypassRequestService } from '@/features/bypass-requests/bypass-request-service';
 import { prisma } from '@/application/database';
 import { ResponseError } from '@/error/response-error';
-import { BypassStatus } from '@/features/bypass-requests/bypass-request-model';
 import bcrypt from 'bcrypt';
 
 describe('BypassRequestService', () => {
@@ -176,12 +176,7 @@ describe('BypassRequestService', () => {
 
       mockTx.bypassRequest.findFirst.mockResolvedValue(null);
       mockTx.stationItem.deleteMany.mockResolvedValue({ count: 0 });
-      mockTx.stationItem.create.mockResolvedValue({
-        id: 'si-1',
-        stationRecordId,
-        laundryItemId: 'item-1',
-        quantity: 3,
-      });
+      mockTx.stationItem.createMany.mockResolvedValue({ count: 1 });
       mockTx.bypassRequest.create.mockResolvedValue(createdBypass);
       mockTx.stationRecord.update.mockResolvedValue({
         id: stationRecordId,
@@ -196,12 +191,8 @@ describe('BypassRequestService', () => {
         where: { stationRecordId },
       });
 
-      expect(mockTx.stationItem.create).toHaveBeenCalledWith({
-        data: {
-          stationRecordId,
-          laundryItemId: 'item-1',
-          quantity: 3,
-        },
+      expect(mockTx.stationItem.createMany).toHaveBeenCalledWith({
+        data: [{ stationRecordId, laundryItemId: 'item-1', quantity: 3 }],
       });
 
       expect(mockTx.bypassRequest.create).toHaveBeenCalledWith({
@@ -246,7 +237,7 @@ describe('BypassRequestService', () => {
 
       mockTx.bypassRequest.findFirst.mockResolvedValue(null);
       mockTx.stationItem.deleteMany.mockResolvedValue({ count: 0 });
-      mockTx.stationItem.create.mockResolvedValue({});
+      mockTx.stationItem.createMany.mockResolvedValue({ count: 1 });
       mockTx.bypassRequest.create.mockResolvedValue({
         id: 'bp-1',
         stationRecordId,
@@ -290,7 +281,7 @@ describe('BypassRequestService', () => {
 
       mockTx.bypassRequest.findFirst.mockResolvedValue(null);
       mockTx.stationItem.deleteMany.mockResolvedValue({ count: 0 });
-      mockTx.stationItem.create.mockResolvedValue({});
+      mockTx.stationItem.createMany.mockResolvedValue({ count: 1 });
       mockTx.bypassRequest.create.mockResolvedValue({
         id: 'bp-1',
         stationRecordId,
@@ -356,7 +347,7 @@ describe('BypassRequestService', () => {
       (prisma.bypassRequest.findMany as jest.Mock).mockResolvedValue([makeBypass()]);
       (prisma.bypassRequest.count as jest.Mock).mockResolvedValue(1);
 
-      await BypassRequestService.getAll('admin-1', 'SUPER_ADMIN', undefined, {
+      await BypassRequestService.getAll('SUPER_ADMIN', undefined, {
         page: 1,
         limit: 10,
       });
@@ -369,7 +360,7 @@ describe('BypassRequestService', () => {
       (prisma.bypassRequest.findMany as jest.Mock).mockResolvedValue([makeBypass()]);
       (prisma.bypassRequest.count as jest.Mock).mockResolvedValue(1);
 
-      await BypassRequestService.getAll('admin-1', 'OUTLET_ADMIN', 'outlet-1', {
+      await BypassRequestService.getAll('OUTLET_ADMIN', 'outlet-1', {
         page: 1,
         limit: 10,
       });
@@ -384,10 +375,10 @@ describe('BypassRequestService', () => {
       (prisma.bypassRequest.findMany as jest.Mock).mockResolvedValue([]);
       (prisma.bypassRequest.count as jest.Mock).mockResolvedValue(0);
 
-      await BypassRequestService.getAll('admin-1', 'SUPER_ADMIN', undefined, {
+      await BypassRequestService.getAll('SUPER_ADMIN', undefined, {
         page: 1,
         limit: 10,
-        status: BypassStatus.PENDING,
+        status: 'PENDING',
       });
 
       const findManyCall = (prisma.bypassRequest.findMany as jest.Mock).mock.calls[0][0];
@@ -399,7 +390,7 @@ describe('BypassRequestService', () => {
       (prisma.bypassRequest.findMany as jest.Mock).mockResolvedValue([bypass]);
       (prisma.bypassRequest.count as jest.Mock).mockResolvedValue(1);
 
-      const result = await BypassRequestService.getAll('admin-1', 'SUPER_ADMIN', undefined, {
+      const result = await BypassRequestService.getAll('SUPER_ADMIN', undefined, {
         page: 1,
         limit: 10,
       });
@@ -420,7 +411,7 @@ describe('BypassRequestService', () => {
       (prisma.bypassRequest.findMany as jest.Mock).mockResolvedValue([]);
       (prisma.bypassRequest.count as jest.Mock).mockResolvedValue(0);
 
-      await BypassRequestService.getAll('admin-1', 'SUPER_ADMIN', undefined, {
+      await BypassRequestService.getAll('SUPER_ADMIN', undefined, {
         page: 1,
         limit: 10,
         order: 'asc',
@@ -434,7 +425,7 @@ describe('BypassRequestService', () => {
       (prisma.bypassRequest.findMany as jest.Mock).mockResolvedValue([]);
       (prisma.bypassRequest.count as jest.Mock).mockResolvedValue(0);
 
-      await BypassRequestService.getAll('admin-1', 'SUPER_ADMIN', undefined, {
+      await BypassRequestService.getAll('SUPER_ADMIN', undefined, {
         page: 1,
         limit: 10,
       });
@@ -462,10 +453,12 @@ describe('BypassRequestService', () => {
 
     const approve = (overrides: { role?: string; outletId?: string } = {}) =>
       BypassRequestService.approve(
-        adminStaffId,
-        adminUserId,
-        overrides.role ?? 'OUTLET_ADMIN',
-        overrides.outletId ?? 'outlet-1',
+        {
+          staffId: adminStaffId,
+          userId: adminUserId,
+          role: overrides.role ?? 'OUTLET_ADMIN',
+          outletId: overrides.outletId ?? 'outlet-1',
+        },
         bypassId,
         password,
         problemDescription
@@ -572,7 +565,16 @@ describe('BypassRequestService', () => {
     });
 
     const reject = (overrides: { outletId?: string; password?: string } = {}) =>
-      BypassRequestService.reject(adminStaffId, adminUserId, 'OUTLET_ADMIN', overrides.outletId ?? 'outlet-1', bypassId, overrides.password ?? 'password');
+      BypassRequestService.reject(
+        {
+          staffId: adminStaffId,
+          userId: adminUserId,
+          role: 'OUTLET_ADMIN',
+          outletId: overrides.outletId ?? 'outlet-1',
+        },
+        bypassId,
+        overrides.password ?? 'password'
+      );
 
     beforeEach(() => {
       mockTx.account.findFirst.mockResolvedValue({ password: 'hashed-password' });

@@ -1,36 +1,32 @@
 import { Response, NextFunction } from 'express';
 import { BypassRequestService } from './bypass-request-service';
+import type { AdminContext } from './bypass-request-model';
 import { Validation } from '@/validations/validation';
 import { BypassRequestValidation } from '@/validations/bypass-request-validation';
 import { UserRequest } from '@/types/user-request';
-import { ResponseError } from '@/error/response-error';
 import type { StationType } from '@/generated/prisma/client';
-import { BypassStatus } from './bypass-request-model';
 
 export class BypassRequestController {
   static async create(req: UserRequest, res: Response, next: NextFunction) {
     try {
-      if (!req.staff) {
-        throw new ResponseError(401, 'Authentication required');
-      }
-
       const station = Validation.validate(
         BypassRequestValidation.STATION_PARAM,
-        req.params.station
+        req.params.station,
       ) as StationType;
-
+      const orderId = Validation.validate(
+        BypassRequestValidation.ID_PARAM,
+        req.params.id,
+      );
       const request = Validation.validate(
         BypassRequestValidation.CREATE,
-        req.body
+        req.body,
       );
 
-      const orderId = Validation.validate(BypassRequestValidation.ID_PARAM, req.params.id);
-
       const result = await BypassRequestService.create(
-        req.staff.id,
+        req.staff!.id,
         orderId,
         station,
-        request
+        request,
       );
 
       res.status(201).json({
@@ -38,41 +34,31 @@ export class BypassRequestController {
         message: 'Bypass request submitted. Awaiting admin approval.',
         data: result,
       });
-    } catch (e) {
-      next(e);
+    } catch (error) {
+      next(error);
     }
   }
 
-  // PCS-128: Get bypass requests for admin review
+  private static adminFrom(req: UserRequest): AdminContext {
+    return {
+      staffId: req.staff!.id,
+      userId: req.staff!.userId,
+      role: req.staff!.role,
+      outletId: req.staff!.outletId ?? undefined,
+    };
+  }
+
   static async getAll(req: UserRequest, res: Response, next: NextFunction) {
     try {
-      if (!req.staff) {
-        throw new ResponseError(401, 'Authentication required');
-      }
-
-      const rawPage = Number(req.query.page);
-      const rawLimit = Number(req.query.limit);
-      const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
-      const limit = Number.isInteger(rawLimit) && rawLimit > 0 ? rawLimit : 10;
-
-      let status: BypassStatus | undefined;
-      if (req.query.status) {
-        status = Validation.validate(
-          BypassRequestValidation.STATUS_ENUM,
-          req.query.status
-        );
-      }
-
-      let order: 'asc' | 'desc' = 'desc';
-      if (req.query.order) {
-        order = Validation.validate(BypassRequestValidation.ORDER, req.query.order);
-      }
+      const query = Validation.validate(
+        BypassRequestValidation.LIST,
+        req.query,
+      );
 
       const result = await BypassRequestService.getAll(
-        req.staff.id,
-        req.staff.role,
-        req.staff.outletId ?? undefined,
-        { page, limit, status, order }
+        req.staff!.role,
+        req.staff!.outletId ?? undefined,
+        query,
       );
 
       res.status(200).json({
@@ -81,80 +67,73 @@ export class BypassRequestController {
         data: result.data,
         meta: result.meta,
       });
-    } catch (e) {
-      next(e);
+    } catch (error) {
+      next(error);
     }
   }
 
-  // PCS-129: Approve a bypass request
   static async approve(req: UserRequest, res: Response, next: NextFunction) {
     try {
-      if (!req.staff) throw new ResponseError(401, 'Authentication required');
-
-      const bypassId = Validation.validate(BypassRequestValidation.ID_PARAM, req.params.id);
+      const bypassId = Validation.validate(
+        BypassRequestValidation.ID_PARAM,
+        req.params.id,
+      );
       const { password, problemDescription } = Validation.validate(
         BypassRequestValidation.APPROVE,
-        req.body
+        req.body,
       );
-
       const result = await BypassRequestService.approve(
-        req.staff.id,
-        req.staff.userId,
-        req.staff.role,
-        req.staff.outletId ?? undefined,
+        BypassRequestController.adminFrom(req),
         bypassId,
         password,
-        problemDescription
+        problemDescription,
       );
-
       res.status(200).json({
         status: 'success',
         message: 'Bypass approved. Order advanced to next station.',
         data: result,
       });
-    } catch (e) {
-      next(e);
+    } catch (error) {
+      next(error);
     }
   }
 
-  // PCS-129: Reject a bypass request
   static async reject(req: UserRequest, res: Response, next: NextFunction) {
     try {
-      if (!req.staff) throw new ResponseError(401, 'Authentication required');
-
-      const bypassId = Validation.validate(BypassRequestValidation.ID_PARAM, req.params.id);
-      const { password } = Validation.validate(BypassRequestValidation.REJECT, req.body);
-
-      const result = await BypassRequestService.reject(
-        req.staff.id,
-        req.staff.userId,
-        req.staff.role,
-        req.staff.outletId ?? undefined,
-        bypassId,
-        password
+      const bypassId = Validation.validate(
+        BypassRequestValidation.ID_PARAM,
+        req.params.id,
       );
-
+      const { password } = Validation.validate(
+        BypassRequestValidation.REJECT,
+        req.body,
+      );
+      const result = await BypassRequestService.reject(
+        BypassRequestController.adminFrom(req),
+        bypassId,
+        password,
+      );
       res.status(200).json({
         status: 'success',
         message: 'Bypass rejected. Worker must re-enter correct quantities.',
         data: result,
       });
-    } catch (e) {
-      next(e);
+    } catch (error) {
+      next(error);
     }
   }
 
-  // PCS-129: Get bypass request detail
   static async getById(req: UserRequest, res: Response, next: NextFunction) {
     try {
-      if (!req.staff) throw new ResponseError(401, 'Authentication required');
-
-      const bypassId = Validation.validate(BypassRequestValidation.ID_PARAM, req.params.id);
+      const bypassId = Validation.validate(
+        BypassRequestValidation.ID_PARAM,
+        req.params.id,
+      );
 
       const result = await BypassRequestService.getById(
-        req.staff.role,
-        req.staff.outletId ?? undefined,
-        bypassId
+        req.staff!.role,
+        req.staff!.outletId ?? undefined,
+        bypassId,
       );
 
       res.status(200).json({
@@ -162,8 +141,8 @@ export class BypassRequestController {
         message: 'Bypass request retrieved',
         data: result,
       });
-    } catch (e) {
-      next(e);
+    } catch (error) {
+      next(error);
     }
   }
 }

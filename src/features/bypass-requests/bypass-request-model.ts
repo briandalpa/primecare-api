@@ -1,4 +1,5 @@
 import type { BypassRequest, Prisma } from '@/generated/prisma/client';
+export type { BypassStatus } from '@/generated/prisma/client';
 
 export type BypassItemInput = {
   laundryItemId: string;
@@ -9,122 +10,58 @@ export type CreateBypassRequestInput = {
   items: BypassItemInput[];
 };
 
-export enum BypassStatus {
-  PENDING = 'PENDING',
-  APPROVED = 'APPROVED',
-  REJECTED = 'REJECTED',
-}
+export type ApproveBypassInput = {
+  password: string;
+  problemDescription: string;
+};
+
+export type RejectBypassInput = {
+  password: string;
+};
+
+export type AdminContext = {
+  staffId: string;
+  userId: string;
+  role: string;
+  outletId: string | null | undefined;
+};
+
+export type BypassItemResponse = {
+  laundryItemId: string;
+  itemName: string;
+  quantity: number;
+};
+
+export type BypassRequestCreateResponse = {
+  id: string;
+  status: string;
+  createdAt: Date;
+};
 
 export type BypassRequestResponse = {
   id: string;
   orderId: string;
   station: string;
   workerName: string;
-  status: BypassStatus;
+  status: string;
   createdAt: Date;
   resolvedAt: Date | null;
 };
 
-// For CREATE response (minimal)
-export type BypassRequestCreateResponse = {
-  id: string;
-  status: BypassStatus;
-  createdAt: Date;
-};
-
-// For service responses
-type BypassWithRelations = Prisma.BypassRequestGetPayload<{
-  include: {
-    stationRecord: {
-      include: {
-        order: true;
-      };
-    };
-    worker: {
-      include: {
-        user: true;
-      };
-    };
-    admin: {
-      include: {
-        user: true;
-      };
-    };
-  };
-}>;
-
-export function toBypassCreateResponse(
-  bypass: BypassRequest
-): BypassRequestCreateResponse {
-  return {
-    id: bypass.id,
-    status: bypass.status as BypassStatus,
-    createdAt: bypass.createdAt,
-  };
-}
-
-export function toBypassResponse(
-  bypass: BypassWithRelations
-): BypassRequestResponse {
-  return {
-    id: bypass.id,
-    orderId: bypass.stationRecord?.order?.id ?? '',
-    station: bypass.stationRecord?.station ?? '',
-    workerName: bypass.worker?.user?.name ?? 'Unknown',
-    status: bypass.status as BypassStatus,
-    createdAt: bypass.createdAt,
-    resolvedAt: bypass.resolvedAt,
-  };
-}
-
-// For APPROVE response (PCS-129)
 export type ApproveBypassResponse = {
   id: string;
-  status: BypassStatus;
+  status: string;
   adminId: string;
   problemDescription: string;
   resolvedAt: Date;
   orderStatus: string;
 };
 
-export function toApproveBypassResponse(
-  bypass: BypassRequest,
-  orderStatus: string
-): ApproveBypassResponse {
-  if (!bypass.resolvedAt) throw new Error('Invariant: resolvedAt must be set on an approved bypass');
-  return {
-    id: bypass.id,
-    status: bypass.status as BypassStatus,
-    adminId: bypass.adminId ?? '',
-    problemDescription: bypass.problemDescription ?? '',
-    resolvedAt: bypass.resolvedAt,
-    orderStatus,
-  };
-}
-
-// For REJECT response (PCS-129)
 export type RejectBypassResponse = {
   id: string;
-  status: BypassStatus;
+  status: string;
   adminId: string;
   resolvedAt: Date;
-};
-
-export function toRejectBypassResponse(bypass: BypassRequest): RejectBypassResponse {
-  if (!bypass.resolvedAt) throw new Error('Invariant: resolvedAt must be set on a rejected bypass');
-  return {
-    id: bypass.id,
-    status: bypass.status as BypassStatus,
-    adminId: bypass.adminId ?? '',
-    resolvedAt: bypass.resolvedAt,
-  };
-}
-
-// For detail response (GET /bypass-requests/:id)
-export type BypassItemResponse = {
-  laundryItemId: string;
-  itemName: string;
-  quantity: number;
 };
 
 export type BypassRequestDetailResponse = {
@@ -136,12 +73,20 @@ export type BypassRequestDetailResponse = {
   workerId: string;
   adminId: string | null;
   problemDescription: string | null;
-  status: BypassStatus;
+  status: string;
   createdAt: Date;
   resolvedAt: Date | null;
   referenceItems: BypassItemResponse[];
   workerItems: BypassItemResponse[];
 };
+
+type BypassWithRelations = Prisma.BypassRequestGetPayload<{
+  include: {
+    stationRecord: { include: { order: true } };
+    worker: { include: { user: true } };
+    admin: { include: { user: true } };
+  };
+}>;
 
 type BypassWithDetailRelations = Prisma.BypassRequestGetPayload<{
   include: {
@@ -155,6 +100,51 @@ type BypassWithDetailRelations = Prisma.BypassRequestGetPayload<{
     admin: { include: { user: true } };
   };
 }>;
+
+export function toBypassCreateResponse(bypass: BypassRequest): BypassRequestCreateResponse {
+  return {
+    id: bypass.id,
+    status: bypass.status,
+    createdAt: bypass.createdAt,
+  };
+}
+
+export function toBypassResponse(bypass: BypassWithRelations): BypassRequestResponse {
+  return {
+    id: bypass.id,
+    orderId: bypass.stationRecord?.order?.id ?? '',
+    station: bypass.stationRecord?.station ?? '',
+    workerName: bypass.worker?.user?.name ?? 'Unknown',
+    status: bypass.status,
+    createdAt: bypass.createdAt,
+    resolvedAt: bypass.resolvedAt,
+  };
+}
+
+export function toApproveBypassResponse(
+  bypass: BypassRequest,
+  orderStatus: string
+): ApproveBypassResponse {
+  if (!bypass.resolvedAt) throw new Error('Invariant: resolvedAt must be set on an approved bypass');
+  return {
+    id: bypass.id,
+    status: bypass.status,
+    adminId: bypass.adminId ?? '',
+    problemDescription: bypass.problemDescription ?? '',
+    resolvedAt: bypass.resolvedAt,
+    orderStatus,
+  };
+}
+
+export function toRejectBypassResponse(bypass: BypassRequest): RejectBypassResponse {
+  if (!bypass.resolvedAt) throw new Error('Invariant: resolvedAt must be set on a rejected bypass');
+  return {
+    id: bypass.id,
+    status: bypass.status,
+    adminId: bypass.adminId ?? '',
+    resolvedAt: bypass.resolvedAt,
+  };
+}
 
 export function toBypassDetailResponse(
   bypass: BypassWithDetailRelations,
@@ -175,7 +165,7 @@ export function toBypassDetailResponse(
     workerId: bypass.workerId,
     adminId: bypass.adminId,
     problemDescription: bypass.problemDescription,
-    status: bypass.status as BypassStatus,
+    status: bypass.status,
     createdAt: bypass.createdAt,
     resolvedAt: bypass.resolvedAt,
     referenceItems,
