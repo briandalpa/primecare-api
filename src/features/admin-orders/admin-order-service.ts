@@ -1,5 +1,7 @@
 import { prisma } from '@/application/database'
 import { ResponseError } from '@/error/response-error'
+import { OrderStatus } from '@/generated/prisma/client'
+import { WorkerNotificationService } from '@/features/worker-notifications/worker-notification-service'
 import { v4 as uuid } from 'uuid'
 import { CreateAdminOrderInput, GetAdminOrdersQuery, LaundryItemResponse } from './admin-order-model'
 
@@ -181,7 +183,8 @@ export class AdminOrderService {
           staffId: staff.id,
           pricePerKg: data.pricePerKg,
           totalWeightKg: data.totalWeightKg,
-          totalPrice
+          totalPrice,
+          status: OrderStatus.LAUNDRY_BEING_WASHED,
         }
       }),
       ...data.items.map((item) =>
@@ -195,6 +198,12 @@ export class AdminOrderService {
         })
       )
     ])
+
+    WorkerNotificationService.publishOrderArrival({
+      orderId: order.id,
+      outletId: order.outletId,
+      orderStatus: order.status,
+    })
 
     return order
   }

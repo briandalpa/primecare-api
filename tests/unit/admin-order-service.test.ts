@@ -7,8 +7,15 @@ jest.mock('@/application/database', () => ({
   },
 }));
 
+jest.mock('@/features/worker-notifications/worker-notification-service', () => ({
+  WorkerNotificationService: {
+    publishOrderArrival: jest.fn(),
+  },
+}));
+
 import { AdminOrderService } from '@/features/admin-orders/admin-order-service';
 import { prisma } from '@/application/database';
+import { WorkerNotificationService } from '@/features/worker-notifications/worker-notification-service';
 
 const superAdmin = { id: 'staff-sa', role: 'SUPER_ADMIN', outletId: null };
 const outletAdmin = { id: 'staff-oa', role: 'OUTLET_ADMIN', outletId: 'outlet-1' };
@@ -245,7 +252,7 @@ describe('AdminOrderService', () => {
       ],
     };
     const mockPickup = { id: VALID_UUID, outletId: 'outlet-1', status: 'PICKED_UP', order: null };
-    const mockOrder = { id: 'order-new', outletId: 'outlet-1' };
+    const mockOrder = { id: 'order-new', outletId: 'outlet-1', status: 'LAUNDRY_BEING_WASHED' };
 
     it('should create order atomically via $transaction and return the order', async () => {
       (prisma.pickupRequest.findUnique as jest.Mock).mockResolvedValue(mockPickup);
@@ -295,6 +302,34 @@ describe('AdminOrderService', () => {
       expect(txArgs).toHaveLength(1 + validInput.items.length);
     });
 
+    it('should set created order status to LAUNDRY_BEING_WASHED', async () => {
+      (prisma.pickupRequest.findUnique as jest.Mock).mockResolvedValue(mockPickup);
+      (prisma.order.create as jest.Mock).mockResolvedValue(mockOrder);
+      (prisma.orderItem.create as jest.Mock).mockResolvedValue({ id: 'item-1' });
+
+      await AdminOrderService.createAdminOrder(superAdmin, validInput);
+
+      expect(prisma.order.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ status: 'LAUNDRY_BEING_WASHED' }),
+        }),
+      );
+    });
+
+    it('should publish a worker arrival notification after order creation', async () => {
+      (prisma.pickupRequest.findUnique as jest.Mock).mockResolvedValue(mockPickup);
+      (prisma.order.create as jest.Mock).mockResolvedValue(mockOrder);
+      (prisma.orderItem.create as jest.Mock).mockResolvedValue({ id: 'item-1' });
+
+      await AdminOrderService.createAdminOrder(superAdmin, validInput);
+
+      expect(WorkerNotificationService.publishOrderArrival).toHaveBeenCalledWith({
+        orderId: 'order-new',
+        outletId: 'outlet-1',
+        orderStatus: 'LAUNDRY_BEING_WASHED',
+      });
+    });
+
     it('should throw 404 when pickupRequest not found', async () => {
       (prisma.pickupRequest.findUnique as jest.Mock).mockResolvedValue(null);
 
@@ -337,7 +372,11 @@ describe('AdminOrderService', () => {
         ...mockPickup,
         outletId: 'outlet-other',
       });
-      (prisma.order.create as jest.Mock).mockResolvedValue({ id: 'order-new', outletId: 'outlet-other' });
+      (prisma.order.create as jest.Mock).mockResolvedValue({
+        id: 'order-new',
+        outletId: 'outlet-other',
+        status: 'LAUNDRY_BEING_WASHED',
+      });
       (prisma.orderItem.create as jest.Mock).mockResolvedValue({ id: 'item-1' });
 
       const result = await AdminOrderService.createAdminOrder(superAdmin, validInput);
