@@ -14,7 +14,7 @@ jest.mock('@/application/database', () => ({
     staff: { findUnique: jest.fn() },
     stationRecord: { findUnique: jest.fn(), update: jest.fn() },
     orderItem: { findMany: jest.fn() },
-    stationItem: { deleteMany: jest.fn(), create: jest.fn() },
+    stationItem: { deleteMany: jest.fn(), createMany: jest.fn() },
     bypassRequest: {
       findFirst: jest.fn(),
       findUnique: jest.fn(),
@@ -179,12 +179,7 @@ describe('Bypass Routes Integration Tests', () => {
 
       (prisma.bypassRequest as any).findFirst.mockResolvedValue(null);
       (prisma.stationItem as any).deleteMany.mockResolvedValue({ count: 0 });
-      (prisma.stationItem as any).create.mockResolvedValue({
-        id: 'si-1',
-        stationRecordId,
-        laundryItemId: VALID_UUID,
-        quantity: 3,
-      });
+      (prisma.stationItem as any).createMany.mockResolvedValue({ count: 1 });
 
       const now = new Date();
       (prisma.bypassRequest as any).create.mockResolvedValue({
