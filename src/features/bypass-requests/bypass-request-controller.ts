@@ -1,65 +1,148 @@
-import { Response } from 'express';
+import { Response, NextFunction } from 'express';
 import { BypassRequestService } from './bypass-request-service';
-import { UserRequest } from '@/types/user-request';
+import type { AdminContext } from './bypass-request-model';
 import { Validation } from '@/validations/validation';
-import { ResponseError } from '@/error/response-error';
-import {
-  approveBypassSchema,
-  rejectBypassSchema,
-} from './bypass-request-model';
+import { BypassRequestValidation } from '@/validations/bypass-request-validation';
+import { UserRequest } from '@/types/user-request';
+import type { StationType } from '@/generated/prisma/client';
 
 export class BypassRequestController {
-  static async approve(req: UserRequest, res: Response) {
-    if (!req.user || !req.user.id) {
-      throw new ResponseError(401, 'Unauthorized');
+  static async create(req: UserRequest, res: Response, next: NextFunction) {
+    try {
+      const station = Validation.validate(
+        BypassRequestValidation.STATION_PARAM,
+        req.params.station,
+      ) as StationType;
+      const orderId = Validation.validate(
+        BypassRequestValidation.ID_PARAM,
+        req.params.id,
+      );
+      const request = Validation.validate(
+        BypassRequestValidation.CREATE,
+        req.body,
+      );
+
+      const result = await BypassRequestService.create(
+        req.staff!.id,
+        orderId,
+        station,
+        request,
+      );
+
+      res.status(201).json({
+        status: 'success',
+        message: 'Bypass request submitted. Awaiting admin approval.',
+        data: result,
+      });
+    } catch (error) {
+      next(error);
     }
-
-    const user = {
-      id: req.user.id,
-    };
-
-    const request = Validation.validate(
-      approveBypassSchema,
-      req.body
-    );
-
-    const bypassId = req.params.id as string;
-
-    const result = await BypassRequestService.approve(
-      user,
-      bypassId,
-      request
-    );
-
-    res.json({
-      data: result,
-    });
   }
 
-  static async reject(req: UserRequest, res: Response) {
-    if (!req.user || !req.user.id) {
-      throw new ResponseError(401, 'Unauthorized');
-    }
-
-    const user = {
-      id: req.user.id,
+  private static adminFrom(req: UserRequest): AdminContext {
+    return {
+      staffId: req.staff!.id,
+      userId: req.staff!.userId,
+      role: req.staff!.role,
+      outletId: req.staff!.outletId ?? undefined,
     };
+  }
 
-    const request = Validation.validate(
-      rejectBypassSchema,
-      req.body
-    );
+  static async getAll(req: UserRequest, res: Response, next: NextFunction) {
+    try {
+      const query = Validation.validate(
+        BypassRequestValidation.LIST,
+        req.query,
+      );
 
-    const bypassId = req.params.id as string;
+      const result = await BypassRequestService.getAll(
+        req.staff!.role,
+        req.staff!.outletId ?? undefined,
+        query,
+      );
 
-    const result = await BypassRequestService.reject(
-      user,
-      bypassId,
-      request
-    );
+      res.status(200).json({
+        status: 'success',
+        message: 'Bypass requests retrieved',
+        data: result.data,
+        meta: result.meta,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 
-    res.json({
-      data: result,
-    });
+  static async approve(req: UserRequest, res: Response, next: NextFunction) {
+    try {
+      const bypassId = Validation.validate(
+        BypassRequestValidation.ID_PARAM,
+        req.params.id,
+      );
+      const { password, problemDescription } = Validation.validate(
+        BypassRequestValidation.APPROVE,
+        req.body,
+      );
+      const result = await BypassRequestService.approve(
+        BypassRequestController.adminFrom(req),
+        bypassId,
+        password,
+        problemDescription,
+      );
+      res.status(200).json({
+        status: 'success',
+        message: 'Bypass approved. Order advanced to next station.',
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async reject(req: UserRequest, res: Response, next: NextFunction) {
+    try {
+      const bypassId = Validation.validate(
+        BypassRequestValidation.ID_PARAM,
+        req.params.id,
+      );
+      const { password } = Validation.validate(
+        BypassRequestValidation.REJECT,
+        req.body,
+      );
+      const result = await BypassRequestService.reject(
+        BypassRequestController.adminFrom(req),
+        bypassId,
+        password,
+      );
+      res.status(200).json({
+        status: 'success',
+        message: 'Bypass rejected. Worker must re-enter correct quantities.',
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getById(req: UserRequest, res: Response, next: NextFunction) {
+    try {
+      const bypassId = Validation.validate(
+        BypassRequestValidation.ID_PARAM,
+        req.params.id,
+      );
+
+      const result = await BypassRequestService.getById(
+        req.staff!.role,
+        req.staff!.outletId ?? undefined,
+        bypassId,
+      );
+
+      res.status(200).json({
+        status: 'success',
+        message: 'Bypass request retrieved',
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
   }
 }
