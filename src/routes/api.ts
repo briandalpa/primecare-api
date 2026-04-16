@@ -12,6 +12,7 @@ import { AddressController } from '@/features/addresses/address-controller';
 import { RegionController } from '@/features/region-data/region-controller';
 import { BypassRequestController } from '@/features/bypass-requests/bypass-request-controller';
 import { OrderController } from '@/features/orders/order-controller';
+import { WorkerOrderController } from '@/features/worker-orders/worker-order-controller';
 
 export const apiRouter = express.Router();
 
@@ -144,4 +145,11 @@ apiRouter.post(
   '/orders/:id/confirm',
   requireCustomerAuth,
   OrderController.confirmReceipt,
+);
+
+// WORKER
+apiRouter.get(
+  '/worker/orders',
+  requireStaffRole('WORKER'),
+  WorkerOrderController.getOrders,
 );
