@@ -49,10 +49,17 @@ jest.mock('@/application/database', () => ({
   },
 }));
 
+jest.mock('@/features/worker-notifications/worker-notification-service', () => ({
+  WorkerNotificationService: {
+    publishOrderArrival: jest.fn(),
+  },
+}));
+
 import { BypassRequestService } from '@/features/bypass-requests/bypass-request-service';
 import { prisma } from '@/application/database';
 import { ResponseError } from '@/error/response-error';
 import bcrypt from 'bcrypt';
+import { WorkerNotificationService } from '@/features/worker-notifications/worker-notification-service';
 
 describe('BypassRequestService', () => {
   beforeEach(() => {
@@ -505,6 +512,11 @@ describe('BypassRequestService', () => {
       const result = await approve();
 
       expect(mockTx.order.update).toHaveBeenCalledWith({ where: { id: 'ord-1' }, data: { status: 'LAUNDRY_BEING_IRONED' } });
+      expect(WorkerNotificationService.publishOrderArrival).toHaveBeenCalledWith({
+        orderId: 'ord-1',
+        outletId: 'outlet-1',
+        orderStatus: 'LAUNDRY_BEING_IRONED',
+      });
       expect(result.orderStatus).toBe('LAUNDRY_BEING_IRONED');
     });
 
@@ -519,6 +531,11 @@ describe('BypassRequestService', () => {
       const result = await approve();
 
       expect(mockTx.order.update).toHaveBeenCalledWith(expect.objectContaining({ data: { status: 'LAUNDRY_BEING_PACKED' } }));
+      expect(WorkerNotificationService.publishOrderArrival).toHaveBeenCalledWith({
+        orderId: 'ord-1',
+        outletId: 'outlet-1',
+        orderStatus: 'LAUNDRY_BEING_PACKED',
+      });
       expect(result.orderStatus).toBe('LAUNDRY_BEING_PACKED');
     });
 
@@ -533,6 +550,11 @@ describe('BypassRequestService', () => {
       const result = await approve();
 
       expect(result.orderStatus).toBe('WAITING_FOR_PAYMENT');
+      expect(WorkerNotificationService.publishOrderArrival).toHaveBeenCalledWith({
+        orderId: 'ord-1',
+        outletId: 'outlet-1',
+        orderStatus: 'WAITING_FOR_PAYMENT',
+      });
       expect(mockTx.delivery.create).not.toHaveBeenCalled();
     });
 
@@ -548,6 +570,11 @@ describe('BypassRequestService', () => {
       const result = await approve();
 
       expect(result.orderStatus).toBe('LAUNDRY_READY_FOR_DELIVERY');
+      expect(WorkerNotificationService.publishOrderArrival).toHaveBeenCalledWith({
+        orderId: 'ord-1',
+        outletId: 'outlet-1',
+        orderStatus: 'LAUNDRY_READY_FOR_DELIVERY',
+      });
       expect(mockTx.delivery.create).toHaveBeenCalledWith({ data: { orderId: 'ord-1' } });
     });
   });

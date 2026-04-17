@@ -9,6 +9,7 @@ import {
   toRejectBypassResponse,
   toBypassDetailResponse,
 } from './bypass-request-model';
+import { WorkerNotificationService } from '@/features/worker-notifications/worker-notification-service';
 import {
   advanceOrderStatus,
   assertMismatch,
@@ -93,7 +94,7 @@ export class BypassRequestService {
     password: string,
     problemDescription: string,
   ) {
-    return prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       const bypass = await loadAndVerifyBypass(tx, admin, bypassId, password);
       const updated = await tx.bypassRequest.update({
         where: { id: bypassId },
@@ -104,8 +105,20 @@ export class BypassRequestService {
         data: { status: StationStatus.COMPLETED, completedAt: new Date() },
       });
       const nextStatus = await advanceOrderStatus(tx, bypass.stationRecord.order);
-      return toApproveBypassResponse(updated, nextStatus);
+      return {
+        orderId: bypass.stationRecord.order.id,
+        outletId: bypass.stationRecord.order.outletId,
+        response: toApproveBypassResponse(updated, nextStatus),
+      };
     });
+
+    WorkerNotificationService.publishOrderArrival({
+      orderId: result.orderId,
+      outletId: result.outletId,
+      orderStatus: result.response.orderStatus,
+    });
+
+    return result.response;
   }
 
   static async reject(

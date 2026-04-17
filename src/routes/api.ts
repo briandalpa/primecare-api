@@ -13,6 +13,7 @@ import { RegionController } from '@/features/region-data/region-controller';
 import { BypassRequestController } from '@/features/bypass-requests/bypass-request-controller';
 import { OrderController } from '@/features/orders/order-controller';
 import { WorkerOrderController } from '@/features/worker-orders/worker-order-controller';
+import { WorkerNotificationController } from '@/features/worker-notifications/worker-notification-controller';
 
 export const apiRouter = express.Router();
 
@@ -152,4 +153,9 @@ apiRouter.get(
   '/worker/orders',
   requireStaffRole('WORKER'),
   WorkerOrderController.getOrders,
+);
+apiRouter.get(
+  '/worker/notifications/stream',
+  requireStaffRole('WORKER'),
+  WorkerNotificationController.stream,
 );
