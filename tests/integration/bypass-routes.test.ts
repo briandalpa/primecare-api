@@ -244,6 +244,96 @@ describe('Bypass Routes Integration Tests', () => {
     });
   });
 
+  describe('POST /api/v1/worker/orders/:id/bypass-request', () => {
+    it('returns 401 when not authenticated', async () => {
+      (auth.api.getSession as jest.Mock).mockResolvedValue(null);
+
+      const response = await request(app)
+        .post(`/api/v1/worker/orders/${VALID_UUID}/bypass-request`)
+        .send({ items: [{ laundryItemId: VALID_UUID, quantity: 5 }] });
+
+      expect(response.status).toBe(401);
+    });
+
+    it('returns 422 when worker station is not configured', async () => {
+      mockAuthenticatedWorker();
+      (prisma.staff.findUnique as jest.Mock).mockResolvedValue({
+        id: 'staff-1',
+        role: 'WORKER',
+        isActive: true,
+        workerType: null,
+      });
+
+      const response = await request(app)
+        .post(`/api/v1/worker/orders/${VALID_UUID}/bypass-request`)
+        .send({ items: [{ laundryItemId: VALID_UUID, quantity: 3 }] });
+
+      expect(response.status).toBe(422);
+      expect(response.body.errors).toBe(
+        'Worker station or outlet assignment is not configured',
+      );
+    });
+
+    it('returns 201 with proper envelope on valid mismatch', async () => {
+      mockAuthenticatedWorker('user-1', 'staff-1');
+      const stationRecordId = 'sr-1';
+      const bypassId = 'bp-worker-1';
+
+      (prisma.staff.findUnique as jest.Mock).mockResolvedValue({
+        id: 'staff-1',
+        role: 'WORKER',
+        isActive: true,
+        workerType: 'WASHING',
+      });
+      (prisma.stationRecord as any).findUnique.mockResolvedValue({
+        id: stationRecordId,
+        orderId: VALID_UUID,
+        station: 'WASHING',
+        staffId: 'staff-1',
+        status: 'IN_PROGRESS',
+        stationItems: [],
+      });
+      (prisma.orderItem as any).findMany.mockResolvedValue([
+        { laundryItemId: VALID_UUID, quantity: 5 },
+      ]);
+      (prisma.bypassRequest as any).findFirst.mockResolvedValue(null);
+      (prisma.stationItem as any).deleteMany.mockResolvedValue({ count: 0 });
+      (prisma.stationItem as any).createMany.mockResolvedValue({ count: 1 });
+
+      const now = new Date();
+      (prisma.bypassRequest as any).create.mockResolvedValue({
+        id: bypassId,
+        stationRecordId,
+        workerId: 'staff-1',
+        adminId: null,
+        problemDescription: null,
+        status: 'PENDING',
+        createdAt: now,
+      });
+      (prisma.stationRecord as any).update.mockResolvedValue({
+        id: stationRecordId,
+        status: 'BYPASS_REQUESTED',
+      });
+
+      const response = await request(app)
+        .post(`/api/v1/worker/orders/${VALID_UUID}/bypass-request`)
+        .send({
+          items: [{ laundryItemId: VALID_UUID, quantity: 3 }],
+        });
+
+      expect(response.status).toBe(201);
+      expect(response.body).toEqual({
+        status: 'success',
+        message: 'Bypass request submitted. Awaiting admin approval.',
+        data: {
+          id: bypassId,
+          status: 'PENDING',
+          createdAt: now.toISOString(),
+        },
+      });
+    });
+  });
+
   describe('GET /api/v1/bypass-requests', () => {
     const makeBypassRecord = () => ({
       id: 'bp-1',
