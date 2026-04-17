@@ -72,12 +72,6 @@ const assertQuantitiesMatch = (
   }
 };
 
-const assertProcessableStation = (station: StationType) => {
-  if (station === 'PACKING') {
-    throw new ResponseError(422, 'Packing completion is handled separately');
-  }
-};
-
 const loadWorkerStationRecordForProcess = async (
   tx: Prisma.TransactionClient,
   orderId: string,
@@ -224,7 +218,6 @@ export class WorkerOrderService {
     data: WorkerOrderProcessInput,
   ) {
     const queueContext = getWorkerQueueContext(staff);
-    assertProcessableStation(queueContext.workerType);
 
     const result = await prisma.$transaction(async (tx) => {
       const stationRecord = await loadWorkerStationRecordForProcess(
