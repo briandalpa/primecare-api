@@ -2,6 +2,8 @@ import { z, ZodType } from 'zod';
 import type { WorkerOrderListQuery } from '@/features/worker-orders/worker-order-model';
 
 export class WorkerOrderValidation {
+  static readonly ID_PARAM: ZodType<string> = z.uuid();
+
   static readonly LIST: ZodType<WorkerOrderListQuery> = z.object({
     page: z.coerce.number().int().min(1).default(1),
     limit: z.coerce.number().int().min(1).max(100).default(10),

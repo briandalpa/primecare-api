@@ -155,6 +155,11 @@ apiRouter.get(
   WorkerOrderController.getOrders,
 );
 apiRouter.get(
+  '/worker/orders/:id',
+  requireStaffRole('WORKER'),
+  WorkerOrderController.getOrderDetail,
+);
+apiRouter.get(
   '/worker/notifications/stream',
   requireStaffRole('WORKER'),
   WorkerNotificationController.stream,

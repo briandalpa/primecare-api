@@ -20,4 +20,29 @@ export class WorkerOrderController {
       next(error);
     }
   }
+
+  static async getOrderDetail(
+    req: UserRequest,
+    res: Response,
+    next: NextFunction,
+  ) {
+    try {
+      const orderId = Validation.validate(
+        WorkerOrderValidation.ID_PARAM,
+        req.params.id,
+      );
+      const result = await WorkerOrderService.getWorkerOrderDetail(
+        req.staff!,
+        orderId,
+      );
+
+      res.status(200).json({
+        status: 'success',
+        message: 'Worker order retrieved',
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
