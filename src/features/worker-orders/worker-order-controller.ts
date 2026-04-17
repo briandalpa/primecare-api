@@ -45,4 +45,34 @@ export class WorkerOrderController {
       next(error);
     }
   }
+
+  static async processOrder(
+    req: UserRequest,
+    res: Response,
+    next: NextFunction,
+  ) {
+    try {
+      const orderId = Validation.validate(
+        WorkerOrderValidation.ID_PARAM,
+        req.params.id,
+      );
+      const request = Validation.validate(
+        WorkerOrderValidation.PROCESS,
+        req.body,
+      );
+      const result = await WorkerOrderService.processWorkerOrder(
+        req.staff!,
+        orderId,
+        request,
+      );
+
+      res.status(200).json({
+        status: 'success',
+        message: 'Worker order processed successfully',
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }

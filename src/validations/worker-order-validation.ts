@@ -1,8 +1,22 @@
 import { z, ZodType } from 'zod';
-import type { WorkerOrderListQuery } from '@/features/worker-orders/worker-order-model';
+import type {
+  WorkerOrderListQuery,
+  WorkerOrderProcessInput,
+} from '@/features/worker-orders/worker-order-model';
 
 export class WorkerOrderValidation {
   static readonly ID_PARAM: ZodType<string> = z.uuid();
+
+  static readonly PROCESS: ZodType<WorkerOrderProcessInput> = z.object({
+    items: z
+      .array(
+        z.object({
+          laundryItemId: z.uuid(),
+          quantity: z.number().int().positive(),
+        }),
+      )
+      .min(1),
+  });
 
   static readonly LIST: ZodType<WorkerOrderListQuery> = z.object({
     page: z.coerce.number().int().min(1).default(1),

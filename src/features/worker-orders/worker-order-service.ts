@@ -1,10 +1,20 @@
 import { prisma } from '@/application/database';
-import type { Staff } from '@/generated/prisma/client';
+import type { Prisma, Staff, StationType } from '@/generated/prisma/client';
 import { ResponseError } from '@/error/response-error';
-import { fetchReferenceItems } from '@/features/bypass-requests/bypass-request-helpers';
+import { WorkerNotificationService } from '@/features/worker-notifications/worker-notification-service';
+import { resolveStationFromOrderStatus } from '@/features/worker-notifications/worker-notification-model';
+import {
+  advanceOrderStatus,
+  fetchReferenceItems,
+  fetchReferenceQuantities,
+  saveStationItems,
+  StationStatus,
+} from '@/features/bypass-requests/bypass-request-helpers';
 import {
   toWorkerOrderDetailResponse,
   type WorkerOrderListQuery,
+  type WorkerOrderProcessInput,
+  toWorkerOrderProcessResponse,
   toWorkerOrderResponse,
 } from './worker-order-model';
 
@@ -41,6 +51,80 @@ const getWorkerQueueContext = (staff: Staff) => {
     outletId: staff.outletId,
     workerType: staff.workerType,
   };
+};
+
+const assertQuantitiesMatch = (
+  reference: Array<{ laundryItemId: string; quantity: number }>,
+  submitted: WorkerOrderProcessInput['items'],
+) => {
+  const referenceMap = new Map(
+    reference.map((item) => [item.laundryItemId, item.quantity]),
+  );
+  const submittedMap = new Map(
+    submitted.map((item) => [item.laundryItemId, item.quantity]),
+  );
+  const isMatch =
+    referenceMap.size === submittedMap.size &&
+    [...referenceMap].every(([id, quantity]) => submittedMap.get(id) === quantity);
+
+  if (!isMatch) {
+    throw new ResponseError(400, 'Quantity mismatch detected');
+  }
+};
+
+const assertProcessableStation = (station: StationType) => {
+  if (station === 'PACKING') {
+    throw new ResponseError(422, 'Packing completion is handled separately');
+  }
+};
+
+const loadWorkerStationRecordForProcess = async (
+  tx: Prisma.TransactionClient,
+  orderId: string,
+  station: StationType,
+  workerId: string,
+) => {
+  const stationRecord = await tx.stationRecord.findUnique({
+    where: { orderId_station: { orderId, station } },
+    include: {
+      order: true,
+      stationItems: true,
+    },
+  });
+
+  if (!stationRecord) {
+    throw new ResponseError(404, 'Station record not found');
+  }
+
+  if (stationRecord.staffId !== workerId) {
+    throw new ResponseError(403, 'You are not assigned to this station');
+  }
+
+  return stationRecord;
+};
+
+const findNextStationWorker = async (
+  outletId: string,
+  station: StationType,
+) => {
+  const worker = await prisma.staff.findFirst({
+    where: {
+      role: 'WORKER',
+      isActive: true,
+      outletId,
+      workerType: station,
+    },
+    orderBy: { createdAt: 'asc' },
+  });
+
+  if (!worker) {
+    throw new ResponseError(
+      422,
+      `No active worker configured for ${station} station`,
+    );
+  }
+
+  return worker;
 };
 
 export class WorkerOrderService {
@@ -132,5 +216,80 @@ export class WorkerOrderService {
       record as Parameters<typeof toWorkerOrderDetailResponse>[0],
       referenceItems,
     );
+  }
+
+  static async processWorkerOrder(
+    staff: Staff,
+    orderId: string,
+    data: WorkerOrderProcessInput,
+  ) {
+    const queueContext = getWorkerQueueContext(staff);
+    assertProcessableStation(queueContext.workerType);
+
+    const result = await prisma.$transaction(async (tx) => {
+      const stationRecord = await loadWorkerStationRecordForProcess(
+        tx,
+        orderId,
+        queueContext.workerType,
+        staff.id,
+      );
+
+      if (stationRecord.status !== StationStatus.IN_PROGRESS) {
+        throw new ResponseError(409, 'Station is not in progress');
+      }
+
+      const referenceItems = await fetchReferenceQuantities(
+        tx,
+        orderId,
+        queueContext.workerType,
+      );
+      assertQuantitiesMatch(referenceItems, data.items);
+
+      await saveStationItems(tx, stationRecord.id, data.items);
+
+      const completedRecord = await tx.stationRecord.update({
+        where: { id: stationRecord.id },
+        data: {
+          status: StationStatus.COMPLETED,
+          completedAt: new Date(),
+        },
+      });
+
+      const nextOrderStatus = await advanceOrderStatus(tx, stationRecord.order);
+      const nextStation = resolveStationFromOrderStatus(nextOrderStatus);
+
+      if (nextStation) {
+        const nextWorker = await findNextStationWorker(
+          stationRecord.order.outletId,
+          nextStation,
+        );
+
+        await tx.stationRecord.create({
+          data: {
+            orderId,
+            station: nextStation,
+            staffId: nextWorker.id,
+            status: StationStatus.IN_PROGRESS,
+          },
+        });
+      }
+
+      return {
+        orderId: stationRecord.order.id,
+        outletId: stationRecord.order.outletId,
+        response: toWorkerOrderProcessResponse(
+          completedRecord,
+          nextOrderStatus,
+        ),
+      };
+    });
+
+    WorkerNotificationService.publishOrderArrival({
+      orderId: result.orderId,
+      outletId: result.outletId,
+      orderStatus: result.response.orderStatus,
+    });
+
+    return result.response;
   }
 }

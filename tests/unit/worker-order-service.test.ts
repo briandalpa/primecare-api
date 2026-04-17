@@ -1,8 +1,12 @@
 jest.mock('@/application/database', () => ({
   prisma: {
+    $transaction: jest.fn(),
     stationRecord: {
       findMany: jest.fn(),
       count: jest.fn(),
+      findFirst: jest.fn(),
+    },
+    staff: {
       findFirst: jest.fn(),
     },
     orderItem: {
@@ -11,8 +15,15 @@ jest.mock('@/application/database', () => ({
   },
 }));
 
+jest.mock('@/features/worker-notifications/worker-notification-service', () => ({
+  WorkerNotificationService: {
+    publishOrderArrival: jest.fn(),
+  },
+}));
+
 import { prisma } from '@/application/database';
 import { ResponseError } from '@/error/response-error';
+import { WorkerNotificationService } from '@/features/worker-notifications/worker-notification-service';
 import { WorkerOrderService } from '@/features/worker-orders/worker-order-service';
 
 describe('WorkerOrderService', () => {
@@ -225,5 +236,180 @@ describe('WorkerOrderService', () => {
     await expect(
       WorkerOrderService.getWorkerOrderDetail(workerStaff, 'order-404'),
     ).rejects.toThrow(new ResponseError(404, 'Worker order not found'));
+  });
+
+  it('throws 400 when submitted quantities do not match the reference items', async () => {
+    const mockTx = {
+      stationRecord: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'station-record-1',
+          orderId: 'order-1',
+          station: 'WASHING',
+          staffId: 'staff-worker',
+          status: 'IN_PROGRESS',
+          order: {
+            id: 'order-1',
+            status: 'LAUNDRY_BEING_WASHED',
+            paymentStatus: 'UNPAID',
+            outletId: 'outlet-1',
+          },
+          stationItems: [],
+        }),
+      },
+      orderItem: {
+        findMany: jest.fn().mockResolvedValue([
+          { laundryItemId: 'item-1', quantity: 5 },
+        ]),
+      },
+      stationItem: {
+        deleteMany: jest.fn(),
+        createMany: jest.fn(),
+      },
+      order: {
+        update: jest.fn(),
+      },
+      delivery: {
+        create: jest.fn(),
+      },
+    };
+    (prisma.$transaction as jest.Mock).mockImplementation(async (callback) =>
+      callback(mockTx),
+    );
+
+    await expect(
+      WorkerOrderService.processWorkerOrder(workerStaff, 'order-1', {
+        items: [{ laundryItemId: 'item-1', quantity: 3 }],
+      }),
+    ).rejects.toThrow(new ResponseError(400, 'Quantity mismatch detected'));
+    expect(mockTx.stationItem.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it('processes a washing order and advances it to ironing', async () => {
+    const completedAt = new Date('2026-04-18T02:00:00.000Z');
+    const mockTx = {
+      stationRecord: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'station-record-1',
+          orderId: 'order-1',
+          station: 'WASHING',
+          staffId: 'staff-worker',
+          status: 'IN_PROGRESS',
+          order: {
+            id: 'order-1',
+            status: 'LAUNDRY_BEING_WASHED',
+            paymentStatus: 'UNPAID',
+            outletId: 'outlet-1',
+          },
+          stationItems: [],
+        }),
+        update: jest.fn().mockResolvedValue({
+          id: 'station-record-1',
+          orderId: 'order-1',
+          station: 'WASHING',
+          status: 'COMPLETED',
+          completedAt,
+        }),
+        create: jest.fn().mockResolvedValue({
+          id: 'station-record-2',
+        }),
+      },
+      orderItem: {
+        findMany: jest.fn().mockResolvedValue([
+          { laundryItemId: 'item-1', quantity: 5 },
+        ]),
+      },
+      stationItem: {
+        deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+        createMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      order: {
+        update: jest.fn().mockResolvedValue({}),
+      },
+      delivery: {
+        create: jest.fn(),
+      },
+    };
+    (prisma.$transaction as jest.Mock).mockImplementation(async (callback) =>
+      callback(mockTx),
+    );
+    (prisma.staff.findFirst as jest.Mock).mockResolvedValue({
+      id: 'staff-ironing',
+    });
+
+    const result = await WorkerOrderService.processWorkerOrder(
+      workerStaff,
+      'order-1',
+      {
+        items: [{ laundryItemId: 'item-1', quantity: 5 }],
+      },
+    );
+
+    expect(mockTx.stationItem.deleteMany).toHaveBeenCalledWith({
+      where: { stationRecordId: 'station-record-1' },
+    });
+    expect(mockTx.stationItem.createMany).toHaveBeenCalledWith({
+      data: [
+        {
+          stationRecordId: 'station-record-1',
+          laundryItemId: 'item-1',
+          quantity: 5,
+        },
+      ],
+    });
+    expect(mockTx.stationRecord.update).toHaveBeenCalledWith({
+      where: { id: 'station-record-1' },
+      data: {
+        status: 'COMPLETED',
+        completedAt: expect.any(Date),
+      },
+    });
+    expect(mockTx.order.update).toHaveBeenCalledWith({
+      where: { id: 'order-1' },
+      data: { status: 'LAUNDRY_BEING_IRONED' },
+    });
+    expect(prisma.staff.findFirst).toHaveBeenCalledWith({
+      where: {
+        role: 'WORKER',
+        isActive: true,
+        outletId: 'outlet-1',
+        workerType: 'IRONING',
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+    expect(mockTx.stationRecord.create).toHaveBeenCalledWith({
+      data: {
+        orderId: 'order-1',
+        station: 'IRONING',
+        staffId: 'staff-ironing',
+        status: 'IN_PROGRESS',
+      },
+    });
+    expect(WorkerNotificationService.publishOrderArrival).toHaveBeenCalledWith({
+      orderId: 'order-1',
+      outletId: 'outlet-1',
+      orderStatus: 'LAUNDRY_BEING_IRONED',
+    });
+    expect(result).toEqual({
+      orderId: 'order-1',
+      stationRecordId: 'station-record-1',
+      station: 'WASHING',
+      stationStatus: 'COMPLETED',
+      orderStatus: 'LAUNDRY_BEING_IRONED',
+      completedAt,
+    });
+  });
+
+  it('throws 422 when trying to process packing via PCS-137 flow', async () => {
+    await expect(
+      WorkerOrderService.processWorkerOrder(
+        { ...workerStaff, workerType: 'PACKING' },
+        'order-1',
+        {
+          items: [{ laundryItemId: 'item-1', quantity: 1 }],
+        },
+      ),
+    ).rejects.toThrow(
+      new ResponseError(422, 'Packing completion is handled separately'),
+    );
   });
 });
