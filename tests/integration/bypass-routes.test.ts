@@ -278,6 +278,7 @@ describe('Bypass Routes Integration Tests', () => {
       mockAuthenticatedWorker('user-1', 'staff-1');
       const stationRecordId = 'sr-1';
       const bypassId = 'bp-worker-1';
+      const notes = 'Mismatch found during washing recount.';
 
       (prisma.staff.findUnique as jest.Mock).mockResolvedValue({
         id: 'staff-1',
@@ -306,7 +307,7 @@ describe('Bypass Routes Integration Tests', () => {
         stationRecordId,
         workerId: 'staff-1',
         adminId: null,
-        problemDescription: null,
+        problemDescription: notes,
         status: 'PENDING',
         createdAt: now,
       });
@@ -319,9 +320,19 @@ describe('Bypass Routes Integration Tests', () => {
         .post(`/api/v1/worker/orders/${VALID_UUID}/bypass-request`)
         .send({
           items: [{ laundryItemId: VALID_UUID, quantity: 3 }],
+          notes,
         });
 
       expect(response.status).toBe(201);
+      expect((prisma.bypassRequest as any).create).toHaveBeenCalledWith({
+        data: {
+          stationRecordId,
+          workerId: 'staff-1',
+          adminId: null,
+          status: 'PENDING',
+          problemDescription: notes,
+        },
+      });
       expect(response.body).toEqual({
         status: 'success',
         message: 'Bypass request submitted. Awaiting admin approval.',

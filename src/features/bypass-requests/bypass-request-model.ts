@@ -8,6 +8,7 @@ export type BypassItemInput = {
 
 export type CreateBypassRequestInput = {
   items: BypassItemInput[];
+  notes?: string;
 };
 
 export type ApproveBypassInput = {

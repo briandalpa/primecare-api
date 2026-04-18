@@ -58,7 +58,13 @@ export class BypassRequestService {
       await assertNoPendingBypass(tx, sr.id);
       await saveStationItems(tx, sr.id, data.items);
       const bypass = await tx.bypassRequest.create({
-        data: { stationRecordId: sr.id, workerId, adminId: null, status: BypassStatus.PENDING, problemDescription: null },
+        data: {
+          stationRecordId: sr.id,
+          workerId,
+          adminId: null,
+          status: BypassStatus.PENDING,
+          problemDescription: data.notes ?? null,
+        },
       });
       await tx.stationRecord.update({ where: { id: sr.id }, data: { status: StationStatus.BYPASS_REQUESTED } });
       return toBypassCreateResponse(bypass);

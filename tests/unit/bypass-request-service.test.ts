@@ -158,12 +158,13 @@ describe('BypassRequestService', () => {
     });
 
     it('creates BypassRequest + StationItems on valid mismatch', async () => {
+      const notes = 'The item count changed after manual recount.';
       const createdBypass = {
         id: 'bp-1',
         stationRecordId,
         workerId,
         adminId: null,
-        problemDescription: null,
+        problemDescription: notes,
         status: 'PENDING',
         createdAt: new Date(),
       };
@@ -192,6 +193,7 @@ describe('BypassRequestService', () => {
 
       const result = await BypassRequestService.create(workerId, orderId, 'WASHING', {
         items: [{ laundryItemId: 'item-1', quantity: 3 }], // mismatch
+        notes,
       });
 
       expect(mockTx.stationItem.deleteMany).toHaveBeenCalledWith({
@@ -208,7 +210,7 @@ describe('BypassRequestService', () => {
           workerId,
           adminId: null,
           status: 'PENDING',
-          problemDescription: null,
+          problemDescription: notes,
         },
       });
 

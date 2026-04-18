@@ -22,6 +22,7 @@ export class BypassRequestValidation {
         })
       )
       .min(1),
+    notes: z.string().trim().min(1).max(500).optional(),
   });
 
   static readonly LIST: ZodType<BypassListQuery> = z.object({
