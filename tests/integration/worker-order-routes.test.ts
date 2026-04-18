@@ -145,6 +145,67 @@ describe('Worker Order Routes', () => {
     });
   });
 
+  it('returns paginated worker history with standard envelope', async () => {
+    mockWorkerAuth();
+    (prisma.stationRecord.findMany as jest.Mock).mockResolvedValue([
+      {
+        id: 'station-record-history-1',
+        orderId: 'order-history-1',
+        station: 'WASHING',
+        status: 'COMPLETED',
+        createdAt: new Date('2026-04-17T08:00:00.000Z'),
+        completedAt: new Date('2026-04-17T11:00:00.000Z'),
+        order: {
+          updatedAt: new Date('2026-04-17T10:00:00.000Z'),
+          outlet: { name: 'PrimeCare BSD' },
+          pickupRequest: { customerUser: { name: 'John Doe' } },
+          items: [{ quantity: 2 }, { quantity: 3 }],
+        },
+      },
+    ]);
+    (prisma.stationRecord.count as jest.Mock).mockResolvedValue(1);
+
+    const response = await request(app)
+      .get('/api/v1/worker/history')
+      .query({ page: 1, limit: 10, station: 'WASHING', date: '2026-04-17' });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      status: 'success',
+      message: 'Worker history retrieved',
+      data: [
+        {
+          id: 'station-record-history-1',
+          orderId: 'order-history-1',
+          station: 'WASHING',
+          status: 'COMPLETED',
+          totalItems: 5,
+          updatedAt: '2026-04-17T10:00:00.000Z',
+          createdAt: '2026-04-17T08:00:00.000Z',
+          customerName: 'John Doe',
+          outletName: 'PrimeCare BSD',
+          completedAt: '2026-04-17T11:00:00.000Z',
+        },
+      ],
+      meta: {
+        page: 1,
+        limit: 10,
+        total: 1,
+        totalPages: 1,
+      },
+    });
+  });
+
+  it('returns 400 for invalid worker history query params', async () => {
+    mockWorkerAuth();
+
+    const response = await request(app)
+      .get('/api/v1/worker/history')
+      .query({ page: 0, station: 'INVALID_STATION' });
+
+    expect(response.status).toBe(400);
+  });
+
   it('returns 400 for invalid worker order id param', async () => {
     mockWorkerAuth();
 

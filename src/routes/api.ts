@@ -150,6 +150,11 @@ apiRouter.post(
 
 // WORKER
 apiRouter.get(
+  '/worker/history',
+  requireStaffRole('WORKER'),
+  WorkerOrderController.getHistory,
+);
+apiRouter.get(
   '/worker/orders',
   requireStaffRole('WORKER'),
   WorkerOrderController.getOrders,

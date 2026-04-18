@@ -135,6 +135,74 @@ describe('WorkerOrderService', () => {
     );
   });
 
+  it('returns paginated worker history', async () => {
+    (prisma.stationRecord.findMany as jest.Mock).mockResolvedValue([
+      {
+        id: 'station-record-history-1',
+        orderId: 'order-history-1',
+        station: 'WASHING',
+        status: 'COMPLETED',
+        createdAt: new Date('2026-04-17T08:00:00.000Z'),
+        completedAt: new Date('2026-04-17T11:00:00.000Z'),
+        order: {
+          updatedAt: new Date('2026-04-17T10:00:00.000Z'),
+          outlet: { name: 'PrimeCare BSD' },
+          pickupRequest: { customerUser: { name: 'John Doe' } },
+          items: [{ quantity: 2 }, { quantity: 3 }],
+        },
+      },
+    ]);
+    (prisma.stationRecord.count as jest.Mock).mockResolvedValue(1);
+
+    const result = await WorkerOrderService.getWorkerHistory(workerStaff, {
+      page: 1,
+      limit: 10,
+      station: 'WASHING',
+      date: '2026-04-17',
+    });
+
+    expect(prisma.stationRecord.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          staffId: 'staff-worker',
+          status: 'COMPLETED',
+          station: 'WASHING',
+          order: { outletId: 'outlet-1' },
+          completedAt: {
+            gte: new Date('2026-04-17T00:00:00.000Z'),
+            lte: new Date('2026-04-17T23:59:59.999Z'),
+          },
+        }),
+        skip: 0,
+        take: 10,
+        orderBy: { completedAt: 'desc' },
+      }),
+    );
+
+    expect(result).toEqual({
+      data: [
+        {
+          id: 'station-record-history-1',
+          orderId: 'order-history-1',
+          station: 'WASHING',
+          status: 'COMPLETED',
+          totalItems: 5,
+          updatedAt: new Date('2026-04-17T10:00:00.000Z'),
+          createdAt: new Date('2026-04-17T08:00:00.000Z'),
+          customerName: 'John Doe',
+          outletName: 'PrimeCare BSD',
+          completedAt: new Date('2026-04-17T11:00:00.000Z'),
+        },
+      ],
+      meta: {
+        page: 1,
+        limit: 10,
+        total: 1,
+        totalPages: 1,
+      },
+    });
+  });
+
   it('returns worker order detail with reference items for washing station', async () => {
     (prisma.stationRecord.findFirst as jest.Mock).mockResolvedValue({
       id: 'station-record-1',

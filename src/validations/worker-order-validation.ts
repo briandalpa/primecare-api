@@ -1,5 +1,6 @@
 import { z, ZodType } from 'zod';
 import type {
+  WorkerHistoryQuery,
   WorkerOrderListQuery,
   WorkerOrderProcessInput,
 } from '@/features/worker-orders/worker-order-model';
@@ -22,6 +23,13 @@ export class WorkerOrderValidation {
     page: z.coerce.number().int().min(1).default(1),
     limit: z.coerce.number().int().min(1).max(100).default(10),
     status: z.enum(['IN_PROGRESS', 'BYPASS_REQUESTED', 'COMPLETED']).optional(),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format').optional(),
+  });
+
+  static readonly HISTORY: ZodType<WorkerHistoryQuery> = z.object({
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(100).default(10),
+    station: z.enum(['WASHING', 'IRONING', 'PACKING']).optional(),
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format').optional(),
   });
 }

@@ -5,6 +5,26 @@ import { UserRequest } from '@/types/user-request';
 import { WorkerOrderService } from './worker-order-service';
 
 export class WorkerOrderController {
+  static async getHistory(
+    req: UserRequest,
+    res: Response,
+    next: NextFunction,
+  ) {
+    try {
+      const query = Validation.validate(WorkerOrderValidation.HISTORY, req.query);
+      const result = await WorkerOrderService.getWorkerHistory(req.staff!, query);
+
+      res.status(200).json({
+        status: 'success',
+        message: 'Worker history retrieved',
+        data: result.data,
+        meta: result.meta,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async getOrders(req: UserRequest, res: Response, next: NextFunction) {
     try {
       const query = Validation.validate(WorkerOrderValidation.LIST, req.query);
