@@ -1,7 +1,9 @@
 import { prisma } from '@/application/database';
 import type { Staff } from '@/generated/prisma/client';
 import { ResponseError } from '@/error/response-error';
+import { fetchReferenceItems } from '@/features/bypass-requests/bypass-request-helpers';
 import {
+  toWorkerOrderDetailResponse,
   type WorkerOrderListQuery,
   toWorkerOrderResponse,
 } from './worker-order-model';
@@ -27,21 +29,29 @@ const buildWorkerOrdersWhere = (staff: Staff, query: WorkerOrderListQuery) => {
   return where;
 };
 
-const assertWorkerQueueContext = (staff: Staff) => {
+const getWorkerQueueContext = (staff: Staff) => {
   if (!staff.outletId || !staff.workerType) {
     throw new ResponseError(
       422,
       'Worker station or outlet assignment is not configured',
     );
   }
+
+  return {
+    outletId: staff.outletId,
+    workerType: staff.workerType,
+  };
 };
 
 export class WorkerOrderService {
   static async getWorkerOrders(staff: Staff, query: WorkerOrderListQuery) {
-    assertWorkerQueueContext(staff);
+    const queueContext = getWorkerQueueContext(staff);
 
     const skip = (query.page - 1) * query.limit;
-    const where = buildWorkerOrdersWhere(staff, query);
+    const where = buildWorkerOrdersWhere(
+      { ...staff, ...queueContext },
+      query,
+    );
 
     const [records, total] = await Promise.all([
       prisma.stationRecord.findMany({
@@ -77,5 +87,50 @@ export class WorkerOrderService {
         totalPages: Math.ceil(total / query.limit),
       },
     };
+  }
+
+  static async getWorkerOrderDetail(staff: Staff, orderId: string) {
+    const queueContext = getWorkerQueueContext(staff);
+
+    const record = await prisma.stationRecord.findFirst({
+      where: {
+        orderId,
+        station: queueContext.workerType,
+        order: { outletId: queueContext.outletId },
+      },
+      include: {
+        stationItems: {
+          include: {
+            laundryItem: {
+              select: { name: true },
+            },
+          },
+        },
+        order: {
+          include: {
+            outlet: true,
+            pickupRequest: {
+              include: {
+                customerUser: {
+                  select: { name: true },
+                },
+              },
+            },
+            items: true,
+          },
+        },
+      },
+    });
+
+    if (!record) {
+      throw new ResponseError(404, 'Worker order not found');
+    }
+
+    const referenceItems = await fetchReferenceItems(orderId, record.station);
+
+    return toWorkerOrderDetailResponse(
+      record as Parameters<typeof toWorkerOrderDetailResponse>[0],
+      referenceItems,
+    );
   }
 }

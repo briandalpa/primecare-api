@@ -9,7 +9,8 @@ jest.mock('@/application/database', () => ({
   prisma: {
     user: { findUnique: jest.fn() },
     staff: { findUnique: jest.fn() },
-    stationRecord: { findMany: jest.fn(), count: jest.fn() },
+    stationRecord: { findMany: jest.fn(), count: jest.fn(), findFirst: jest.fn() },
+    orderItem: { findMany: jest.fn() },
   },
 }));
 
@@ -131,6 +132,97 @@ describe('Worker Order Routes', () => {
         limit: 10,
         total: 1,
         totalPages: 1,
+      },
+    });
+  });
+
+  it('returns 400 for invalid worker order id param', async () => {
+    mockWorkerAuth();
+
+    const response = await request(app).get('/api/v1/worker/orders/not-a-uuid');
+
+    expect(response.status).toBe(400);
+  });
+
+  it('returns 404 when worker order detail is not found', async () => {
+    mockWorkerAuth();
+    (prisma.stationRecord.findFirst as jest.Mock).mockResolvedValue(null);
+
+    const response = await request(app).get(
+      '/api/v1/worker/orders/123e4567-e89b-12d3-a456-426614174000',
+    );
+
+    expect(response.status).toBe(404);
+    expect(response.body.errors).toBe('Worker order not found');
+  });
+
+  it('returns worker order detail with comparison items', async () => {
+    mockWorkerAuth();
+    (prisma.stationRecord.findFirst as jest.Mock).mockResolvedValue({
+      id: 'station-record-1',
+      orderId: '123e4567-e89b-12d3-a456-426614174000',
+      station: 'WASHING',
+      status: 'IN_PROGRESS',
+      createdAt: new Date('2026-04-17T08:00:00.000Z'),
+      stationItems: [
+        {
+          laundryItemId: 'item-1',
+          quantity: 4,
+          laundryItem: { name: 'Shirt' },
+        },
+      ],
+      order: {
+        status: 'LAUNDRY_BEING_WASHED',
+        paymentStatus: 'UNPAID',
+        updatedAt: new Date('2026-04-17T10:00:00.000Z'),
+        outlet: { name: 'PrimeCare BSD' },
+        pickupRequest: { customerUser: { name: 'John Doe' } },
+        items: [{ quantity: 2 }, { quantity: 3 }],
+      },
+    });
+    (prisma.orderItem.findMany as jest.Mock).mockResolvedValue([
+      {
+        laundryItemId: 'item-1',
+        quantity: 5,
+        laundryItem: { name: 'Shirt' },
+      },
+    ]);
+
+    const response = await request(app).get(
+      '/api/v1/worker/orders/123e4567-e89b-12d3-a456-426614174000',
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      status: 'success',
+      message: 'Worker order retrieved',
+      data: {
+        orderId: '123e4567-e89b-12d3-a456-426614174000',
+        stationRecordId: 'station-record-1',
+        station: 'WASHING',
+        previousStation: null,
+        stationStatus: 'IN_PROGRESS',
+        orderStatus: 'LAUNDRY_BEING_WASHED',
+        paymentStatus: 'UNPAID',
+        totalItems: 5,
+        customerName: 'John Doe',
+        outletName: 'PrimeCare BSD',
+        createdAt: '2026-04-17T08:00:00.000Z',
+        updatedAt: '2026-04-17T10:00:00.000Z',
+        referenceItems: [
+          {
+            laundryItemId: 'item-1',
+            itemName: 'Shirt',
+            quantity: 5,
+          },
+        ],
+        stationItems: [
+          {
+            laundryItemId: 'item-1',
+            itemName: 'Shirt',
+            quantity: 4,
+          },
+        ],
       },
     });
   });

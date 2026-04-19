@@ -3,6 +3,10 @@ jest.mock('@/application/database', () => ({
     stationRecord: {
       findMany: jest.fn(),
       count: jest.fn(),
+      findFirst: jest.fn(),
+    },
+    orderItem: {
+      findMany: jest.fn(),
     },
   },
 }));
@@ -118,5 +122,108 @@ describe('WorkerOrderService', () => {
         take: 5,
       }),
     );
+  });
+
+  it('returns worker order detail with reference items for washing station', async () => {
+    (prisma.stationRecord.findFirst as jest.Mock).mockResolvedValue({
+      id: 'station-record-1',
+      orderId: 'order-1',
+      station: 'WASHING',
+      status: 'IN_PROGRESS',
+      createdAt: new Date('2026-04-17T08:00:00.000Z'),
+      stationItems: [
+        {
+          laundryItemId: 'item-1',
+          quantity: 4,
+          laundryItem: { name: 'Shirt' },
+        },
+      ],
+      order: {
+        status: 'LAUNDRY_BEING_WASHED',
+        paymentStatus: 'UNPAID',
+        updatedAt: new Date('2026-04-17T10:00:00.000Z'),
+        outlet: { name: 'PrimeCare BSD' },
+        pickupRequest: { customerUser: { name: 'John Doe' } },
+        items: [{ quantity: 2 }, { quantity: 3 }],
+      },
+    });
+    (prisma.orderItem.findMany as jest.Mock).mockResolvedValue([
+      {
+        laundryItemId: 'item-1',
+        quantity: 5,
+        laundryItem: { name: 'Shirt' },
+      },
+    ]);
+
+    const result = await WorkerOrderService.getWorkerOrderDetail(
+      workerStaff,
+      'order-1',
+    );
+
+    expect(prisma.stationRecord.findFirst).toHaveBeenCalledWith({
+      where: {
+        orderId: 'order-1',
+        station: 'WASHING',
+        order: { outletId: 'outlet-1' },
+      },
+      include: {
+        stationItems: {
+          include: {
+            laundryItem: {
+              select: { name: true },
+            },
+          },
+        },
+        order: {
+          include: {
+            outlet: true,
+            pickupRequest: {
+              include: {
+                customerUser: {
+                  select: { name: true },
+                },
+              },
+            },
+            items: true,
+          },
+        },
+      },
+    });
+    expect(result).toEqual({
+      orderId: 'order-1',
+      stationRecordId: 'station-record-1',
+      station: 'WASHING',
+      previousStation: null,
+      stationStatus: 'IN_PROGRESS',
+      orderStatus: 'LAUNDRY_BEING_WASHED',
+      paymentStatus: 'UNPAID',
+      totalItems: 5,
+      customerName: 'John Doe',
+      outletName: 'PrimeCare BSD',
+      createdAt: new Date('2026-04-17T08:00:00.000Z'),
+      updatedAt: new Date('2026-04-17T10:00:00.000Z'),
+      referenceItems: [
+        {
+          laundryItemId: 'item-1',
+          itemName: 'Shirt',
+          quantity: 5,
+        },
+      ],
+      stationItems: [
+        {
+          laundryItemId: 'item-1',
+          itemName: 'Shirt',
+          quantity: 4,
+        },
+      ],
+    });
+  });
+
+  it('throws 404 when worker order detail is not found', async () => {
+    (prisma.stationRecord.findFirst as jest.Mock).mockResolvedValue(null);
+
+    await expect(
+      WorkerOrderService.getWorkerOrderDetail(workerStaff, 'order-404'),
+    ).rejects.toThrow(new ResponseError(404, 'Worker order not found'));
   });
 });
