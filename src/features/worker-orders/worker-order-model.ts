@@ -14,6 +14,15 @@ export type WorkerOrderListQuery = {
   date?: string;
 };
 
+export type WorkerOrderProcessItemInput = {
+  laundryItemId: string;
+  quantity: number;
+};
+
+export type WorkerOrderProcessInput = {
+  items: WorkerOrderProcessItemInput[];
+};
+
 export type WorkerOrderResponse = {
   id: string;
   orderId: string;
@@ -47,6 +56,15 @@ export type WorkerOrderDetailResponse = {
   updatedAt: Date;
   referenceItems: WorkerOrderItemResponse[];
   stationItems: WorkerOrderItemResponse[];
+};
+
+export type WorkerOrderProcessResponse = {
+  orderId: string;
+  stationRecordId: string;
+  station: StationType;
+  stationStatus: StationStatus;
+  orderStatus: OrderStatus;
+  completedAt: Date;
 };
 
 export type WorkerQueueContext = Pick<Staff, 'id' | 'outletId' | 'workerType'>;
@@ -155,5 +173,29 @@ export function toWorkerOrderDetailResponse(
     updatedAt: record.order.updatedAt,
     referenceItems,
     stationItems: record.stationItems.map(toWorkerOrderItemResponse),
+  };
+}
+
+export function toWorkerOrderProcessResponse(
+  record: {
+    id: string;
+    orderId: string;
+    station: StationType;
+    status: StationStatus;
+    completedAt: Date | null;
+  },
+  orderStatus: OrderStatus,
+): WorkerOrderProcessResponse {
+  if (!record.completedAt) {
+    throw new Error('Invariant: completedAt must be set when processing succeeds');
+  }
+
+  return {
+    orderId: record.orderId,
+    stationRecordId: record.id,
+    station: record.station,
+    stationStatus: record.status,
+    orderStatus,
+    completedAt: record.completedAt,
   };
 }

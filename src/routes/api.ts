@@ -159,6 +159,11 @@ apiRouter.get(
   requireStaffRole('WORKER'),
   WorkerOrderController.getOrderDetail,
 );
+apiRouter.post(
+  '/worker/orders/:id/process',
+  requireStaffRole('WORKER'),
+  WorkerOrderController.processOrder,
+);
 apiRouter.get(
   '/worker/notifications/stream',
   requireStaffRole('WORKER'),
