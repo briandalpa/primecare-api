@@ -140,7 +140,7 @@ const createInviteToken = async (email: string) => {
 // Non-blocking: email delivery failure should not prevent staff account creation.
 const sendInviteEmail = (email: string, token: string) => {
 
-  const link = `${process.env.FRONTEND_URL}/set-password?token=${token}`
+  const link = `${process.env.FRONTEND_URL}/auth/set-password?token=${token}`
 
   void sendEmail({
     to: email,
@@ -176,12 +176,17 @@ export class AdminUserService {
 
     sendInviteEmail(data.email, token)
 
-    return {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: data.role
-    }
+    const staffRecord = await prisma.staff.findUnique({
+      where: { userId: user.id },
+      include: { outlet: { select: { id: true, name: true } } }
+    })
+
+    return toAdminUserResponse({
+      ...user,
+      staff: staffRecord
+        ? { role: staffRecord.role, outletId: staffRecord.outletId, isActive: staffRecord.isActive, workerType: staffRecord.workerType, outlet: staffRecord.outlet }
+        : null
+    })
   }
 
   static async updateAdminUser(

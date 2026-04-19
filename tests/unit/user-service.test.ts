@@ -99,7 +99,7 @@ describe('UserService', () => {
       expect(result.message).toBe('Verification email sent');
     });
 
-    it('should return silent success when user already verified', async () => {
+    it('should throw 409 when user already verified', async () => {
       (prisma.user.findUnique as jest.Mock).mockResolvedValue({
         id: 'user-1',
         email: 'john@example.com',
@@ -109,9 +109,9 @@ describe('UserService', () => {
         providerId: 'credential',
       });
 
-      // Silent success prevents account enumeration (caller cannot tell if account is verified).
-      const result = await UserService.resendVerification({ email: 'john@example.com' });
-      expect(result).toEqual({ message: 'Verification email sent' });
+      await expect(
+        UserService.resendVerification({ email: 'john@example.com' })
+      ).rejects.toMatchObject({ status: 409, message: 'Account already verified' });
     });
 
     it('should send new verification email when user exists and not verified', async () => {
