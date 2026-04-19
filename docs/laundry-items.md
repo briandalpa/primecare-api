@@ -14,11 +14,11 @@ Provides the master list of laundry item types. Used by the frontend to populate
 
 ---
 
-## GET /api/v1/laundry-items
+## GET /api/v1/admin/laundry-items
 
 List all active laundry item types. No pagination, the list is small and fixed (28 items).
 
-**Access:** Any authenticated role
+**Access:** `SUPER_ADMIN`, `OUTLET_ADMIN`
 
 **Query Parameters:** None
 
@@ -42,6 +42,7 @@ List all active laundry item types. No pagination, the list is small and fixed (
 - Returns only items with `isActive: true`.
 - Items are ordered alphabetically by name.
 - Cache this list on the frontend, it changes very rarely.
+- Workers do not need to call this endpoint directly — item data is embedded in the `previousStationItems` field returned by `POST /api/v1/orders/:id/stations/:station/start`.
 
 ---
 

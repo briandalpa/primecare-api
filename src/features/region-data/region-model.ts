@@ -13,3 +13,11 @@ export type GeocodeResult = {
   latitude: number;
   longitude: number;
 };
+
+export type ReverseGeocodeResult = {
+  province: string;
+  provinceId: number;
+  city: string;
+  cityId: number;
+  streetAddress: string | null;
+};

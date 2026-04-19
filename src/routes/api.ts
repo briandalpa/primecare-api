@@ -14,6 +14,8 @@ import { BypassRequestController } from '@/features/bypass-requests/bypass-reque
 import { OrderController } from '@/features/orders/order-controller';
 import { WorkerOrderController } from '@/features/worker-orders/worker-order-controller';
 import { WorkerNotificationController } from '@/features/worker-notifications/worker-notification-controller';
+import { PickupRequestController } from '@/features/pickup-requests/pickup-request-controller';
+import { PaymentController } from '@/features/payments/payment-controller';
 
 export const apiRouter = express.Router();
 
@@ -32,6 +34,7 @@ apiRouter.get(
   RegionController.listCities,
 );
 apiRouter.get('/regions/geocode', requireAuth, RegionController.geocode);
+apiRouter.get('/regions/reverse-geocode', requireAuth, RegionController.reverseGeocode);
 
 // ADDRESS
 apiRouter.get('/users/addresses', requireCustomerAuth, AddressController.list);
@@ -108,6 +111,14 @@ apiRouter.delete(
   AdminUserController.deleteAdminUser,
 );
 
+// PICKUP REQUEST
+apiRouter.post('/pickup-requests', requireCustomerAuth, PickupRequestController.create);
+apiRouter.get('/pickup-requests/my', requireCustomerAuth, PickupRequestController.listMy);
+apiRouter.get('/pickup-requests/history', requireStaffRole('DRIVER'), PickupRequestController.listHistory);
+apiRouter.get('/pickup-requests', requireStaffRole('DRIVER'), PickupRequestController.list);
+apiRouter.patch('/pickup-requests/:id/complete', requireStaffRole('DRIVER'), PickupRequestController.complete);
+apiRouter.patch('/pickup-requests/:id', requireStaffRole('DRIVER'), PickupRequestController.accept);
+
 // BYPASS REQUEST
 apiRouter.post(
   '/orders/:id/stations/:station/bypass',
@@ -137,16 +148,12 @@ apiRouter.patch(
 
 // ORDER
 apiRouter.get('/orders', requireCustomerAuth, OrderController.listOrders);
-apiRouter.get(
-  '/orders/:id',
-  requireCustomerAuth,
-  OrderController.getOrderDetail,
-);
-apiRouter.post(
-  '/orders/:id/confirm',
-  requireCustomerAuth,
-  OrderController.confirmReceipt,
-);
+apiRouter.get('/orders/:id', requireCustomerAuth, OrderController.getOrderDetail);
+apiRouter.patch('/orders/:id/confirm', requireCustomerAuth, OrderController.confirmReceipt);
+
+// PAYMENT
+apiRouter.post('/orders/:id/payments', requireCustomerAuth, PaymentController.initiate);
+apiRouter.post('/orders/:id/payments/verify', requireCustomerAuth, PaymentController.verify);
 
 // WORKER
 apiRouter.get(
