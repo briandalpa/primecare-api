@@ -25,6 +25,7 @@ jest.mock('@/utils/rajaongkir', () => ({
 jest.mock('@/utils/opencage', () => ({
   OpenCageClient: {
     geocode: jest.fn(),
+    reverseGeocode: jest.fn(),
   },
 }));
 
@@ -96,5 +97,56 @@ describe('GET /api/v1/regions/geocode', () => {
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveProperty('latitude');
     expect(res.body.data).toHaveProperty('longitude');
+  });
+});
+
+describe('GET /api/v1/regions/reverse-geocode', () => {
+  it('returns 401 when not authenticated', async () => {
+    getSession.mockResolvedValue(null);
+    const res = await request(app).get('/api/v1/regions/reverse-geocode?lat=-6.2&lng=106.8');
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 400 when lat or lng are missing', async () => {
+    authenticatedAs();
+    const res = await request(app).get('/api/v1/regions/reverse-geocode?lat=-6.2');
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 400 when lat is out of valid range', async () => {
+    authenticatedAs();
+    const res = await request(app).get('/api/v1/regions/reverse-geocode?lat=999&lng=106.8');
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 200 with ReverseGeocodeResult for valid coordinates', async () => {
+    authenticatedAs();
+    (OpenCageClient.reverseGeocode as jest.Mock).mockResolvedValue({
+      province: 'DKI Jakarta', city: 'Jakarta Pusat', streetAddress: 'Jl. Sudirman',
+    });
+    (RajaOngkirClient.getProvinces as jest.Mock).mockResolvedValue([{ id: 6, name: 'DKI Jakarta' }]);
+    (RajaOngkirClient.getCities   as jest.Mock).mockResolvedValue([{ id: 152, name: 'Jakarta Pusat', zipCode: '10110' }]);
+
+    const res = await request(app).get('/api/v1/regions/reverse-geocode?lat=-6.2&lng=106.8');
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('success');
+    expect(res.body.data).toMatchObject({
+      province: 'DKI Jakarta', provinceId: 6,
+      city: 'Jakarta Pusat',   cityId: 152,
+    });
+  });
+
+  it('returns 422 when area cannot be identified', async () => {
+    authenticatedAs();
+    (OpenCageClient.reverseGeocode as jest.Mock).mockResolvedValue({
+      province: 'Unknown Province', city: 'Unknown City', streetAddress: null,
+    });
+    (RajaOngkirClient.getProvinces as jest.Mock).mockResolvedValue([{ id: 6, name: 'DKI Jakarta' }]);
+
+    const res = await request(app).get('/api/v1/regions/reverse-geocode?lat=-6.2&lng=106.8');
+
+    expect(res.status).toBe(422);
+    expect(res.body.message).toBe('Could not identify your area');
   });
 });

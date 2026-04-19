@@ -32,4 +32,14 @@ export class RegionController {
       next(error);
     }
   }
+
+  static async reverseGeocode(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { lat, lng } = Validation.validate(RegionValidation.REVERSE_GEOCODE, req.query);
+      const data = await RegionService.reverseGeocode(lat, lng);
+      res.status(200).json({ status: 'success', message: 'Reverse geocode successful', data });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
