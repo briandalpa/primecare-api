@@ -20,6 +20,7 @@ export type AdminUserResponse = {
   emailVerified: boolean;
   role: string;
   outletId: string | null;
+  outlet: { id: string; name: string } | null;
   isActive: boolean | null;
   workerType: string | null;
   createdAt: Date;
@@ -39,7 +40,13 @@ export function toAdminUserResponse(user: {
   email: string;
   emailVerified: boolean;
   createdAt: Date;
-  staff: { role: string; outletId: string | null; isActive: boolean; workerType: string | null } | null;
+  staff: {
+    role: string;
+    outletId: string | null;
+    isActive: boolean;
+    workerType: string | null;
+    outlet?: { id: string; name: string } | null;
+  } | null;
 }): AdminUserResponse {
   return {
     id: user.id,
@@ -48,6 +55,7 @@ export function toAdminUserResponse(user: {
     emailVerified: user.emailVerified,
     role: user.staff?.role ?? 'CUSTOMER', // Fallback to CUSTOMER when no Staff record exists; should not occur in an admin context.
     outletId: user.staff?.outletId ?? null,
+    outlet: user.staff?.outlet ?? null,
     isActive: user.staff?.isActive ?? null,
     workerType: user.staff?.workerType ?? null,
     createdAt: user.createdAt,
