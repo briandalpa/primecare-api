@@ -19,6 +19,7 @@ jest.mock('@/application/database', () => {
   const userMock = { findUnique: jest.fn() };
   const staffMock = { findUnique: jest.fn() };
   const deliveryMock = { findFirst: jest.fn() };
+  const orderMock = { update: jest.fn() };
   return {
     prisma: {
       pickupRequest: pickupRequestMock,
@@ -27,6 +28,7 @@ jest.mock('@/application/database', () => {
       user: userMock,
       staff: staffMock,
       delivery: deliveryMock,
+      order: orderMock,
       $transaction: jest.fn().mockImplementation(async (input: unknown) => {
         // Handle both array form (Prisma batch) and callback form (tx)
         if (Array.isArray(input)) {
@@ -37,6 +39,7 @@ jest.mock('@/application/database', () => {
         return (input as Function)({
           pickupRequest: pickupRequestMock,
           delivery: deliveryMock,
+          order: orderMock,
         });
       }),
     },
@@ -64,6 +67,7 @@ const outletMock = prisma.outlet as jest.Mocked<typeof prisma.outlet>;
 const userMock = prisma.user as jest.Mocked<typeof prisma.user>;
 const staffMock = prisma.staff as jest.Mocked<typeof prisma.staff>;
 const deliveryMock = prisma.delivery as jest.Mocked<typeof prisma.delivery>;
+const orderMock = prisma.order as jest.Mocked<typeof prisma.order>;
 const getSession = auth.api.getSession as unknown as jest.Mock;
 const haversineDistanceMock = haversineDistance as unknown as jest.Mock;
 
@@ -166,7 +170,54 @@ describe('POST /api/v1/pickup-requests', () => {
   });
 });
 
-// ─── PCS-81: List Unassigned Pickup Requests ───────────────────────────────────
+// ─── PCS-81: Customer — My Pickup Requests ─────────────────────────────────────
+
+describe('GET /api/v1/pickup-requests/my', () => {
+  it('returns 401 when not authenticated', async () => {
+    getSession.mockResolvedValue(null);
+    const res = await request(app).get('/api/v1/pickup-requests/my');
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 403 when authenticated user is staff', async () => {
+    authenticatedAsStaff('DRIVER');
+    const res = await request(app).get('/api/v1/pickup-requests/my');
+    expect(res.status).toBe(403);
+  });
+
+  it('returns 200 with paginated customer pickups', async () => {
+    authenticatedAsCustomer();
+    const outlet = makeOutlet();
+    const pickup = makePickupRequest({ customerId: mockUser.id });
+
+    pickupRequestMock.findMany.mockResolvedValue([{ ...pickup, outlet }] as never);
+    pickupRequestMock.count.mockResolvedValue(1);
+
+    const res = await request(app).get('/api/v1/pickup-requests/my');
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('success');
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0]).toHaveProperty('outletName', outlet.name);
+    expect(res.body.meta).toEqual({ page: 1, limit: 10, total: 1, totalPages: 1 });
+  });
+
+  it('filters by status when provided', async () => {
+    authenticatedAsCustomer();
+    pickupRequestMock.findMany.mockResolvedValue([]);
+    pickupRequestMock.count.mockResolvedValue(0);
+
+    await request(app).get('/api/v1/pickup-requests/my?status=PENDING');
+
+    expect(pickupRequestMock.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ status: 'PENDING' }),
+      })
+    );
+  });
+});
+
+// ─── PCS-82: List Unassigned Pickup Requests ───────────────────────────────────
 
 describe('GET /api/v1/pickup-requests', () => {
   it('returns 401 when not authenticated', async () => {
@@ -187,7 +238,7 @@ describe('GET /api/v1/pickup-requests', () => {
     expect(res.status).toBe(409);
   });
 
-  it('returns 200 with correct pagination metadata', async () => {
+  it('returns 200 with correct meta', async () => {
     authenticatedAsDriver();
     const pickup1 = makePickupRequest();
     const user2UUID = '550e8400-e29b-41d4-a716-446655440098';
@@ -215,7 +266,7 @@ describe('GET /api/v1/pickup-requests', () => {
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('success');
     expect(res.body.data).toHaveLength(2);
-    expect(res.body.pagination).toEqual({
+    expect(res.body.meta).toEqual({
       page: 1,
       limit: 10,
       total: 35,
@@ -278,6 +329,8 @@ describe('GET /api/v1/pickup-requests', () => {
   });
 });
 
+// ─── PCS-83: Driver — Accept Pickup Request ────────────────────────────────────
+
 describe('PATCH /api/v1/pickup-requests/:id', () => {
   const pickupId = '550e8400-e29b-41d4-a716-446655440004';
 
@@ -310,7 +363,7 @@ describe('PATCH /api/v1/pickup-requests/:id', () => {
     expect(res.status).toBe(404);
   });
 
-  it('accepts pickup request and returns 200', async () => {
+  it('accepts pickup request and returns orderStatus', async () => {
     authenticatedAsDriver();
 
     pickupRequestMock.findFirst.mockResolvedValueOnce(null); // no active pickup
@@ -318,6 +371,7 @@ describe('PATCH /api/v1/pickup-requests/:id', () => {
     pickupRequestMock.update.mockResolvedValue(
       makePickupRequest({ status: 'DRIVER_ASSIGNED', driverId: mockStaff.id }) as never
     );
+    orderMock.update.mockResolvedValue({} as never);
 
     const res = await request(app).patch(`/api/v1/pickup-requests/${pickupId}`);
 
@@ -325,6 +379,7 @@ describe('PATCH /api/v1/pickup-requests/:id', () => {
     expect(res.body.status).toBe('success');
     expect(res.body.data.status).toBe('DRIVER_ASSIGNED');
     expect(res.body.data.driverId).toBe(mockStaff.id);
+    expect(res.body.data.orderStatus).toBe('LAUNDRY_EN_ROUTE_TO_OUTLET');
   });
 
   it('returns 409 when driver already has active task', async () => {
@@ -350,5 +405,107 @@ describe('PATCH /api/v1/pickup-requests/:id', () => {
     const res = await request(app).patch(`/api/v1/pickup-requests/${pickupId}`);
 
     expect(res.status).toBe(403);
+  });
+});
+
+// ─── PCS-84: Driver — Complete Pickup Request ──────────────────────────────────
+
+describe('PATCH /api/v1/pickup-requests/:id/complete', () => {
+  const pickupId = '550e8400-e29b-41d4-a716-446655440004';
+
+  it('returns 401 when not authenticated', async () => {
+    getSession.mockResolvedValue(null);
+    const res = await request(app).patch(`/api/v1/pickup-requests/${pickupId}/complete`);
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 403 when authenticated user is not a DRIVER', async () => {
+    authenticatedAsStaff('WORKER');
+    const res = await request(app).patch(`/api/v1/pickup-requests/${pickupId}/complete`);
+    expect(res.status).toBe(403);
+  });
+
+  it('returns 400 when pickup request id is not a valid UUID', async () => {
+    authenticatedAsDriver();
+    const res = await request(app).patch('/api/v1/pickup-requests/invalid-id/complete');
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 404 when pickup is not found or not DRIVER_ASSIGNED', async () => {
+    authenticatedAsDriver();
+    pickupRequestMock.findFirst.mockResolvedValueOnce(null);
+
+    const res = await request(app).patch(`/api/v1/pickup-requests/${pickupId}/complete`);
+
+    expect(res.status).toBe(404);
+  });
+
+  it('returns 403 when caller is not the assigned driver', async () => {
+    authenticatedAsDriver();
+    const otherDriverId = '550e8400-e29b-41d4-a716-446655440099';
+    const pickup = makePickupRequest({ id: pickupId, status: 'DRIVER_ASSIGNED', driverId: otherDriverId });
+    pickupRequestMock.findFirst.mockResolvedValueOnce(pickup as never);
+
+    const res = await request(app).patch(`/api/v1/pickup-requests/${pickupId}/complete`);
+
+    expect(res.status).toBe(403);
+  });
+
+  it('returns 200 with PICKED_UP status and orderStatus', async () => {
+    authenticatedAsDriver();
+    const pickup = makePickupRequest({ id: pickupId, status: 'DRIVER_ASSIGNED', driverId: mockStaff.id });
+    pickupRequestMock.findFirst.mockResolvedValueOnce(pickup as never);
+    pickupRequestMock.update.mockResolvedValue({ ...pickup, status: 'PICKED_UP' } as never);
+    orderMock.update.mockResolvedValue({} as never);
+
+    const res = await request(app).patch(`/api/v1/pickup-requests/${pickupId}/complete`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('success');
+    expect(res.body.data.status).toBe('PICKED_UP');
+    expect(res.body.data.orderStatus).toBe('LAUNDRY_ARRIVED_AT_OUTLET');
+  });
+});
+
+// ─── PCS-85: Driver — Pickup History ───────────────────────────────────────────
+
+describe('GET /api/v1/pickup-requests/history', () => {
+  it('returns 401 when not authenticated', async () => {
+    getSession.mockResolvedValue(null);
+    const res = await request(app).get('/api/v1/pickup-requests/history');
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 403 when authenticated user is not a DRIVER', async () => {
+    authenticatedAsStaff('WORKER');
+    const res = await request(app).get('/api/v1/pickup-requests/history');
+    expect(res.status).toBe(403);
+  });
+
+  it('returns 409 when driver has no outlet assigned', async () => {
+    authenticatedAsDriver({ ...mockStaff, outletId: null as unknown as string });
+    const res = await request(app).get('/api/v1/pickup-requests/history');
+    expect(res.status).toBe(409);
+  });
+
+  it('returns 200 with history items and meta', async () => {
+    authenticatedAsDriver();
+    const address = makeAddress();
+    const customerUser = { id: 'cust-1', name: 'Budi', phone: '+6281', email: '', emailVerified: false, image: null, avatarUrl: null, role: 'CUSTOMER', createdAt: new Date(), updatedAt: new Date() };
+    const pickup = makePickupRequest({ status: 'PICKED_UP', driverId: mockStaff.id });
+
+    pickupRequestMock.findMany.mockResolvedValue([
+      { ...pickup, address, customerUser, outlet: makeOutlet(), order: { id: 'ord-1' } },
+    ] as never);
+    pickupRequestMock.count.mockResolvedValue(1);
+
+    const res = await request(app).get('/api/v1/pickup-requests/history');
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('success');
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].orderId).toBe('ord-1');
+    expect(res.body.data[0].customerName).toBe('Budi');
+    expect(res.body.meta).toHaveProperty('total', 1);
   });
 });

@@ -36,5 +36,6 @@ export const makePickupRequest = (overrides: object = {}) => ({
   scheduledAt: new Date('2026-04-01T09:00:00Z'),
   status: 'PENDING',
   createdAt: new Date(),
+  updatedAt: new Date(),
   ...overrides,
 });
