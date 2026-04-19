@@ -159,6 +159,7 @@ model PickupRequest {
   scheduledAt  DateTime     @map("scheduled_at")
   status       PickupStatus @default(PENDING)
   createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
   order        Order?
   address      Address      @relation(fields: [addressId], references: [id])
   customerUser User         @relation("CustomerPickups", fields: [customerId], references: [id])
