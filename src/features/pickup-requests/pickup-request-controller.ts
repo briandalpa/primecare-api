@@ -16,6 +16,17 @@ export class PickupRequestController {
     });
   }
 
+  static async listMy(req: UserRequest, res: Response) {
+    const query = Validation.validate(PickupRequestValidation.LIST_MY, req.query);
+    const response = await PickupRequestService.listCustomerPickupRequests(req.user!.id, query);
+    res.json({
+      status: 'success',
+      message: 'Pickup requests retrieved',
+      data: response.data,
+      meta: response.meta,
+    });
+  }
+
   static async list(req: UserRequest, res: Response) {
     if (!req.staff!.outletId) {
       throw new ResponseError(409, 'Driver is not assigned to any outlet');
@@ -28,7 +39,7 @@ export class PickupRequestController {
       status: 'success',
       message: 'Pickup requests retrieved',
       data: response.data,
-      pagination: response.pagination,
+      meta: response.meta,
     });
   }
 
@@ -50,6 +61,41 @@ export class PickupRequestController {
       status: 'success',
       message: 'Pickup request accepted',
       data: response,
+    });
+  }
+
+  static async complete(req: UserRequest, res: Response) {
+    if (!req.staff!.outletId) {
+      throw new ResponseError(409, 'Driver is not assigned to any outlet');
+    }
+
+    const pickupRequestId = Validation.validate(
+      PickupRequestValidation.ID_PARAM,
+      req.params.id
+    );
+    const response = await PickupRequestService.completePickupRequest(
+      req.staff!.id,
+      pickupRequestId
+    );
+    res.json({
+      status: 'success',
+      message: 'Pickup completed. Outlet admin notified.',
+      data: response,
+    });
+  }
+
+  static async listHistory(req: UserRequest, res: Response) {
+    if (!req.staff!.outletId) {
+      throw new ResponseError(409, 'Driver is not assigned to any outlet');
+    }
+
+    const query = Validation.validate(PickupRequestValidation.HISTORY, req.query);
+    const response = await PickupRequestService.listDriverHistory(req.staff!.id, query);
+    res.json({
+      status: 'success',
+      message: 'Pickup history retrieved',
+      data: response.data,
+      meta: response.meta,
     });
   }
 }

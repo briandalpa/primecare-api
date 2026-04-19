@@ -1,5 +1,12 @@
-import type { PickupRequest, Outlet, Address, User } from '@/generated/prisma/client';
-import { PickupStatus } from '@/generated/prisma/enums';
+import type { PickupRequest, Outlet, Address, User, Order } from '@/generated/prisma/client';
+import { PickupStatus, OrderStatus } from '@/generated/prisma/enums';
+
+export type PaginationMeta = {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+};
 
 export type OutletInfo = {
   id: string;
@@ -23,13 +30,15 @@ export type PickupRequestResponse = {
 
 export type AcceptPickupRequestResponse = {
   id: string;
-  customerId: string;
-  addressId: string;
-  outletId: string;
   driverId: string;
-  scheduledAt: Date;
   status: PickupStatus;
-  createdAt: Date;
+  orderStatus: OrderStatus;
+};
+
+export type CompletePickupRequestResponse = {
+  id: string;
+  status: PickupStatus;
+  orderStatus: OrderStatus;
 };
 
 export function toPickupRequestResponse(
@@ -55,17 +64,14 @@ export function toPickupRequestResponse(
 }
 
 export function toAcceptPickupRequestResponse(
-  pickupRequest: PickupRequest & { driverId: string }
+  pickupRequest: PickupRequest & { driverId: string },
+  orderStatus: OrderStatus
 ): AcceptPickupRequestResponse {
   return {
     id: pickupRequest.id,
-    customerId: pickupRequest.customerId,
-    addressId: pickupRequest.addressId,
-    outletId: pickupRequest.outletId,
     driverId: pickupRequest.driverId,
-    scheduledAt: pickupRequest.scheduledAt,
     status: pickupRequest.status,
-    createdAt: pickupRequest.createdAt,
+    orderStatus,
   };
 }
 
@@ -98,12 +104,7 @@ export type PickupRequestListItem = {
 
 export type PaginatedPickupRequestResponse = {
   data: PickupRequestListItem[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
+  meta: PaginationMeta;
 };
 
 export function toPickupRequestListItem(
@@ -130,5 +131,72 @@ export function toPickupRequestListItem(
       name: pickupRequest.customerUser.name,
       phone: pickupRequest.customerUser.phone,
     },
+  };
+}
+
+export type CustomerPickupListItem = {
+  id: string;
+  outletName: string;
+  scheduledAt: Date;
+  status: PickupStatus;
+  createdAt: Date;
+};
+
+export type PaginatedCustomerPickupResponse = {
+  data: CustomerPickupListItem[];
+  meta: PaginationMeta;
+};
+
+export function toCustomerPickupListItem(
+  pickupRequest: PickupRequest & { outlet: Outlet }
+): CustomerPickupListItem {
+  return {
+    id: pickupRequest.id,
+    outletName: pickupRequest.outlet.name,
+    scheduledAt: pickupRequest.scheduledAt,
+    status: pickupRequest.status,
+    createdAt: pickupRequest.createdAt,
+  };
+}
+
+export type PickupAddressInfo = {
+  label: string;
+  street: string;
+  city: string;
+};
+
+export type PickupHistoryItem = {
+  id: string;
+  orderId: string | null;
+  customerName: string | null;
+  pickupAddress: PickupAddressInfo;
+  status: PickupStatus;
+  completedAt: Date;
+};
+
+export type PaginatedHistoryResponse = {
+  data: PickupHistoryItem[];
+  meta: PaginationMeta;
+};
+
+export function toPickupHistoryItem(
+  pickupRequest: PickupRequest & {
+    address: Address;
+    customerUser: User;
+    order: Order | null;
+    updatedAt: Date;
+  }
+): PickupHistoryItem {
+  return {
+    id: pickupRequest.id,
+    orderId: pickupRequest.order?.id ?? null,
+    customerName: pickupRequest.customerUser.name,
+    pickupAddress: {
+      label: pickupRequest.address.label,
+      street: pickupRequest.address.street,
+      city: pickupRequest.address.city,
+    },
+    status: pickupRequest.status,
+    completedAt: pickupRequest.updatedAt,
   };
 }

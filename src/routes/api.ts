@@ -113,7 +113,10 @@ apiRouter.delete(
 
 // PICKUP REQUEST
 apiRouter.post('/pickup-requests', requireCustomerAuth, PickupRequestController.create);
+apiRouter.get('/pickup-requests/my', requireCustomerAuth, PickupRequestController.listMy);
+apiRouter.get('/pickup-requests/history', requireStaffRole('DRIVER'), PickupRequestController.listHistory);
 apiRouter.get('/pickup-requests', requireStaffRole('DRIVER'), PickupRequestController.list);
+apiRouter.patch('/pickup-requests/:id/complete', requireStaffRole('DRIVER'), PickupRequestController.complete);
 apiRouter.patch('/pickup-requests/:id', requireStaffRole('DRIVER'), PickupRequestController.accept);
 
 // BYPASS REQUEST
