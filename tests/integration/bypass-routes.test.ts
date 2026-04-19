@@ -12,6 +12,7 @@ jest.mock('@/application/database', () => ({
   prisma: {
     user: { findUnique: jest.fn() },
     staff: { findUnique: jest.fn() },
+    shift: { findFirst: jest.fn() },
     stationRecord: { findUnique: jest.fn(), update: jest.fn() },
     orderItem: { findMany: jest.fn() },
     stationItem: { deleteMany: jest.fn(), createMany: jest.fn() },
@@ -47,6 +48,7 @@ const VALID_UUID = '123e4567-e89b-12d3-a456-426614174000';
 describe('Bypass Routes Integration Tests', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (prisma.shift.findFirst as jest.Mock).mockResolvedValue({ id: 'shift-1' });
     (prisma.$transaction as jest.Mock).mockImplementation(
       (callback: (tx: any) => Promise<any>) =>
         callback({
