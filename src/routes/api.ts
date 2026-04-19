@@ -8,6 +8,7 @@ import {
 import { UserController } from '@/features/users/user-controller';
 import { AdminUserController } from '@/features/admin-users/admin-user-controller';
 import { AdminOrderController } from '@/features/admin-orders/admin-order-controller';
+import { AdminOutletController } from '@/features/admin-outlets/admin-outlet-controller';
 import { AddressController } from '@/features/addresses/address-controller';
 import { RegionController } from '@/features/region-data/region-controller';
 import { BypassRequestController } from '@/features/bypass-requests/bypass-request-controller';
@@ -94,6 +95,31 @@ apiRouter.post(
   '/admin/users',
   requireStaffRole('SUPER_ADMIN'),
   AdminUserController.createAdminUser,
+);
+apiRouter.get(
+  '/admin/outlets',
+  requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'),
+  AdminOutletController.getAdminOutlets,
+);
+apiRouter.get(
+  '/admin/outlets/:id',
+  requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'),
+  AdminOutletController.getAdminOutletDetail,
+);
+apiRouter.post(
+  '/admin/outlets',
+  requireStaffRole('SUPER_ADMIN'),
+  AdminOutletController.createAdminOutlet,
+);
+apiRouter.patch(
+  '/admin/outlets/:id',
+  requireStaffRole('SUPER_ADMIN'),
+  AdminOutletController.updateAdminOutlet,
+);
+apiRouter.delete(
+  '/admin/outlets/:id',
+  requireStaffRole('SUPER_ADMIN'),
+  AdminOutletController.deactivateAdminOutlet,
 );
 apiRouter.patch(
   '/admin/users/:id',
