@@ -399,17 +399,171 @@ describe('WorkerOrderService', () => {
     });
   });
 
-  it('throws 422 when trying to process packing via PCS-137 flow', async () => {
-    await expect(
-      WorkerOrderService.processWorkerOrder(
-        { ...workerStaff, workerType: 'PACKING' },
-        'order-1',
-        {
-          items: [{ laundryItemId: 'item-1', quantity: 1 }],
-        },
-      ),
-    ).rejects.toThrow(
-      new ResponseError(422, 'Packing completion is handled separately'),
+  it('completes packing and moves unpaid orders to waiting for payment', async () => {
+    const completedAt = new Date('2026-04-18T03:00:00.000Z');
+    const packingWorker = { ...workerStaff, workerType: 'PACKING' };
+    const mockTx = {
+      stationRecord: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValueOnce({
+            id: 'station-record-3',
+            orderId: 'order-2',
+            station: 'PACKING',
+            staffId: 'staff-worker',
+            status: 'IN_PROGRESS',
+            order: {
+              id: 'order-2',
+              status: 'LAUNDRY_BEING_PACKED',
+              paymentStatus: 'UNPAID',
+              outletId: 'outlet-1',
+            },
+            stationItems: [],
+          })
+          .mockResolvedValueOnce({
+            id: 'station-record-2',
+            station: 'IRONING',
+            stationItems: [{ laundryItemId: 'item-1', quantity: 2 }],
+          }),
+        update: jest.fn().mockResolvedValue({
+          id: 'station-record-3',
+          orderId: 'order-2',
+          station: 'PACKING',
+          status: 'COMPLETED',
+          completedAt,
+        }),
+        create: jest.fn(),
+      },
+      orderItem: {
+        findMany: jest.fn(),
+      },
+      stationItem: {
+        deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+        createMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      order: {
+        update: jest.fn().mockResolvedValue({}),
+      },
+      delivery: {
+        create: jest.fn(),
+      },
+    };
+    (prisma.$transaction as jest.Mock).mockImplementation(async (callback) =>
+      callback(mockTx),
     );
+
+    const result = await WorkerOrderService.processWorkerOrder(
+      packingWorker,
+      'order-2',
+      {
+        items: [{ laundryItemId: 'item-1', quantity: 2 }],
+      },
+    );
+
+    expect(mockTx.order.update).toHaveBeenCalledWith({
+      where: { id: 'order-2' },
+      data: { status: 'WAITING_FOR_PAYMENT' },
+    });
+    expect(mockTx.delivery.create).not.toHaveBeenCalled();
+    expect(prisma.staff.findFirst).not.toHaveBeenCalled();
+    expect(mockTx.stationRecord.create).not.toHaveBeenCalled();
+    expect(WorkerNotificationService.publishOrderArrival).toHaveBeenCalledWith({
+      orderId: 'order-2',
+      outletId: 'outlet-1',
+      orderStatus: 'WAITING_FOR_PAYMENT',
+    });
+    expect(result).toEqual({
+      orderId: 'order-2',
+      stationRecordId: 'station-record-3',
+      station: 'PACKING',
+      stationStatus: 'COMPLETED',
+      orderStatus: 'WAITING_FOR_PAYMENT',
+      completedAt,
+    });
+  });
+
+  it('completes packing and creates delivery when the order is already paid', async () => {
+    const completedAt = new Date('2026-04-18T04:00:00.000Z');
+    const packingWorker = { ...workerStaff, workerType: 'PACKING' };
+    const mockTx = {
+      stationRecord: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValueOnce({
+            id: 'station-record-4',
+            orderId: 'order-3',
+            station: 'PACKING',
+            staffId: 'staff-worker',
+            status: 'IN_PROGRESS',
+            order: {
+              id: 'order-3',
+              status: 'LAUNDRY_BEING_PACKED',
+              paymentStatus: 'PAID',
+              outletId: 'outlet-1',
+            },
+            stationItems: [],
+          })
+          .mockResolvedValueOnce({
+            id: 'station-record-2',
+            station: 'IRONING',
+            stationItems: [{ laundryItemId: 'item-1', quantity: 4 }],
+          }),
+        update: jest.fn().mockResolvedValue({
+          id: 'station-record-4',
+          orderId: 'order-3',
+          station: 'PACKING',
+          status: 'COMPLETED',
+          completedAt,
+        }),
+        create: jest.fn(),
+      },
+      orderItem: {
+        findMany: jest.fn(),
+      },
+      stationItem: {
+        deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+        createMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      order: {
+        update: jest.fn().mockResolvedValue({}),
+      },
+      delivery: {
+        create: jest.fn().mockResolvedValue({ id: 'delivery-1' }),
+      },
+    };
+    (prisma.$transaction as jest.Mock).mockImplementation(async (callback) =>
+      callback(mockTx),
+    );
+
+    const result = await WorkerOrderService.processWorkerOrder(
+      packingWorker,
+      'order-3',
+      {
+        items: [{ laundryItemId: 'item-1', quantity: 4 }],
+      },
+    );
+
+    expect(mockTx.delivery.create).toHaveBeenCalledWith({
+      data: { orderId: 'order-3' },
+    });
+    expect(mockTx.order.update).toHaveBeenCalledWith({
+      where: { id: 'order-3' },
+      data: { status: 'LAUNDRY_READY_FOR_DELIVERY' },
+    });
+    expect(prisma.staff.findFirst).not.toHaveBeenCalled();
+    expect(mockTx.stationRecord.create).not.toHaveBeenCalled();
+    expect(WorkerNotificationService.publishOrderArrival).toHaveBeenCalledWith({
+      orderId: 'order-3',
+      outletId: 'outlet-1',
+      orderStatus: 'LAUNDRY_READY_FOR_DELIVERY',
+    });
+    expect(result).toEqual({
+      orderId: 'order-3',
+      stationRecordId: 'station-record-4',
+      station: 'PACKING',
+      stationStatus: 'COMPLETED',
+      orderStatus: 'LAUNDRY_READY_FOR_DELIVERY',
+      completedAt,
+    });
   });
 });

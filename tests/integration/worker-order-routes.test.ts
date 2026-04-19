@@ -362,4 +362,152 @@ describe('Worker Order Routes', () => {
       },
     });
   });
+
+  it('completes packing for unpaid orders and moves them to waiting for payment', async () => {
+    mockWorkerAuth({ workerType: 'PACKING' });
+    const completedAt = new Date('2026-04-18T03:00:00.000Z');
+    const mockTx = {
+      stationRecord: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValueOnce({
+            id: 'station-record-3',
+            orderId: '123e4567-e89b-12d3-a456-426614174000',
+            station: 'PACKING',
+            staffId: 'staff-worker',
+            status: 'IN_PROGRESS',
+            order: {
+              id: '123e4567-e89b-12d3-a456-426614174000',
+              status: 'LAUNDRY_BEING_PACKED',
+              paymentStatus: 'UNPAID',
+              outletId: 'outlet-1',
+            },
+            stationItems: [],
+          })
+          .mockResolvedValueOnce({
+            id: 'station-record-2',
+            station: 'IRONING',
+            stationItems: [{ laundryItemId: VALID_UUID, quantity: 2 }],
+          }),
+        update: jest.fn().mockResolvedValue({
+          id: 'station-record-3',
+          orderId: '123e4567-e89b-12d3-a456-426614174000',
+          station: 'PACKING',
+          status: 'COMPLETED',
+          completedAt,
+        }),
+        create: jest.fn(),
+      },
+      orderItem: {
+        findMany: jest.fn(),
+      },
+      stationItem: {
+        deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+        createMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      order: {
+        update: jest.fn().mockResolvedValue({}),
+      },
+      delivery: {
+        create: jest.fn(),
+      },
+    };
+    (prisma.$transaction as jest.Mock).mockImplementation(async (callback) =>
+      callback(mockTx),
+    );
+
+    const response = await request(app)
+      .post('/api/v1/worker/orders/123e4567-e89b-12d3-a456-426614174000/process')
+      .send({
+        items: [{ laundryItemId: VALID_UUID, quantity: 2 }],
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      status: 'success',
+      message: 'Worker order processed successfully',
+      data: {
+        orderId: '123e4567-e89b-12d3-a456-426614174000',
+        stationRecordId: 'station-record-3',
+        station: 'PACKING',
+        stationStatus: 'COMPLETED',
+        orderStatus: 'WAITING_FOR_PAYMENT',
+        completedAt: '2026-04-18T03:00:00.000Z',
+      },
+    });
+  });
+
+  it('completes packing for paid orders and marks them ready for delivery', async () => {
+    mockWorkerAuth({ workerType: 'PACKING' });
+    const completedAt = new Date('2026-04-18T04:00:00.000Z');
+    const mockTx = {
+      stationRecord: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValueOnce({
+            id: 'station-record-4',
+            orderId: '123e4567-e89b-12d3-a456-426614174000',
+            station: 'PACKING',
+            staffId: 'staff-worker',
+            status: 'IN_PROGRESS',
+            order: {
+              id: '123e4567-e89b-12d3-a456-426614174000',
+              status: 'LAUNDRY_BEING_PACKED',
+              paymentStatus: 'PAID',
+              outletId: 'outlet-1',
+            },
+            stationItems: [],
+          })
+          .mockResolvedValueOnce({
+            id: 'station-record-2',
+            station: 'IRONING',
+            stationItems: [{ laundryItemId: VALID_UUID, quantity: 4 }],
+          }),
+        update: jest.fn().mockResolvedValue({
+          id: 'station-record-4',
+          orderId: '123e4567-e89b-12d3-a456-426614174000',
+          station: 'PACKING',
+          status: 'COMPLETED',
+          completedAt,
+        }),
+        create: jest.fn(),
+      },
+      orderItem: {
+        findMany: jest.fn(),
+      },
+      stationItem: {
+        deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+        createMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      order: {
+        update: jest.fn().mockResolvedValue({}),
+      },
+      delivery: {
+        create: jest.fn().mockResolvedValue({ id: 'delivery-1' }),
+      },
+    };
+    (prisma.$transaction as jest.Mock).mockImplementation(async (callback) =>
+      callback(mockTx),
+    );
+
+    const response = await request(app)
+      .post('/api/v1/worker/orders/123e4567-e89b-12d3-a456-426614174000/process')
+      .send({
+        items: [{ laundryItemId: VALID_UUID, quantity: 4 }],
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      status: 'success',
+      message: 'Worker order processed successfully',
+      data: {
+        orderId: '123e4567-e89b-12d3-a456-426614174000',
+        stationRecordId: 'station-record-4',
+        station: 'PACKING',
+        stationStatus: 'COMPLETED',
+        orderStatus: 'LAUNDRY_READY_FOR_DELIVERY',
+        completedAt: '2026-04-18T04:00:00.000Z',
+      },
+    });
+  });
 });
