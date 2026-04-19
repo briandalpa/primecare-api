@@ -164,6 +164,11 @@ apiRouter.post(
   requireStaffRole('WORKER'),
   WorkerOrderController.processOrder,
 );
+apiRouter.post(
+  '/worker/orders/:id/bypass-request',
+  requireStaffRole('WORKER'),
+  BypassRequestController.createWorker,
+);
 apiRouter.get(
   '/worker/notifications/stream',
   requireStaffRole('WORKER'),
