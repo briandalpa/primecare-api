@@ -26,6 +26,7 @@ import {
   getWorkerOrderDetail,
   getWorkerOrders,
 } from './worker-order-query';
+import { sendPackingUnpaidPaymentReminder } from './worker-payment-reminder';
 
 export class WorkerOrderService {
   static async getWorkerOrders(staff: Staff, query: WorkerOrderListQuery) {
@@ -111,6 +112,12 @@ export class WorkerOrderService {
       orderStatus: result.response.orderStatus,
     });
 
+    if (result.response.orderStatus === 'WAITING_FOR_PAYMENT') {
+      void sendPackingUnpaidPaymentReminder(result.orderId);
+    }
+
     return result.response;
   }
 }
+
+

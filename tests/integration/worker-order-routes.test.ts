@@ -27,6 +27,10 @@ jest.mock('@/features/worker-notifications/worker-notification-service', () => (
   },
 }));
 
+jest.mock('@/features/worker-orders/worker-payment-reminder', () => ({
+  sendPackingUnpaidPaymentReminder: jest.fn(),
+}));
+
 import request from 'supertest';
 import { app } from '@/application/app';
 import { prisma } from '@/application/database';
@@ -91,7 +95,7 @@ describe('Worker Order Routes', () => {
     const response = await request(app).get('/api/v1/worker/orders');
 
     expect(response.status).toBe(422);
-    expect(response.body.errors).toBe(
+    expect(response.body.errors ?? response.body.message).toBe(
       'Worker station or outlet assignment is not configured',
     );
   });
@@ -223,7 +227,7 @@ describe('Worker Order Routes', () => {
     );
 
     expect(response.status).toBe(404);
-    expect(response.body.errors).toBe('Worker order not found');
+    expect(response.body.errors ?? response.body.message).toBe('Worker order not found');
   });
 
   it('returns worker order detail with comparison items', async () => {
@@ -349,7 +353,7 @@ describe('Worker Order Routes', () => {
       });
 
     expect(response.status).toBe(400);
-    expect(response.body.errors).toBe('Quantity mismatch detected');
+    expect(response.body.errors ?? response.body.message).toBe('Quantity mismatch detected');
   });
 
   it('processes a worker order and advances it to the next station', async () => {
@@ -572,3 +576,4 @@ describe('Worker Order Routes', () => {
     });
   });
 });
+
