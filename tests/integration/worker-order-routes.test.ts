@@ -12,6 +12,7 @@ jest.mock('@/application/database', () => ({
     staff: { findUnique: jest.fn(), findFirst: jest.fn() },
     stationRecord: { findMany: jest.fn(), count: jest.fn(), findFirst: jest.fn() },
     orderItem: { findMany: jest.fn() },
+    shift: { findFirst: jest.fn() },
   },
 }));
 
@@ -37,6 +38,7 @@ describe('Worker Order Routes', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (prisma.shift.findFirst as jest.Mock).mockResolvedValue({ id: 'shift-1' });
   });
 
   const mockWorkerAuth = (overrides: Partial<any> = {}) => {
