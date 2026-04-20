@@ -17,6 +17,7 @@ import { WorkerOrderController } from '@/features/worker-orders/worker-order-con
 import { WorkerNotificationController } from '@/features/worker-notifications/worker-notification-controller';
 import { PickupRequestController } from '@/features/pickup-requests/pickup-request-controller';
 import { PaymentController } from '@/features/payments/payment-controller';
+import { LaundryItemController } from '@/features/laundry-items/laundry-item-controller';
 
 export const apiRouter = express.Router();
 
@@ -36,6 +37,7 @@ apiRouter.get(
 );
 apiRouter.get('/regions/geocode', requireAuth, RegionController.geocode);
 apiRouter.get('/regions/reverse-geocode', requireAuth, RegionController.reverseGeocode);
+apiRouter.get('/laundry-items', requireAuth, LaundryItemController.list);
 
 // ADDRESS
 apiRouter.get('/users/addresses', requireCustomerAuth, AddressController.list);
