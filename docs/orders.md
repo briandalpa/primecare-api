@@ -12,7 +12,7 @@ Manages laundry orders from creation through completion. All endpoints are under
 
 ---
 
-## POST /api/v1/orders
+## POST /api/v1/admin/orders
 
 Outlet Admin creates a formal order after laundry physically arrives at the outlet. Advances status from `LAUNDRY_ARRIVED_AT_OUTLET` to `LAUNDRY_BEING_WASHED`.
 
@@ -105,12 +105,7 @@ Outlet Admin creates a formal order after laundry physically arrives at the outl
 
 List orders with server side pagination, filtering, and sorting.
 
-- **SUPER_ADMIN:** All orders from all outlets.
-- **OUTLET_ADMIN:** Only orders from their outlet.
-- **CUSTOMER:** Only their own orders.
-- **WORKER / DRIVER:** Orders relevant to their station/outlet (read-only).
-
-**Access:** Any authenticated role
+**Access:** `CUSTOMER`
 
 **Query Parameters:**
 
@@ -119,11 +114,10 @@ List orders with server side pagination, filtering, and sorting.
 | `page`     | number | `1`         | Page number                                   |
 | `limit`    | number | `10`        | Items per page                                |
 | `status`   | string | —           | Filter by order status enum value             |
-| `outletId` | string | —           | Filter by outlet (SUPER_ADMIN only)           |
 | `fromDate` | string | —           | ISO 8601 date; filter `createdAt >= fromDate` |
 | `toDate`   | string | —           | ISO 8601 date; filter `createdAt <= toDate`   |
 | `search`   | string | —           | Search by order ID or invoice number          |
-| `sortBy`   | string | `createdAt` | Sort field                                    |
+| `sortBy`   | string | `createdAt` | Sort field (`createdAt`, `totalPrice`)        |
 | `order`    | string | `desc`      | `asc` or `desc`                               |
 
 **Response (Success — 200):**
@@ -146,7 +140,8 @@ List orders with server side pagination, filtering, and sorting.
   "meta": {
     "page": 1,
     "limit": 10,
-    "total": 1
+    "total": 1,
+    "totalPages": 1
   }
 }
 ```

@@ -52,7 +52,8 @@ List available delivery requests for the driver's outlet. Only `PENDING` deliver
   "meta": {
     "page": 1,
     "limit": 10,
-    "total": 1
+    "total": 1,
+    "totalPages": 1
   }
 }
 ```
@@ -171,6 +172,8 @@ Sets delivery status to `DELIVERED` and order status to `LAUNDRY_DELIVERED_TO_CU
 
 ## GET /api/v1/deliveries/history
 
+> **Note for implementers:** Register this route in Express **before** `GET /deliveries/:id`; otherwise Express will match `history` as the `:id` parameter.
+
 List the driver's own completed delivery history, paginated and filterable by date.
 
 **Access:** `DRIVER`
@@ -209,7 +212,8 @@ List the driver's own completed delivery history, paginated and filterable by da
   "meta": {
     "page": 1,
     "limit": 10,
-    "total": 12
+    "total": 12,
+    "totalPages": 2
   }
 }
 ```

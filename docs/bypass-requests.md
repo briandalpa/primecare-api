@@ -26,6 +26,7 @@ List bypass requests for the outlet admin's outlet. Pending requests should be p
 | `page` | number | `1` | Page number |
 | `limit` | number | `10` | Items per page |
 | `status` | string | — | Filter by status: `PENDING`, `APPROVED`, `REJECTED` |
+| `outletId` | string | — | Filter by outlet (SUPER_ADMIN only) |
 | `sortBy` | string | `createdAt` | Sort field |
 | `order` | string | `desc` | `asc` or `desc` |
 
@@ -49,7 +50,8 @@ List bypass requests for the outlet admin's outlet. Pending requests should be p
   "meta": {
     "page": 1,
     "limit": 10,
-    "total": 3
+    "total": 3,
+    "totalPages": 1
   }
 }
 ```

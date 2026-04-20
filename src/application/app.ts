@@ -5,23 +5,37 @@ import { auth } from '@/utils/auth';
 import cors from 'cors';
 import express from 'express';
 import { toNodeHandler } from 'better-auth/node';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 
 export const app = express();
 
-// CORS middleware
+// Security headers first; sets X-Content-Type-Options, X-Frame-Options, HSTS, etc.
+app.use(helmet());
+
 app.use(
   cors({
-    origin: 'http://localhost:5173',
+    // Use the same origin as better-auth's trustedOrigins to keep both in sync.
+    origin: process.env.FRONTEND_URL ?? 'http://localhost:5173',
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
     credentials: true,
   }),
 );
 
-// better-auth handler (must be before express.json())
-app.all('/api/auth/*', toNodeHandler(auth));
+// Strict limit on auth routes to mitigate credential brute-force attacks.
+app.use('/api/auth', rateLimit({ windowMs: 60_000, max: 10, standardHeaders: true, legacyHeaders: false }));
+// Moderate limit on all API routes to prevent abuse and DoS.
+app.use('/api/v1', rateLimit({ windowMs: 60_000, max: 100, standardHeaders: true, legacyHeaders: false }));
 
-app.use(express.json());
+// Critical ordering: better-auth must be before express.json() to handle raw request bodies.
+// better-auth manages all /api/auth/* routes including sign-in, sign-up, OAuth callbacks.
+app.all('/api/auth/*splat', toNodeHandler(auth));
 
+// Explicit body size limit prevents excessively large payloads from reaching route handlers.
+app.use(express.json({ limit: '100kb' }));
+
+// publicRouter = unauthenticated routes (webhooks, password reset, etc.)
+// apiRouter = authenticated routes (requireAuth or requireStaffAuth middleware applied)
 app.use('/api/v1', publicRouter);
 app.use('/api/v1', apiRouter);
 
