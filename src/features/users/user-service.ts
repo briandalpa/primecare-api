@@ -81,8 +81,7 @@ export class UserService {
     if (!user) return { message: 'Verification email sent' }; // Silent success: avoids leaking whether an email is registered.
 
     const existingAccount = await prisma.account.findFirst({ where: { userId: user.id, providerId: 'credential' } });
-    // Silent success: avoids leaking whether the email is registered and verified.
-    if (existingAccount) return { message: 'Verification email sent' };
+    if (existingAccount) throw new ResponseError(409, 'Account already verified');
 
     const token = await createVerificationToken(data.email);
     sendSetPasswordEmail(data.email, token);

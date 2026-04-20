@@ -97,11 +97,26 @@ describe('AdminUserService', () => {
         id: 'user-new',
         name: 'Charlie',
         email: 'charlie@example.com',
+        emailVerified: false,
+        createdAt: new Date(),
       });
       (prisma.staff.create as jest.Mock).mockResolvedValue({
         id: 'staff-new',
         userId: 'user-new',
         role: 'OUTLET_ADMIN',
+        outletId: 'outlet-1',
+        isActive: true,
+        workerType: null,
+        outlet: null,
+      });
+      (prisma.staff.findUnique as jest.Mock).mockResolvedValue({
+        id: 'staff-new',
+        userId: 'user-new',
+        role: 'OUTLET_ADMIN',
+        outletId: 'outlet-1',
+        isActive: true,
+        workerType: null,
+        outlet: null,
       });
       (prisma.verification.deleteMany as jest.Mock).mockResolvedValue({ count: 0 });
       (prisma.verification.create as jest.Mock).mockResolvedValue({ token: 'invite-token' });
@@ -116,6 +131,7 @@ describe('AdminUserService', () => {
 
       expect(result.id).toBe('user-new');
       expect(result.email).toBe('charlie@example.com');
+      expect(result.role).toBe('OUTLET_ADMIN');
       expect(sendEmail).toHaveBeenCalled();
     });
 
@@ -137,12 +153,26 @@ describe('AdminUserService', () => {
         id: 'user-driver',
         name: 'David',
         email: 'david@example.com',
+        emailVerified: false,
+        createdAt: new Date(),
       });
       (prisma.staff.create as jest.Mock).mockResolvedValue({
         id: 'staff-driver',
         userId: 'user-driver',
         role: 'DRIVER',
         outletId: 'outlet-1',
+        isActive: true,
+        workerType: null,
+        outlet: null,
+      });
+      (prisma.staff.findUnique as jest.Mock).mockResolvedValue({
+        id: 'staff-driver',
+        userId: 'user-driver',
+        role: 'DRIVER',
+        outletId: 'outlet-1',
+        isActive: true,
+        workerType: null,
+        outlet: null,
       });
       (prisma.verification.deleteMany as jest.Mock).mockResolvedValue({ count: 0 });
       (prisma.verification.create as jest.Mock).mockResolvedValue({ token: 'token' });

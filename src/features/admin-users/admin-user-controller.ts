@@ -49,7 +49,7 @@ export class AdminUserController {
 
       res.status(201).json({
         status: 'success',
-        message: 'Admin user created',
+        message: 'User created and invitation email sent',
         data: result
       })
 
