@@ -648,6 +648,11 @@ describe('BypassRequestService', () => {
         where: { id: 'sr-1' },
         data: { status: 'IN_PROGRESS' },
       });
+      expect(WorkerNotificationService.publishOrderArrival).toHaveBeenCalledWith({
+        orderId: 'ord-1',
+        outletId: 'outlet-1',
+        orderStatus: 'LAUNDRY_BEING_WASHED',
+      });
     });
   });
 
