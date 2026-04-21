@@ -1,6 +1,6 @@
 import { prisma } from '@/application/database'
 import { ResponseError } from '@/error/response-error'
-import { OrderStatus } from '@/generated/prisma/client'
+import { OrderStatus, StationStatus, StationType } from '@/generated/prisma/client'
 import { WorkerNotificationService } from '@/features/worker-notifications/worker-notification-service'
 import { v4 as uuid } from 'uuid'
 import { CreateAdminOrderInput, GetAdminOrdersQuery, LaundryItemResponse } from './admin-order-model'
@@ -172,8 +172,8 @@ export class AdminOrderService {
 
     const orderId = uuid()
 
-    // Atomic operation: create Order and all OrderItems in one transaction.
-    // If any item creation fails, the entire order is rolled back.
+    // Atomic operation: create Order, initial station record, and all OrderItems in one transaction.
+    // If any step fails, the entire order is rolled back.
     const [order] = await prisma.$transaction([
       prisma.order.create({
         data: {
@@ -186,6 +186,13 @@ export class AdminOrderService {
           totalPrice,
           status: OrderStatus.LAUNDRY_BEING_WASHED,
         }
+      }),
+      prisma.stationRecord.create({
+        data: {
+          orderId,
+          station: StationType.WASHING,
+          status: StationStatus.IN_PROGRESS,
+        },
       }),
       ...data.items.map((item) =>
         prisma.orderItem.create({
