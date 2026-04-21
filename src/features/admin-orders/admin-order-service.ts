@@ -2,6 +2,7 @@ import { prisma } from '@/application/database'
 import { ResponseError } from '@/error/response-error'
 import { OrderStatus, StationStatus, StationType } from '@/generated/prisma/client'
 import { WorkerNotificationService } from '@/features/worker-notifications/worker-notification-service'
+import { findNextStationWorker } from '@/features/worker-orders/worker-order-helper'
 import { v4 as uuid } from 'uuid'
 import { CreateAdminOrderInput, GetAdminOrdersQuery, LaundryItemResponse } from './admin-order-model'
 
@@ -171,6 +172,10 @@ export class AdminOrderService {
     const totalPrice = calculateOrderPrice(data.totalWeightKg, data.pricePerKg)
 
     const orderId = uuid()
+    const washingWorker = await findNextStationWorker(
+      pickupRequest.outletId,
+      StationType.WASHING,
+    )
 
     // Atomic operation: create Order, initial station record, and all OrderItems in one transaction.
     // If any step fails, the entire order is rolled back.
@@ -191,6 +196,7 @@ export class AdminOrderService {
         data: {
           orderId,
           station: StationType.WASHING,
+          staffId: washingWorker.id,
           status: StationStatus.IN_PROGRESS,
         },
       }),
