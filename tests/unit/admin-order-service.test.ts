@@ -1,5 +1,6 @@
 jest.mock('@/application/database', () => ({
   prisma: {
+    staff: { findFirst: jest.fn() },
     order: { findMany: jest.fn(), findUnique: jest.fn(), create: jest.fn(), count: jest.fn() },
     orderItem: { create: jest.fn() },
     stationRecord: { create: jest.fn() },
@@ -26,6 +27,14 @@ const defaultQuery = { page: 1, limit: 10 };
 describe('AdminOrderService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (prisma.staff.findFirst as jest.Mock).mockResolvedValue({
+      id: 'worker-washing-1',
+      outletId: 'outlet-1',
+      role: 'WORKER',
+      workerType: 'WASHING',
+      isActive: true,
+      createdAt: new Date(),
+    });
     (prisma.$transaction as jest.Mock).mockImplementation(
       (ops: Promise<unknown>[]) => Promise.all(ops)
     );
@@ -346,6 +355,7 @@ describe('AdminOrderService', () => {
         data: {
           orderId: createdOrderId,
           station: 'WASHING',
+          staffId: 'worker-washing-1',
           status: 'IN_PROGRESS',
         },
       });
