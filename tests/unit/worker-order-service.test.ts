@@ -21,10 +21,15 @@ jest.mock('@/features/worker-notifications/worker-notification-service', () => (
   },
 }));
 
+jest.mock('@/features/worker-orders/worker-payment-reminder', () => ({
+  sendPackingUnpaidPaymentReminder: jest.fn(),
+}));
+
 import { prisma } from '@/application/database';
 import { ResponseError } from '@/error/response-error';
 import { WorkerNotificationService } from '@/features/worker-notifications/worker-notification-service';
 import { WorkerOrderService } from '@/features/worker-orders/worker-order-service';
+import { sendPackingUnpaidPaymentReminder } from '@/features/worker-orders/worker-payment-reminder';
 
 describe('WorkerOrderService', () => {
   const workerStaff = {
@@ -540,6 +545,7 @@ describe('WorkerOrderService', () => {
       outletId: 'outlet-1',
       orderStatus: 'WAITING_FOR_PAYMENT',
     });
+    expect(sendPackingUnpaidPaymentReminder).toHaveBeenCalledWith('order-2');
     expect(result).toEqual({
       orderId: 'order-2',
       stationRecordId: 'station-record-3',
@@ -625,6 +631,7 @@ describe('WorkerOrderService', () => {
       outletId: 'outlet-1',
       orderStatus: 'LAUNDRY_READY_FOR_DELIVERY',
     });
+    expect(sendPackingUnpaidPaymentReminder).not.toHaveBeenCalled();
     expect(result).toEqual({
       orderId: 'order-3',
       stationRecordId: 'station-record-4',
@@ -635,3 +642,4 @@ describe('WorkerOrderService', () => {
     });
   });
 });
+
