@@ -17,6 +17,7 @@ import { WorkerOrderController } from '@/features/worker-orders/worker-order-con
 import { WorkerNotificationController } from '@/features/worker-notifications/worker-notification-controller';
 import { PickupRequestController } from '@/features/pickup-requests/pickup-request-controller';
 import { PaymentController } from '@/features/payments/payment-controller';
+import { LaundryItemController } from '@/features/laundry-items/laundry-item-controller';
 import { ShiftController } from '@/features/shifts/shift-controller';
 
 export const apiRouter = express.Router();
@@ -27,6 +28,7 @@ apiRouter.get('/regions/provinces', requireAuth, RegionController.listProvinces)
 apiRouter.get('/regions/cities/:provinceId', requireAuth, RegionController.listCities);
 apiRouter.get('/regions/geocode', requireAuth, RegionController.geocode);
 apiRouter.get('/regions/reverse-geocode', requireAuth, RegionController.reverseGeocode);
+apiRouter.get('/laundry-items', requireAuth, LaundryItemController.list);
 
 apiRouter.get('/users/addresses', requireCustomerAuth, AddressController.list);
 apiRouter.post('/users/addresses', requireCustomerAuth, AddressController.create);
@@ -80,3 +82,4 @@ apiRouter.get('/worker/orders/:id', requireStaffRole('WORKER'), WorkerOrderContr
 apiRouter.post('/worker/orders/:id/process', requireStaffRole('WORKER'), requireActiveWorkerShift, WorkerOrderController.processOrder);
 apiRouter.post('/worker/orders/:id/bypass-request', requireStaffRole('WORKER'), requireActiveWorkerShift, BypassRequestController.createWorker);
 apiRouter.get('/worker/notifications/stream', requireStaffRole('WORKER'), WorkerNotificationController.stream);
+

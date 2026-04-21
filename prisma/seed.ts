@@ -40,13 +40,15 @@ const LAUNDRY_ITEMS = [
 ];
 
 const seedLaundryItems = async () => {
-  const count = await prisma.laundryItem.count();
-  if (count > 0) {
-    console.log(`Skipping laundry items — ${count} already exist.`);
-    return;
-  }
-
-  await prisma.laundryItem.createMany({ data: LAUNDRY_ITEMS });
+  await Promise.all(
+    LAUNDRY_ITEMS.map((item) =>
+      prisma.laundryItem.upsert({
+        where: { slug: item.slug },
+        update: { name: item.name, isActive: true },
+        create: { name: item.name, slug: item.slug, isActive: true },
+      }),
+    ),
+  );
   console.log(`Seeded ${LAUNDRY_ITEMS.length} laundry items.`);
 };
 
@@ -56,7 +58,7 @@ const seedSuperAdmin = async () => {
   });
 
   if (existing) {
-    console.log('Skipping super admin — already exists.');
+    console.log('Skipping super admin because it already exists.');
     return;
   }
 
@@ -85,7 +87,6 @@ const seedSuperAdmin = async () => {
       },
     });
 
-    // better-auth credential account format
     await tx.account.create({
       data: {
         id: accountId,

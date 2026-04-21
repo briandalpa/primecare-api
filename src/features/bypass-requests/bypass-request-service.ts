@@ -132,15 +132,28 @@ export class BypassRequestService {
     bypassId: string,
     password: string,
   ) {
-    return prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       const bypass = await loadAndVerifyBypass(tx, admin, bypassId, password);
       const updated = await tx.bypassRequest.update({
         where: { id: bypassId },
         data: { status: BypassStatus.REJECTED, adminId: admin.staffId, resolvedAt: new Date() },
       });
       await tx.stationRecord.update({ where: { id: bypass.stationRecordId }, data: { status: StationStatus.IN_PROGRESS } });
-      return toRejectBypassResponse(updated);
+      return {
+        orderId: bypass.stationRecord.order.id,
+        outletId: bypass.stationRecord.order.outletId,
+        orderStatus: bypass.stationRecord.order.status,
+        response: toRejectBypassResponse(updated),
+      };
     });
+
+    WorkerNotificationService.publishOrderArrival({
+      orderId: result.orderId,
+      outletId: result.outletId,
+      orderStatus: result.orderStatus,
+    });
+
+    return result.response;
   }
 
   static async getById(
