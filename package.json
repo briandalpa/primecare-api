@@ -10,7 +10,8 @@
     "test": "jest",
     "build": "tsc && tsc-alias",
     "start": "node dist/main.js",
-    "dev": "ts-node -r tsconfig-paths/register ./src/main.ts"
+    "dev": "ts-node -r tsconfig-paths/register ./src/main.ts",
+    "dev:watch": "nodemon"
   },
   "prisma": {
     "seed": "ts-node --transpile-only -r tsconfig-paths/register prisma/seed.ts"
