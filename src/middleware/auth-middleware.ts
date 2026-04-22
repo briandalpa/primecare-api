@@ -101,6 +101,36 @@ export const requireCustomerAuth = async (
   }
 };
 
+// Factory: allows customers through unconditionally; allows staff only if their role is in `roles`.
+// Use on routes accessible to both customers and specific staff roles (e.g. complaints list).
+export const requireAuthOrStaffRole = (...roles: StaffRole[]) => {
+  return async (req: UserRequest, res: Response, next: NextFunction) => {
+    try {
+      const result = await getSessionUser(req);
+      if (!result) {
+        res.status(401).json({ message: 'Unauthorized' });
+        return;
+      }
+
+      const staff = await prisma.staff.findUnique({ where: { userId: result.user.id } });
+
+      if (staff) {
+        if (!staff.isActive || !roles.includes(staff.role)) {
+          res.status(403).json({ message: 'Forbidden' });
+          return;
+        }
+        req.staff = staff;
+      }
+
+      req.user = result.user;
+      req.session = result.session;
+      next();
+    } catch (error) {
+      next(error);
+    }
+  };
+};
+
 // Factory: returns a middleware that restricts access to staff with one of the given roles.
 // Usage: requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN')
 export const requireStaffRole = (...roles: StaffRole[]) => {
