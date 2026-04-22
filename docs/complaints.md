@@ -15,7 +15,7 @@ All endpoints are under `/api/v1/complaints`.
 
 ## POST /api/v1/complaints
 
-Customer files a complaint about a completed order.
+Customer files a complaint about a delivered or completed order.
 
 **Access:** `CUSTOMER`
 
@@ -64,7 +64,7 @@ Customer files a complaint about a completed order.
 ```
 
 **Notes:**
-- Complaints can only be filed when `Order.status === 'COMPLETED'`.
+- Complaints can only be filed when `Order.status` is `LAUNDRY_DELIVERED_TO_CUSTOMER` or `COMPLETED`.
 - One complaint per order — duplicate submissions are rejected with `409`.
 - `description` is required and must be non-empty.
 
@@ -88,6 +88,7 @@ List complaints with server-side pagination and filtering.
 | `limit` | number | `10` | Items per page |
 | `status` | string | — | Filter by status: `OPEN`, `IN_REVIEW`, `RESOLVED` |
 | `outletId` | string | — | Filter by outlet (SUPER_ADMIN only) |
+| `orderId` | string (UUID) | — | Filter by specific order (CUSTOMER only) |
 | `sortBy` | string | `createdAt` | Sort field |
 | `order` | string | `desc` | `asc` or `desc` |
 
