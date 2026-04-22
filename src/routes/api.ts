@@ -1,6 +1,7 @@
 import express from 'express';
 import {
   requireAuth,
+  requireAuthOrStaffRole,
   requireCustomerAuth,
   requireStaffRole,
 } from '@/middleware/auth-middleware';
@@ -19,6 +20,7 @@ import { PickupRequestController } from '@/features/pickup-requests/pickup-reque
 import { PaymentController } from '@/features/payments/payment-controller';
 import { LaundryItemController } from '@/features/laundry-items/laundry-item-controller';
 import { ShiftController } from '@/features/shifts/shift-controller';
+import { ComplaintController } from '@/features/complaints/complaint-controller';
 
 export const apiRouter = express.Router();
 
@@ -83,3 +85,7 @@ apiRouter.post('/worker/orders/:id/process', requireStaffRole('WORKER'), require
 apiRouter.post('/worker/orders/:id/bypass-request', requireStaffRole('WORKER'), requireActiveWorkerShift, BypassRequestController.createWorker);
 apiRouter.get('/worker/notifications/stream', requireStaffRole('WORKER'), WorkerNotificationController.stream);
 
+apiRouter.post('/complaints', requireCustomerAuth, ComplaintController.create);
+apiRouter.get('/complaints', requireAuthOrStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'), ComplaintController.list);
+apiRouter.get('/complaints/:id', requireAuthOrStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'), ComplaintController.getById);
+apiRouter.patch('/complaints/:id/status', requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'), ComplaintController.updateStatus);
