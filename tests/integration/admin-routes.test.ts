@@ -475,7 +475,14 @@ describe('Admin Routes Integration Tests', () => {
       items: [{ laundryItemId: VALID_UUID, quantity: 2 }],
     };
 
-    const mockPickup = { id: VALID_UUID, outletId: 'outlet-1', status: 'PICKED_UP', order: null };
+    const mockPickup = {
+      id: VALID_UUID,
+      outletId: 'outlet-1',
+      status: 'PICKED_UP',
+      order: null,
+      outlet: { latitude: -6.2, longitude: 106.8 },
+      address: { latitude: -6.205, longitude: 106.805 },
+    };
 
     it('should return 401 when unauthenticated', async () => {
       (auth.api.getSession as unknown as jest.Mock).mockResolvedValue(null);
