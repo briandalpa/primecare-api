@@ -22,10 +22,25 @@ app.use(
   }),
 );
 
-// Strict limit on auth routes to mitigate credential brute-force attacks.
-app.use('/api/auth', rateLimit({ windowMs: 10 * 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false }));
-// Moderate limit on all API routes to prevent abuse and DoS.
-app.use('/api/v1', rateLimit({ windowMs: 10 * 60 * 1000, max: 100, standardHeaders: true, legacyHeaders: false }));
+app.use(
+  '/api/auth',
+  rateLimit({
+    windowMs: 10 * 60 * 1000,
+    max: 100,
+    standardHeaders: true,
+    legacyHeaders: false,
+  }),
+);
+
+app.use(
+  '/api/v1',
+  rateLimit({
+    windowMs: 10 * 60 * 1000,
+    max: 100,
+    standardHeaders: true,
+    legacyHeaders: false,
+  }),
+);
 
 // Critical ordering: better-auth must be before express.json() to handle raw request bodies.
 // better-auth manages all /api/auth/* routes including sign-in, sign-up, OAuth callbacks.
