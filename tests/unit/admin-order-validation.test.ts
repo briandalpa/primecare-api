@@ -15,7 +15,7 @@ describe('AdminOrderValidation', () => {
         ],
       };
       const result = Validation.validate(AdminOrderValidation.CREATE_ORDER, data);
-      expect(result).toEqual(data);
+      expect(result).toEqual({ ...data, manualItems: [] });
     });
 
     it('should accept multiple items', () => {
@@ -30,6 +30,18 @@ describe('AdminOrderValidation', () => {
       };
       const result = Validation.validate(AdminOrderValidation.CREATE_ORDER, data);
       expect(result.items).toHaveLength(2);
+    });
+
+    it('should accept manual priced items', () => {
+      const data = {
+        pickupRequestId: VALID_UUID,
+        pricePerKg: 10000,
+        totalWeightKg: 2.5,
+        items: [{ laundryItemId: VALID_UUID, quantity: 3 }],
+        manualItems: [{ name: 'Bedcover', quantity: 1, unitPrice: 25000 }],
+      };
+      const result = Validation.validate(AdminOrderValidation.CREATE_ORDER, data);
+      expect(result.manualItems).toEqual(data.manualItems);
     });
 
     it('should reject empty items array', () => {
