@@ -17,6 +17,7 @@ export type OrderListItem = {
   outletName: string;
   customerName: string;
   totalPrice: number;
+  deliveryFee: number;
   paymentStatus: OrderPaymentStatus;
   status: OrderStatus;
   createdAt: Date;
@@ -61,6 +62,8 @@ export type OrderDetailResponse = {
   totalWeightKg: number;
   pricePerKg: number;
   totalPrice: number;
+  deliveryDistanceKm: number;
+  deliveryFee: number;
   paymentStatus: OrderPaymentStatus;
   status: OrderStatus;
   confirmedAt: Date | null;
@@ -77,6 +80,7 @@ export const toOrderListItem = (order: {
   outlet: { name: string };
   pickupRequest: { customerUser: { name: string | null } };
   totalPrice: number;
+  deliveryFee: number;
   paymentStatus: OrderPaymentStatus;
   status: OrderStatus;
   createdAt: Date;
@@ -85,6 +89,7 @@ export const toOrderListItem = (order: {
   outletName:    order.outlet.name,
   customerName:  order.pickupRequest.customerUser.name ?? '',
   totalPrice:    order.totalPrice,
+  deliveryFee:   order.deliveryFee,
   paymentStatus: order.paymentStatus,
   status:        order.status,
   createdAt:     order.createdAt,
@@ -98,6 +103,8 @@ export const toOrderDetail = (order: {
   totalWeightKg: number;
   pricePerKg: number;
   totalPrice: number;
+  deliveryDistanceKm: number;
+  deliveryFee: number;
   paymentStatus: OrderPaymentStatus;
   status: OrderStatus;
   confirmedAt: Date | null;
@@ -119,10 +126,12 @@ export const toOrderDetail = (order: {
   outletId:      order.outletId,
   outletName:    order.outlet.name,
   customerName:  order.pickupRequest.customerUser.name ?? '',
-  totalWeightKg: order.totalWeightKg,
-  pricePerKg:    order.pricePerKg,
-  totalPrice:    order.totalPrice,
-  paymentStatus: order.paymentStatus,
+  totalWeightKg:      order.totalWeightKg,
+  pricePerKg:         order.pricePerKg,
+  totalPrice:         order.totalPrice,
+  deliveryDistanceKm: order.deliveryDistanceKm,
+  deliveryFee:        order.deliveryFee,
+  paymentStatus:      order.paymentStatus,
   status:        order.status,
   confirmedAt:   order.confirmedAt,
   createdAt:     order.createdAt,
