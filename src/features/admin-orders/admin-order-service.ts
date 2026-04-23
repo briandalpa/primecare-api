@@ -3,6 +3,7 @@ import { ResponseError } from '@/error/response-error'
 import { OrderStatus, StationStatus, StationType } from '@/generated/prisma/client'
 import { WorkerNotificationService } from '@/features/worker-notifications/worker-notification-service'
 import { findNextStationWorker } from '@/features/worker-orders/worker-order-helper'
+import { haversineDistance } from '@/utils/haversine'
 import { v4 as uuid } from 'uuid'
 import { CreateAdminOrderInput, GetAdminOrdersQuery, LaundryItemResponse } from './admin-order-model'
 import {
@@ -11,6 +12,20 @@ import {
   createManualOrderItems,
   getOrderSort,
 } from './admin-order-helper'
+
+const FREE_DELIVERY_KM = 2.0
+const DELIVERY_RATE_PER_KM = 2000
+
+const calculateDeliveryFee = (distanceKm: number) => {
+  if (distanceKm <= FREE_DELIVERY_KM) return 0
+  return Math.ceil(distanceKm - FREE_DELIVERY_KM) * DELIVERY_RATE_PER_KM
+}
+
+const computeOrderPricing = (data: CreateAdminOrderInput, distanceKm: number) => {
+  const laundryPrice = data.totalWeightKg * data.pricePerKg
+  const deliveryFee = calculateDeliveryFee(distanceKm)
+  return { deliveryFee, totalPrice: laundryPrice + deliveryFee + calculateOrderTotal(data) }
+}
 
 export class AdminOrderService {
   static async getAdminOrders(staff: any, query: GetAdminOrdersQuery) {
@@ -83,7 +98,7 @@ export class AdminOrderService {
   static async createAdminOrder(staff: any, data: CreateAdminOrderInput) {
     const pickupRequest = await prisma.pickupRequest.findUnique({
       where: { id: data.pickupRequestId },
-      include: { order: true },
+      include: { order: true, address: true, outlet: true },
     })
 
     if (!pickupRequest) throw new ResponseError(404, 'Pickup request not found')
@@ -95,9 +110,15 @@ export class AdminOrderService {
       throw new ResponseError(403, 'Forbidden')
     }
 
+    const distanceKm = haversineDistance(
+      pickupRequest.outlet.latitude,
+      pickupRequest.outlet.longitude,
+      pickupRequest.address.latitude,
+      pickupRequest.address.longitude,
+    )
+    const { deliveryFee, totalPrice } = computeOrderPricing(data, distanceKm)
     const orderId = uuid()
     const washingWorker = await findNextStationWorker(pickupRequest.outletId, StationType.WASHING)
-    const totalPrice = calculateOrderTotal(data)
 
     const order = await prisma.$transaction(async (tx) => {
       const createdOrder = await tx.order.create({
@@ -109,6 +130,8 @@ export class AdminOrderService {
           pricePerKg: data.pricePerKg,
           totalWeightKg: data.totalWeightKg,
           totalPrice,
+          deliveryDistanceKm: distanceKm,
+          deliveryFee,
           status: OrderStatus.LAUNDRY_BEING_WASHED,
         },
       })

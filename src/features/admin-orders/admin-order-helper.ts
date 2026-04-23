@@ -8,12 +8,11 @@ const slugifyLaundryItem = (name: string) =>
   name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 
 export const calculateOrderTotal = (data: CreateAdminOrderInput) => {
-  const weightTotal = data.totalWeightKg * data.pricePerKg
   const manualTotal = (data.manualItems ?? []).reduce(
     (sum, item) => sum + item.quantity * item.unitPrice,
     0,
   )
-  return weightTotal + manualTotal
+  return manualTotal
 }
 
 export const getOrderSort = (query: GetAdminOrdersQuery) => ({

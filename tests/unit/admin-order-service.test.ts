@@ -262,7 +262,14 @@ describe('AdminOrderService', () => {
         { laundryItemId: '223e4567-e89b-12d3-a456-426614174001', quantity: 1 },
       ],
     };
-    const mockPickup = { id: VALID_UUID, outletId: 'outlet-1', status: 'PICKED_UP', order: null };
+    const mockPickup = {
+      id: VALID_UUID,
+      outletId: 'outlet-1',
+      status: 'PICKED_UP',
+      order: null,
+      outlet: { latitude: -6.2, longitude: 106.8 },
+      address: { latitude: -6.205, longitude: 106.805 },
+    };
     const mockOrder = { id: 'order-new', outletId: 'outlet-1', status: 'LAUNDRY_BEING_WASHED' };
 
     it('should create order atomically via $transaction and return the order', async () => {
