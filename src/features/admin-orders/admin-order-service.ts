@@ -3,19 +3,26 @@ import { ResponseError } from '@/error/response-error'
 import { OrderStatus, StationStatus, StationType } from '@/generated/prisma/client'
 import { WorkerNotificationService } from '@/features/worker-notifications/worker-notification-service'
 import { findNextStationWorker } from '@/features/worker-orders/worker-order-helper'
+import { haversineDistance } from '@/utils/haversine'
 import { v4 as uuid } from 'uuid'
 import { CreateAdminOrderInput, GetAdminOrdersQuery, LaundryItemResponse } from './admin-order-model'
 
 const VALID_ORDER_SORT = ['createdAt', 'totalPrice', 'totalWeightKg'] as const;
 type OrderSortField = typeof VALID_ORDER_SORT[number];
 
-// Simple price calculation. Total = weight × price per kg.
-const calculateOrderPrice = (
-  totalWeightKg: number,
-  pricePerKg: number
-) => {
-  return totalWeightKg * pricePerKg
-}
+const FREE_DELIVERY_KM = 2.0;
+const DELIVERY_RATE_PER_KM = 2000; // IDR per km above the free threshold
+
+const calculateDeliveryFee = (distanceKm: number): number => {
+  if (distanceKm <= FREE_DELIVERY_KM) return 0;
+  return Math.ceil(distanceKm - FREE_DELIVERY_KM) * DELIVERY_RATE_PER_KM;
+};
+
+const computeOrderPricing = (totalWeightKg: number, pricePerKg: number, distanceKm: number) => {
+  const laundryPrice = totalWeightKg * pricePerKg;
+  const deliveryFee = calculateDeliveryFee(distanceKm);
+  return { deliveryFee, totalPrice: laundryPrice + deliveryFee };
+};
 
 // Builds order filter respecting role-based access control.
 // OUTLET_ADMIN can only see orders from their assigned outlet.
@@ -147,7 +154,7 @@ export class AdminOrderService {
 
     const pickupRequest = await prisma.pickupRequest.findUnique({
       where: { id: data.pickupRequestId },
-      include: { order: true }
+      include: { order: true, address: true, outlet: true }
     })
 
     if (!pickupRequest) {
@@ -169,7 +176,13 @@ export class AdminOrderService {
       throw new ResponseError(403, 'Forbidden')
     }
 
-    const totalPrice = calculateOrderPrice(data.totalWeightKg, data.pricePerKg)
+    const distanceKm = haversineDistance(
+      pickupRequest.outlet.latitude,
+      pickupRequest.outlet.longitude,
+      pickupRequest.address.latitude,
+      pickupRequest.address.longitude,
+    )
+    const { deliveryFee, totalPrice } = computeOrderPricing(data.totalWeightKg, data.pricePerKg, distanceKm)
 
     const orderId = uuid()
     const washingWorker = await findNextStationWorker(
@@ -189,6 +202,8 @@ export class AdminOrderService {
           pricePerKg: data.pricePerKg,
           totalWeightKg: data.totalWeightKg,
           totalPrice,
+          deliveryDistanceKm: distanceKm,
+          deliveryFee,
           status: OrderStatus.LAUNDRY_BEING_WASHED,
         }
       }),
