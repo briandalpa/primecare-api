@@ -20,6 +20,7 @@ import { PickupRequestController } from '@/features/pickup-requests/pickup-reque
 import { PaymentController } from '@/features/payments/payment-controller';
 import { LaundryItemController } from '@/features/laundry-items/laundry-item-controller';
 import { ShiftController } from '@/features/shifts/shift-controller';
+import { DeliveryController } from '@/features/deliveries/delivery-controller';
 import { ComplaintController } from '@/features/complaints/complaint-controller';
 
 export const apiRouter = express.Router();
@@ -84,6 +85,12 @@ apiRouter.get('/worker/orders/:id', requireStaffRole('WORKER'), WorkerOrderContr
 apiRouter.post('/worker/orders/:id/process', requireStaffRole('WORKER'), requireActiveWorkerShift, WorkerOrderController.processOrder);
 apiRouter.post('/worker/orders/:id/bypass-request', requireStaffRole('WORKER'), requireActiveWorkerShift, BypassRequestController.createWorker);
 apiRouter.get('/worker/notifications/stream', requireStaffRole('WORKER'), WorkerNotificationController.stream);
+
+// history must be registered before /:id to prevent Express matching "history" as a UUID param
+apiRouter.get('/deliveries/history', requireStaffRole('DRIVER'), DeliveryController.listHistory);
+apiRouter.get('/deliveries', requireStaffRole('DRIVER'), DeliveryController.list);
+apiRouter.patch('/deliveries/:id/accept', requireStaffRole('DRIVER'), DeliveryController.accept);
+apiRouter.patch('/deliveries/:id/complete', requireStaffRole('DRIVER'), DeliveryController.complete);
 
 apiRouter.post('/complaints', requireCustomerAuth, ComplaintController.create);
 apiRouter.get('/complaints', requireAuthOrStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'), ComplaintController.list);
