@@ -21,6 +21,7 @@ export type DeliveryAddress = {
   province: string;
   latitude: number;
   longitude: number;
+  phone: string;
 };
 
 export type DeliveryHistoryAddress = {
@@ -28,6 +29,7 @@ export type DeliveryHistoryAddress = {
   street: string;
   city: string;
   province: string;
+  phone: string;
 };
 
 export type DeliveryListItem = {
@@ -98,6 +100,7 @@ export function toDeliveryListItem(delivery: DeliveryWithOrderChain): DeliveryLi
       province: address.province,
       latitude: address.latitude,
       longitude: address.longitude,
+      phone: address.phone,
     },
     status: delivery.status,
     createdAt: delivery.createdAt,
@@ -143,6 +146,7 @@ export function toDeliveryHistoryItem(delivery: DeliveryWithOrderChain): Deliver
       street: address.street,
       city: address.city,
       province: address.province,
+      phone: address.phone,
     },
     status: delivery.status,
     deliveredAt: delivery.deliveredAt,
