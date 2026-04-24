@@ -89,6 +89,7 @@ apiRouter.get('/worker/notifications/stream', requireStaffRole('WORKER'), Worker
 // history must be registered before /:id to prevent Express matching "history" as a UUID param
 apiRouter.get('/deliveries/history', requireStaffRole('DRIVER'), DeliveryController.listHistory);
 apiRouter.get('/deliveries', requireStaffRole('DRIVER'), DeliveryController.list);
+apiRouter.get('/deliveries/:id/order', requireStaffRole('DRIVER'), DeliveryController.getOrderSummary);
 apiRouter.patch('/deliveries/:id/accept', requireStaffRole('DRIVER'), DeliveryController.accept);
 apiRouter.patch('/deliveries/:id/complete', requireStaffRole('DRIVER'), DeliveryController.complete);
 
