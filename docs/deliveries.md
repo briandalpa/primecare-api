@@ -43,7 +43,8 @@ List available delivery requests for the driver's outlet. Only `PENDING` deliver
         "street": "Jl. Sudirman No. 1",
         "city": "Jakarta",
         "latitude": -6.2088,
-        "longitude": 106.8456
+        "longitude": 106.8456,
+        "phone": "081234567890"
       },
       "status": "PENDING",
       "createdAt": "2026-03-08T08:00:00.000Z"
@@ -203,7 +204,8 @@ List the driver's own completed delivery history, paginated and filterable by da
       "deliveryAddress": {
         "label": "Home",
         "street": "Jl. Sudirman No. 1",
-        "city": "Jakarta"
+        "city": "Jakarta",
+        "phone": "081234567890"
       },
       "status": "DELIVERED",
       "deliveredAt": "2026-03-09T14:00:00.000Z"

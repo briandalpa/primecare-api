@@ -477,6 +477,7 @@ List all saved addresses of the authenticated customer.
       "province": "DKI Jakarta",
       "latitude": -6.2088,
       "longitude": 106.8456,
+      "phone": "081234567890",
       "isPrimary": true,
       "createdAt": "2026-03-01T08:00:00.000Z"
     },
@@ -488,6 +489,7 @@ List all saved addresses of the authenticated customer.
       "province": "DKI Jakarta",
       "latitude": -6.1944,
       "longitude": 106.8229,
+      "phone": "081298765432",
       "isPrimary": false,
       "createdAt": "2026-03-02T08:00:00.000Z"
     }
@@ -513,7 +515,7 @@ Add a new saved address.
   "province": "DKI Jakarta",
   "latitude": -6.2088,
   "longitude": 106.8456,
-  "isPrimary": true
+  "phone": "081234567890"
 }
 ```
 
@@ -531,6 +533,7 @@ Add a new saved address.
     "province": "DKI Jakarta",
     "latitude": -6.2088,
     "longitude": 106.8456,
+    "phone": "081234567890",
     "isPrimary": true,
     "createdAt": "2026-03-06T10:00:00.000Z"
   }
@@ -565,7 +568,8 @@ Update a saved address.
   "city": "Jakarta",
   "province": "DKI Jakarta",
   "latitude": -6.209,
-  "longitude": 106.846
+  "longitude": 106.846,
+  "phone": "081298765432"
 }
 ```
 
@@ -583,6 +587,7 @@ Update a saved address.
     "province": "DKI Jakarta",
     "latitude": -6.209,
     "longitude": 106.846,
+    "phone": "081298765432",
     "isPrimary": true
   }
 }
