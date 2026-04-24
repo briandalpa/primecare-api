@@ -48,6 +48,7 @@ export const makeDeliveryAddress = (overrides: object = {}) => ({
   province: 'DKI Jakarta',
   latitude: -6.2088,
   longitude: 106.8456,
+  phone: '081234567890',
   isPrimary: true,
   createdAt: new Date(),
   ...overrides,

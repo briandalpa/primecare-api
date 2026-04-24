@@ -313,6 +313,7 @@ describe('GET /api/v1/pickup-requests', () => {
       province: address.province,
       latitude: address.latitude,
       longitude: address.longitude,
+      phone: address.phone,
     });
 
     expect(res.body.data[0].customer).toEqual({

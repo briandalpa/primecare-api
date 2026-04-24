@@ -145,7 +145,8 @@ List available pickup requests for the driver's outlet. Only shows `PENDING` req
         "street": "Jl. Sudirman No. 1",
         "city": "Jakarta",
         "latitude": -6.2088,
-        "longitude": 106.8456
+        "longitude": 106.8456,
+        "phone": "081234567890"
       },
       "scheduledAt": "2026-03-10T09:00:00.000Z",
       "status": "PENDING",
@@ -304,7 +305,8 @@ List the driver's own completed pickup history, paginated and filterable by date
       "pickupAddress": {
         "label": "Home",
         "street": "Jl. Sudirman No. 1",
-        "city": "Jakarta"
+        "city": "Jakarta",
+        "phone": "081234567890"
       },
       "status": "PICKED_UP",
       "completedAt": "2026-03-10T09:45:00.000Z"

@@ -7,6 +7,7 @@ export const makeAddress = (overrides: Record<string, unknown> = {}) => ({
   province: 'DKI Jakarta',
   latitude: -6.2,
   longitude: 106.8,
+  phone: '081234567890',
   isPrimary: true,
   createdAt: new Date(),
   ...overrides,

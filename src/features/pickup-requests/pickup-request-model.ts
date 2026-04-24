@@ -82,6 +82,7 @@ export type AddressInfo = {
   province: string;
   latitude: number;
   longitude: number;
+  phone: string;
 };
 
 export type CustomerInfo = {
@@ -125,6 +126,7 @@ export function toPickupRequestListItem(
       province: pickupRequest.address.province,
       latitude: pickupRequest.address.latitude,
       longitude: pickupRequest.address.longitude,
+      phone: pickupRequest.address.phone,
     },
     customer: {
       id: pickupRequest.customerUser.id,
@@ -163,6 +165,7 @@ export type PickupAddressInfo = {
   label: string;
   street: string;
   city: string;
+  phone: string;
 };
 
 export type PickupHistoryItem = {
@@ -195,6 +198,7 @@ export function toPickupHistoryItem(
       label: pickupRequest.address.label,
       street: pickupRequest.address.street,
       city: pickupRequest.address.city,
+      phone: pickupRequest.address.phone,
     },
     status: pickupRequest.status,
     completedAt: pickupRequest.updatedAt,
