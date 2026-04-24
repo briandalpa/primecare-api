@@ -1,4 +1,4 @@
-import type { Delivery, Order, PickupRequest, Address, User } from '@/generated/prisma/client';
+import type { Delivery, Order, OrderItem, LaundryItem, PickupRequest, Address, User } from '@/generated/prisma/client';
 import { DeliveryStatus, OrderStatus } from '@/generated/prisma/enums';
 
 export type PaginationMeta = {
@@ -73,6 +73,35 @@ export type PaginatedDeliveryHistoryResponse = {
   data: DeliveryHistoryItem[];
   meta: PaginationMeta;
 };
+
+export type DeliveryOrderItem = {
+  name: string;
+  quantity: number;
+  unitPrice: number;
+};
+
+export type DeliveryOrderSummary = {
+  items: DeliveryOrderItem[];
+  totalPrice: number;
+  deliveryFee: number;
+};
+
+type OrderItemWithLaundryItem = OrderItem & { laundryItem: LaundryItem };
+type DeliveryWithOrderSummary = Delivery & {
+  order: Order & { items: OrderItemWithLaundryItem[] };
+};
+
+export function toDeliveryOrderSummary(delivery: DeliveryWithOrderSummary): DeliveryOrderSummary {
+  return {
+    items: delivery.order.items.map((item) => ({
+      name: item.laundryItem.name,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice ?? 0,
+    })),
+    totalPrice: delivery.order.totalPrice,
+    deliveryFee: delivery.order.deliveryFee,
+  };
+}
 
 type DeliveryWithOrderChain = Delivery & {
   order: Order & {

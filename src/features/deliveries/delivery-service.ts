@@ -11,6 +11,7 @@ import {
   toDeliveryAcceptResponse,
   toDeliveryCompleteResponse,
   toDeliveryHistoryItem,
+  toDeliveryOrderSummary,
   PaginatedDeliveryListResponse,
   PaginatedDeliveryHistoryResponse,
 } from './delivery-model';
@@ -116,6 +117,21 @@ export class DeliveryService {
         OrderStatus.LAUNDRY_DELIVERED_TO_CUSTOMER
       );
     });
+  }
+
+  static async getOrderSummary(staffId: string, deliveryId: string) {
+    const delivery = await prisma.delivery.findFirst({
+      where: { id: deliveryId, driverId: staffId },
+      include: {
+        order: {
+          include: {
+            items: { include: { laundryItem: true } },
+          },
+        },
+      },
+    });
+    if (!delivery) throw new ResponseError(404, 'Delivery not found');
+    return toDeliveryOrderSummary(delivery);
   }
 
   static async listDriverHistory(staffId: string, query: DeliveryHistoryQuery): Promise<PaginatedDeliveryHistoryResponse> {
