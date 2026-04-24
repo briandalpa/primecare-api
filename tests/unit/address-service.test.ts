@@ -34,6 +34,7 @@ const makeAddress = (overrides: object = {}) => ({
   province: 'DKI Jakarta',
   latitude: -6.2,
   longitude: 106.8,
+  phone: '081234567890',
   isPrimary: true,
   createdAt: new Date(),
   ...overrides,
@@ -56,7 +57,7 @@ describe('AddressService.createAddress', () => {
     addr.create.mockResolvedValue(makeAddress({ isPrimary: true }));
     const result = await AddressService.createAddress('user-1', {
       label: 'Home', street: '1 St', city: 'Jakarta', province: 'DKI Jakarta',
-      latitude: -6.2, longitude: 106.8,
+      latitude: -6.2, longitude: 106.8, phone: '081234567890',
     });
     expect(result.isPrimary).toBe(true);
     expect(addr.create).toHaveBeenCalledWith(
@@ -69,7 +70,7 @@ describe('AddressService.createAddress', () => {
     addr.create.mockResolvedValue(makeAddress({ isPrimary: false }));
     const result = await AddressService.createAddress('user-1', {
       label: 'Office', street: '2 St', city: 'Bekasi', province: 'Jawa Barat',
-      latitude: -6.3, longitude: 107.0,
+      latitude: -6.3, longitude: 107.0, phone: '081298765432',
     });
     expect(result.isPrimary).toBe(false);
   });

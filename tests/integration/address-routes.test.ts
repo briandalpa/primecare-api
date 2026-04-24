@@ -61,6 +61,7 @@ const makeAddress = (overrides: object = {}) => ({
   province: 'DKI Jakarta',
   latitude: -6.2,
   longitude: 106.8,
+  phone: '081234567890',
   isPrimary: true,
   createdAt: new Date(),
   ...overrides,
@@ -93,6 +94,7 @@ describe('POST /api/v1/users/addresses', () => {
     province: 'Jawa Barat',
     latitude: -6.9,
     longitude: 107.6,
+    phone: '081298765432',
   };
 
   it('returns 401 when not authenticated', async () => {
@@ -123,6 +125,15 @@ describe('POST /api/v1/users/addresses', () => {
     const res = await request(app)
       .post('/api/v1/users/addresses')
       .send({ ...validBody, latitude: 200 });
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 400 when phone is missing', async () => {
+    authenticatedAs();
+    const { phone: _p, ...bodyWithoutPhone } = validBody;
+    const res = await request(app)
+      .post('/api/v1/users/addresses')
+      .send(bodyWithoutPhone);
     expect(res.status).toBe(400);
   });
 });
@@ -218,7 +229,7 @@ describe('Address routes: staff access denied', () => {
     staffMock.findUnique.mockResolvedValue(staffRecord as never);
     const res = await request(app).post('/api/v1/users/addresses').send({
       label: 'Office', street: '2 Work Ave', city: 'Bandung', province: 'Jawa Barat',
-      latitude: -6.9, longitude: 107.6,
+      latitude: -6.9, longitude: 107.6, phone: '081298765432',
     });
     expect(res.status).toBe(403);
   });

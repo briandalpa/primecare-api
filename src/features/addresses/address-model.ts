@@ -7,6 +7,7 @@ export type CreateAddressInput = {
   province: string;
   latitude: number;
   longitude: number;
+  phone: string;
 };
 
 export type UpdateAddressInput = {
@@ -16,6 +17,7 @@ export type UpdateAddressInput = {
   province?: string;
   latitude?: number;
   longitude?: number;
+  phone?: string;
 };
 
 export type AddressResponse = {
@@ -27,6 +29,7 @@ export type AddressResponse = {
   province: string;
   latitude: number;
   longitude: number;
+  phone: string;
   isPrimary: boolean;
   createdAt: Date;
 };
@@ -41,6 +44,7 @@ export function toAddressResponse(address: Address): AddressResponse {
     province: address.province,
     latitude: address.latitude,
     longitude: address.longitude,
+    phone: address.phone,
     isPrimary: address.isPrimary,
     createdAt: address.createdAt,
   };
