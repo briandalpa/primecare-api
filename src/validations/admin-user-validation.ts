@@ -11,6 +11,7 @@ export class AdminUserValidation {
     .object({
       name: z.string().min(2),
       email: z.email(),
+      password: z.string().min(8),
       role: z.enum(['OUTLET_ADMIN', 'WORKER', 'DRIVER']),
       outletId: z.string().uuid().optional(),
       workerType: workerTypeSchema.optional(),

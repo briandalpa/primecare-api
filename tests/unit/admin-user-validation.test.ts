@@ -9,6 +9,7 @@ describe('AdminUserValidation', () => {
       const data = {
         name: 'John Admin',
         email: 'admin@example.com',
+        password: 'Password123',
         role: 'OUTLET_ADMIN',
       };
       const result = Validation.validate(AdminUserValidation.CREATE, data);
@@ -19,6 +20,7 @@ describe('AdminUserValidation', () => {
       const data = {
         name: 'John Admin',
         email: 'admin@example.com',
+        password: 'Password123',
         role: 'OUTLET_ADMIN',
         outletId: VALID_UUID,
       };
@@ -30,6 +32,7 @@ describe('AdminUserValidation', () => {
       const data = {
         name: 'Worker Jane',
         email: 'worker@example.com',
+        password: 'Password123',
         role: 'WORKER',
         outletId: VALID_UUID,
         workerType: 'WASHING',
@@ -42,6 +45,7 @@ describe('AdminUserValidation', () => {
       const data = {
         name: 'Driver Dave',
         email: 'driver@example.com',
+        password: 'Password123',
         role: 'DRIVER',
         outletId: VALID_UUID,
       };
@@ -53,6 +57,7 @@ describe('AdminUserValidation', () => {
       const data = {
         name: 'Worker Jane',
         email: 'worker@example.com',
+        password: 'Password123',
         role: 'WORKER',
         workerType: 'WASHING',
       };
@@ -63,6 +68,7 @@ describe('AdminUserValidation', () => {
       const data = {
         name: 'Worker Jane',
         email: 'worker@example.com',
+        password: 'Password123',
         role: 'WORKER',
         outletId: VALID_UUID,
       };
@@ -73,6 +79,7 @@ describe('AdminUserValidation', () => {
       const data = {
         name: 'Driver Dave',
         email: 'driver@example.com',
+        password: 'Password123',
         role: 'DRIVER',
       };
       expect(() => Validation.validate(AdminUserValidation.CREATE, data)).toThrow();
@@ -82,6 +89,7 @@ describe('AdminUserValidation', () => {
       const data = {
         name: '',
         email: 'admin@example.com',
+        password: 'Password123',
         role: 'OUTLET_ADMIN',
       };
       expect(() => Validation.validate(AdminUserValidation.CREATE, data)).toThrow();
@@ -90,6 +98,7 @@ describe('AdminUserValidation', () => {
     it('should reject missing name field', () => {
       const data = {
         email: 'admin@example.com',
+        password: 'Password123',
         role: 'OUTLET_ADMIN',
       };
       expect(() => Validation.validate(AdminUserValidation.CREATE, data)).toThrow();
@@ -99,6 +108,7 @@ describe('AdminUserValidation', () => {
       const data = {
         name: 'John Admin',
         email: 'not-an-email',
+        password: 'Password123',
         role: 'OUTLET_ADMIN',
       };
       expect(() => Validation.validate(AdminUserValidation.CREATE, data)).toThrow();
@@ -108,6 +118,7 @@ describe('AdminUserValidation', () => {
       const data = {
         name: 'John Admin',
         email: 'admin@',
+        password: 'Password123',
         role: 'OUTLET_ADMIN',
       };
       expect(() => Validation.validate(AdminUserValidation.CREATE, data)).toThrow();
@@ -117,6 +128,7 @@ describe('AdminUserValidation', () => {
       const data = {
         name: 'John Admin',
         email: '@example.com',
+        password: 'Password123',
         role: 'OUTLET_ADMIN',
       };
       expect(() => Validation.validate(AdminUserValidation.CREATE, data)).toThrow();
@@ -125,6 +137,7 @@ describe('AdminUserValidation', () => {
     it('should reject missing email field', () => {
       const data = {
         name: 'John Admin',
+        password: 'Password123',
         role: 'OUTLET_ADMIN',
       };
       expect(() => Validation.validate(AdminUserValidation.CREATE, data)).toThrow();
@@ -134,6 +147,7 @@ describe('AdminUserValidation', () => {
       const data = {
         name: 'John Admin',
         email: 'admin@example.com',
+        password: 'Password123',
         role: 'INVALID_ROLE',
       };
       expect(() => Validation.validate(AdminUserValidation.CREATE, data)).toThrow();
@@ -143,6 +157,7 @@ describe('AdminUserValidation', () => {
       const data = {
         name: 'John Admin',
         email: 'admin@example.com',
+        password: 'Password123',
         role: 'CUSTOMER',
       };
       expect(() => Validation.validate(AdminUserValidation.CREATE, data)).toThrow();
@@ -152,6 +167,7 @@ describe('AdminUserValidation', () => {
       const data = {
         name: 'John Admin',
         email: 'admin@example.com',
+        password: 'Password123',
         role: 'SUPER_ADMIN',
       };
       expect(() => Validation.validate(AdminUserValidation.CREATE, data)).toThrow();
@@ -161,6 +177,16 @@ describe('AdminUserValidation', () => {
       const data = {
         name: 'John Admin',
         email: 'admin@example.com',
+      };
+      expect(() => Validation.validate(AdminUserValidation.CREATE, data)).toThrow();
+    });
+
+    it('should reject password shorter than 8 characters', () => {
+      const data = {
+        name: 'John Admin',
+        email: 'admin@example.com',
+        password: 'short',
+        role: 'OUTLET_ADMIN',
       };
       expect(() => Validation.validate(AdminUserValidation.CREATE, data)).toThrow();
     });
