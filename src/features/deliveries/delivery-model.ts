@@ -1,5 +1,5 @@
 import type { Delivery, Order, OrderItem, LaundryItem, PickupRequest, Address, User } from '@/generated/prisma/client';
-import { DeliveryStatus, OrderStatus } from '@/generated/prisma/enums';
+import { DeliveryStatus, OrderPaymentStatus, OrderStatus } from '@/generated/prisma/enums';
 
 export type PaginationMeta = {
   page: number;
@@ -82,8 +82,10 @@ export type DeliveryOrderItem = {
 
 export type DeliveryOrderSummary = {
   items: DeliveryOrderItem[];
+  subTotal: number;
   totalPrice: number;
   deliveryFee: number;
+  paymentStatus: OrderPaymentStatus;
 };
 
 type OrderItemWithLaundryItem = OrderItem & { laundryItem: LaundryItem };
@@ -98,8 +100,10 @@ export function toDeliveryOrderSummary(delivery: DeliveryWithOrderSummary): Deli
       quantity: item.quantity,
       unitPrice: item.unitPrice ?? 0,
     })),
+    subTotal: delivery.order.totalPrice - delivery.order.deliveryFee,
     totalPrice: delivery.order.totalPrice,
     deliveryFee: delivery.order.deliveryFee,
+    paymentStatus: delivery.order.paymentStatus,
   };
 }
 
