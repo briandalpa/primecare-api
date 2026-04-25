@@ -15,11 +15,15 @@ All endpoints are under `/api/v1/orders/:id/stations`.
 
 > **Item References:** All item request bodies use `laundryItemId` (UUID from `GET /api/v1/laundry-items`). Responses include both `laundryItemId` and `itemName` (from the LaundryItem join) for frontend display.
 
+> ⚠️ **Deprecation Notice:** The worker-facing station endpoints below (`start`, `complete`, `bypass`, `queue`) have been superseded by the Worker Orders flow at `/api/v1/worker/orders/*`. See `docs/orders.md` for the current worker interface.
+>
+> The read-only endpoint `GET /api/v1/orders/:id/stations` remains active for all roles and is documented below.
+
 ---
 
 ## GET /api/v1/stations/queue
 
-> ⚠️ Not yet implemented
+> ⚠️ Superseded. Use `GET /api/v1/worker/orders` instead. See `docs/orders.md`.
 
 Returns the list of orders currently waiting at the authenticated worker's station, scoped to their outlet. Station and outlet are determined from `Staff.workerType` and `Staff.outletId` — no query parameter needed.
 
@@ -123,6 +127,8 @@ Get all station records for an order, including item quantities entered at each 
 
 ## POST /api/v1/orders/:id/stations/:station/start
 
+> ⚠️ Superseded. Use `GET /api/v1/worker/orders/:id` to fetch reference items and begin processing. See `docs/orders.md`.
+
 Worker claims a station and begins processing. Creates a `StationRecord` with `status: 'IN_PROGRESS'`.
 
 **Access:** `WORKER` (matching `workerType` for the station; must be on an active shift)
@@ -183,6 +189,8 @@ Worker claims a station and begins processing. Creates a `StationRecord` with `s
 ---
 
 ## PATCH /api/v1/orders/:id/stations/:station/complete
+
+> ⚠️ Superseded. Use `POST /api/v1/worker/orders/:id/process` instead. See `docs/orders.md`.
 
 Worker submits item quantities and attempts to complete the station.
 
@@ -287,6 +295,8 @@ if order.paymentStatus === 'PAID'    → order.status = 'LAUNDRY_READY_FOR_DELIV
 ---
 
 ## POST /api/v1/orders/:id/stations/:station/bypass
+
+> ⚠️ Superseded. Use `POST /api/v1/worker/orders/:id/bypass-request` instead. See `docs/orders.md`.
 
 Worker submits a bypass request when quantities do not match the previous station. Sets `StationRecord.status = 'BYPASS_REQUESTED'` and creates a `BypassRequest` record.
 

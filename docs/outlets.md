@@ -1,6 +1,6 @@
 # Outlets API Spec
 
-Manages laundry outlet branches. All endpoints are under `/api/v1/outlets`.
+Manages laundry outlet branches. All endpoints are under `/api/v1/admin/outlets`.
 
 **Auth:** All endpoints require a valid session cookie (`better-auth.session_token`).
 
@@ -12,7 +12,7 @@ Manages laundry outlet branches. All endpoints are under `/api/v1/outlets`.
 
 ---
 
-## GET /api/v1/outlets
+## GET /api/v1/admin/outlets
 
 List all outlets. Super Admin sees all; Outlet Admin sees only their own.
 
@@ -60,7 +60,7 @@ List all outlets. Super Admin sees all; Outlet Admin sees only their own.
 
 ---
 
-## POST /api/v1/outlets
+## POST /api/v1/admin/outlets
 
 Create a new outlet branch.
 
@@ -107,7 +107,7 @@ Create a new outlet branch.
 
 ---
 
-## GET /api/v1/outlets/:id
+## GET /api/v1/admin/outlets/:id
 
 Get details of a specific outlet.
 
@@ -151,7 +151,7 @@ Get details of a specific outlet.
 
 ---
 
-## PATCH /api/v1/outlets/:id
+## PATCH /api/v1/admin/outlets/:id
 
 Update outlet details.
 
@@ -195,7 +195,7 @@ Update outlet details.
 
 ---
 
-## DELETE /api/v1/outlets/:id
+## DELETE /api/v1/admin/outlets/:id
 
 Deactivate an outlet (soft-delete via `isActive: false`).
 
