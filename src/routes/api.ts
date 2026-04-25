@@ -22,6 +22,7 @@ import { LaundryItemController } from '@/features/laundry-items/laundry-item-con
 import { ShiftController } from '@/features/shifts/shift-controller';
 import { DeliveryController } from '@/features/deliveries/delivery-controller';
 import { ComplaintController } from '@/features/complaints/complaint-controller';
+import { DriverController } from '@/features/driver/driver-controller';
 
 export const apiRouter = express.Router();
 
@@ -58,6 +59,8 @@ apiRouter.delete('/admin/users/:id', requireStaffRole('SUPER_ADMIN'), AdminUserC
 apiRouter.post('/shifts', requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'), ShiftController.create);
 apiRouter.get('/shifts', requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'), ShiftController.list);
 apiRouter.patch('/shifts/:id/end', requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'), ShiftController.end);
+
+apiRouter.get('/drivers/me/active-task', requireStaffRole('DRIVER'), DriverController.getActiveTask);
 
 apiRouter.post('/pickup-requests', requireCustomerAuth, PickupRequestController.create);
 apiRouter.get('/pickup-requests/my', requireCustomerAuth, PickupRequestController.listMy);
