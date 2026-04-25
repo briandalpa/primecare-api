@@ -80,6 +80,54 @@ Initiate payment for an order. Creates a Midtrans transaction server-side and re
 
 ---
 
+## POST /api/v1/orders/:id/payments/verify
+
+Customer manually triggers a payment status check against Midtrans. Useful after a redirect-back if the webhook has not yet fired.
+
+**Access:** `CUSTOMER`
+
+**Path Params:**
+
+| Param | Description |
+|-------|-------------|
+| `id`  | Order UUID  |
+
+**Request Body:** None
+
+**Response (Success — 200):**
+
+```json
+{
+  "status": "success",
+  "message": "Payment verified",
+  "data": null
+}
+```
+
+**Response (Error — 404):**
+
+```json
+{
+  "status": "error",
+  "message": "Order not found"
+}
+```
+
+**Response (Error — 409):**
+
+```json
+{
+  "status": "error",
+  "message": "Order has already been paid"
+}
+```
+
+**Notes:**
+- Polls Midtrans transaction status server-side and applies the same settlement/expire/cancel logic as the webhook handler.
+- Idempotent: safe to call repeatedly.
+
+---
+
 ## POST /api/v1/payments/webhook
 
 Midtrans payment status webhook. This endpoint is **public** (no auth middleware) — Midtrans calls it directly after a payment event.
