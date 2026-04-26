@@ -1,8 +1,9 @@
 import { prisma } from '@/application/database'
 import { ResponseError } from '@/error/response-error'
 import { StaffRole } from '@/generated/prisma/enums'
-import bcrypt from 'bcrypt'
+import { sendEmail } from '@/utils/mailer'
 import type { Prisma } from '@/generated/prisma/client'
+import { createHash } from 'crypto'
 import { v4 as uuid } from 'uuid'
 import {
   CreateAdminUserInput,
@@ -11,6 +12,8 @@ import {
   type AdminUserResponse,
   toAdminUserResponse
 } from './admin-user-model'
+
+const hashToken = (token: string) => createHash('sha256').update(token).digest('hex');
 
 const VALID_USER_SORT = ['createdAt', 'name', 'email'] as const;
 type UserSortField = typeof VALID_USER_SORT[number];
@@ -114,16 +117,39 @@ const createUserAndStaff = async (data: CreateAdminUserInput) => {
   return user
 }
 
-const createCredentialAccount = async (userId: string, password: string) => {
-  const hash = await bcrypt.hash(password, 10)
-  await prisma.account.create({
+const createInviteToken = async (email: string) => {
+
+  // Clear any existing tokens to prevent stale invite links after re-invitation.
+  await prisma.verification.deleteMany({ where: { identifier: email } })
+
+  const token = uuid()
+
+  // Store hash in DB; return raw token for email. DB compromise cannot yield usable tokens.
+  await prisma.verification.create({
     data: {
       id: uuid(),
-      accountId: userId,
-      providerId: 'credential',
-      userId,
-      password: hash,
+      identifier: email,
+      value: hashToken(token),
+      expiresAt: new Date(Date.now() + 3600 * 1000)
     }
+  })
+
+  return token
+}
+
+// Non-blocking: email delivery failure should not prevent staff account creation.
+const sendInviteEmail = (email: string, token: string) => {
+
+  const link = `${process.env.FRONTEND_URL}/auth/set-password?token=${token}`
+
+  void sendEmail({
+    to: email,
+    subject: 'Set your PrimeCare password',
+    html: `
+      <p>You have been invited to PrimeCare.</p>
+      <p>Click the link below to set your password.</p>
+      <p><a href="${link}">${link}</a></p>
+    `
   })
 }
 
@@ -140,15 +166,15 @@ export class AdminUserService {
     return fetchUsers(where, query.page, query.limit, query.sortBy, query.sortOrder)
   }
 
-  // Creates staff account with a credential password so the employee can login immediately.
+  // Creates staff account and sends password setup email.
+  // User is created without password; they must use the token link to set one.
   static async createAdminUser(data: CreateAdminUserInput) {
 
     const user = await createUserAndStaff(data)
-    await createCredentialAccount(user.id, data.password)
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { emailVerified: true }
-    })
+
+    const token = await createInviteToken(data.email)
+
+    sendInviteEmail(data.email, token)
 
     const staffRecord = await prisma.staff.findUnique({
       where: { userId: user.id },
@@ -157,7 +183,6 @@ export class AdminUserService {
 
     return toAdminUserResponse({
       ...user,
-      emailVerified: true,
       staff: staffRecord
         ? { role: staffRecord.role, outletId: staffRecord.outletId, isActive: staffRecord.isActive, workerType: staffRecord.workerType, outlet: staffRecord.outlet }
         : null

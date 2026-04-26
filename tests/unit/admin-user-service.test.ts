@@ -1,18 +1,20 @@
 jest.mock('@/application/database', () => ({
   prisma: {
-    user: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn(), findMany: jest.fn(), count: jest.fn() },
+    user: { findUnique: jest.fn(), create: jest.fn(), delete: jest.fn(), findMany: jest.fn(), count: jest.fn() },
     staff: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn(), findMany: jest.fn(), count: jest.fn() },
-    account: { create: jest.fn() },
+    verification: { create: jest.fn(), deleteMany: jest.fn() },
     // deleteAdminUser wraps staff + user delete in a transaction; execute all ops sequentially.
     $transaction: jest.fn().mockImplementation(async (ops: Promise<unknown>[]) => Promise.all(ops)),
   },
 }));
-jest.mock('bcrypt', () => ({
-  hash: jest.fn().mockResolvedValue('hashed-password'),
+
+jest.mock('@/utils/mailer', () => ({
+  sendEmail: jest.fn().mockResolvedValue(true),
 }));
 
 import { AdminUserService } from '@/features/admin-users/admin-user-service';
 import { prisma } from '@/application/database';
+import { sendEmail } from '@/utils/mailer';
 
 const defaultQuery = { page: 1, limit: 10 };
 
@@ -89,7 +91,7 @@ describe('AdminUserService', () => {
   });
 
   describe('createAdminUser', () => {
-    it('should create new admin user with password account', async () => {
+    it('should create new admin user with invite email', async () => {
       (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
       (prisma.user.create as jest.Mock).mockResolvedValue({
         id: 'user-new',
@@ -116,11 +118,13 @@ describe('AdminUserService', () => {
         workerType: null,
         outlet: null,
       });
+      (prisma.verification.deleteMany as jest.Mock).mockResolvedValue({ count: 0 });
+      (prisma.verification.create as jest.Mock).mockResolvedValue({ token: 'invite-token' });
+      (sendEmail as jest.Mock).mockResolvedValue(true);
 
       const result = await AdminUserService.createAdminUser({
         name: 'Charlie',
         email: 'charlie@example.com',
-        password: 'Password123',
         role: 'OUTLET_ADMIN',
         outletId: 'outlet-1',
       });
@@ -128,12 +132,7 @@ describe('AdminUserService', () => {
       expect(result.id).toBe('user-new');
       expect(result.email).toBe('charlie@example.com');
       expect(result.role).toBe('OUTLET_ADMIN');
-      expect(result.emailVerified).toBe(true);
-      expect(prisma.account.create).toHaveBeenCalled();
-      expect(prisma.user.update).toHaveBeenCalledWith({
-        where: { id: 'user-new' },
-        data: { emailVerified: true },
-      });
+      expect(sendEmail).toHaveBeenCalled();
     });
 
     it('should throw 409 when email already exists', async () => {
@@ -143,7 +142,6 @@ describe('AdminUserService', () => {
         AdminUserService.createAdminUser({
           name: 'Charlie',
           email: 'charlie@example.com',
-          password: 'Password123',
           role: 'WORKER',
         })
       ).rejects.toMatchObject({ status: 409 });
@@ -176,10 +174,13 @@ describe('AdminUserService', () => {
         workerType: null,
         outlet: null,
       });
+      (prisma.verification.deleteMany as jest.Mock).mockResolvedValue({ count: 0 });
+      (prisma.verification.create as jest.Mock).mockResolvedValue({ token: 'token' });
+      (sendEmail as jest.Mock).mockResolvedValue(true);
+
       const result = await AdminUserService.createAdminUser({
         name: 'David',
         email: 'david@example.com',
-        password: 'Password123',
         role: 'DRIVER',
         outletId: 'outlet-1',
       });

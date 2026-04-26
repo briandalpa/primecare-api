@@ -1,7 +1,6 @@
 export type CreateAdminUserInput = {
   name: string;
   email: string;
-  password: string;
   role: 'OUTLET_ADMIN' | 'WORKER' | 'DRIVER'; // SUPER_ADMIN is excluded; it is bootstrapped via seed only.
   outletId?: string; // Required for WORKER and DRIVER; optional for OUTLET_ADMIN who may be assigned later.
   workerType?: 'WASHING' | 'IRONING' | 'PACKING'; // Required when role is WORKER.
