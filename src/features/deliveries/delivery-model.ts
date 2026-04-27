@@ -116,25 +116,17 @@ type DeliveryWithOrderChain = Delivery & {
   };
 };
 
+function mapCustomer(user: User): DeliveryCustomerInfo {
+  return { id: user.id, name: user.name, phone: user.phone };
+}
+
 export function toDeliveryListItem(delivery: DeliveryWithOrderChain): DeliveryListItem {
   const { address, customerUser } = delivery.order.pickupRequest;
   return {
     id: delivery.id,
     orderId: delivery.orderId,
-    customer: {
-      id: customerUser.id,
-      name: customerUser.name,
-      phone: customerUser.phone,
-    },
-    deliveryAddress: {
-      label: address.label,
-      street: address.street,
-      city: address.city,
-      province: address.province,
-      latitude: address.latitude,
-      longitude: address.longitude,
-      phone: address.phone,
-    },
+    customer: mapCustomer(customerUser),
+    deliveryAddress: { label: address.label, street: address.street, city: address.city, province: address.province, latitude: address.latitude, longitude: address.longitude, phone: address.phone },
     status: delivery.status,
     createdAt: delivery.createdAt,
   };
@@ -169,18 +161,8 @@ export function toDeliveryHistoryItem(delivery: DeliveryWithOrderChain): Deliver
   return {
     id: delivery.id,
     orderId: delivery.orderId,
-    customer: {
-      id: customerUser.id,
-      name: customerUser.name,
-      phone: customerUser.phone,
-    },
-    deliveryAddress: {
-      label: address.label,
-      street: address.street,
-      city: address.city,
-      province: address.province,
-      phone: address.phone,
-    },
+    customer: mapCustomer(customerUser),
+    deliveryAddress: { label: address.label, street: address.street, city: address.city, province: address.province, phone: address.phone },
     status: delivery.status,
     deliveredAt: delivery.deliveredAt,
   };

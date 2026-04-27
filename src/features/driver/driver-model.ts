@@ -47,12 +47,6 @@ export function toDriverActiveDeliveryTask(delivery: DeliveryWithOrderChain): Dr
     id: delivery.id,
     customerName: customerUser.name,
     customerPhone: address.phone ?? customerUser.phone,
-    address: {
-      label: address.label,
-      street: address.street,
-      city: address.city,
-      province: address.province,
-      phone: address.phone,
-    },
+    address: { label: address.label, street: address.street, city: address.city, province: address.province, phone: address.phone },
   };
 }
