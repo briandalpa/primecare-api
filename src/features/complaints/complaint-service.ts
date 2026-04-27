@@ -29,9 +29,9 @@ function buildListWhere(
   if (!role) {
     where.customerId = userId;
   } else if (role === 'OUTLET_ADMIN') {
-    where.order = { outletId: staffOutletId };
+    where.order = { is: { outletId: staffOutletId } };
   } else if (role === 'SUPER_ADMIN' && query.outletId) {
-    where.order = { outletId: query.outletId };
+    where.order = { is: { outletId: query.outletId } };
   }
 
   if (query.status) where.status = query.status;
@@ -80,6 +80,18 @@ export class ComplaintService {
     staffOutletId: string | null | undefined,
     query: ComplaintListQuery,
   ) {
+    if (role === 'OUTLET_ADMIN' && !staffOutletId) {
+      return {
+        data: [],
+        meta: {
+          page: query.page,
+          limit: query.limit,
+          total: 0,
+          totalPages: 0,
+        },
+      };
+    }
+
     const where = buildListWhere(role, userId, staffOutletId, query);
     const skip = (query.page - 1) * query.limit;
 
