@@ -33,6 +33,13 @@ export type BypassItemResponse = {
   quantity: number;
 };
 
+export type BypassMismatchItemResponse = {
+  laundryItemId: string;
+  itemName: string;
+  expectedQuantity: number;
+  submittedQuantity: number;
+};
+
 export type BypassRequestCreateResponse = {
   id: string;
   status: string;
@@ -44,6 +51,8 @@ export type BypassRequestResponse = {
   orderId: string;
   station: string;
   workerName: string;
+  problemDescription: string | null;
+  mismatchItems: BypassMismatchItemResponse[];
   status: string;
   createdAt: Date;
   resolvedAt: Date | null;
@@ -83,7 +92,12 @@ export type BypassRequestDetailResponse = {
 
 type BypassWithRelations = Prisma.BypassRequestGetPayload<{
   include: {
-    stationRecord: { include: { order: true } };
+    stationRecord: {
+      include: {
+        order: true;
+        stationItems: { include: { laundryItem: true } };
+      };
+    };
     worker: { include: { user: true } };
     admin: { include: { user: true } };
   };
@@ -110,12 +124,35 @@ export function toBypassCreateResponse(bypass: BypassRequest): BypassRequestCrea
   };
 }
 
-export function toBypassResponse(bypass: BypassWithRelations): BypassRequestResponse {
+const buildMismatchItems = (
+  bypass: BypassWithDetailRelations,
+  referenceItems: BypassItemResponse[],
+): BypassMismatchItemResponse[] => {
+  const workerItems = new Map(
+    bypass.stationRecord.stationItems.map((item) => [item.laundryItemId, item.quantity]),
+  );
+
+  return referenceItems
+    .map((item) => ({
+      laundryItemId: item.laundryItemId,
+      itemName: item.itemName,
+      expectedQuantity: item.quantity,
+      submittedQuantity: workerItems.get(item.laundryItemId) ?? 0,
+    }))
+    .filter((item) => item.expectedQuantity !== item.submittedQuantity);
+};
+
+export function toBypassResponse(
+  bypass: BypassWithRelations,
+  referenceItems: BypassItemResponse[],
+): BypassRequestResponse {
   return {
     id: bypass.id,
     orderId: bypass.stationRecord?.order?.id ?? '',
     station: bypass.stationRecord?.station ?? '',
     workerName: bypass.worker?.user?.name ?? 'Unknown',
+    problemDescription: bypass.problemDescription,
+    mismatchItems: buildMismatchItems(bypass, referenceItems),
     status: bypass.status,
     createdAt: bypass.createdAt,
     resolvedAt: bypass.resolvedAt,

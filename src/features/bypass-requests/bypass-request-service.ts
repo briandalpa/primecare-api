@@ -29,7 +29,12 @@ import type { StationType } from '@/generated/prisma/client';
 import type { BypassListQuery } from '@/validations/bypass-request-validation';
 
 const BYPASS_LIST_INCLUDE = {
-  stationRecord: { include: { order: true } },
+  stationRecord: {
+    include: {
+      order: true,
+      stationItems: { include: { laundryItem: true } },
+    },
+  },
   worker: { include: { user: true } },
   admin: { include: { user: true } },
 } as const;
@@ -92,8 +97,18 @@ export class BypassRequestService {
       }),
       prisma.bypassRequest.count({ where }),
     ]);
+    const responses = await Promise.all(
+      data.map(async (bypass) => {
+        const referenceItems = await fetchReferenceItems(
+          bypass.stationRecord.orderId,
+          bypass.stationRecord.station,
+        );
+        return toBypassResponse(bypass, referenceItems);
+      }),
+    );
+
     return {
-      data: data.map(toBypassResponse),
+      data: responses,
       meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
     };
   }
