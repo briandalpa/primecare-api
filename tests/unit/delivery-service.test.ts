@@ -7,11 +7,13 @@ jest.mock('@/application/database', () => {
   };
   const pickupRequestMock = { findFirst: jest.fn() };
   const orderMock = { update: jest.fn() };
+  const orderItemMock = {};
   return {
     prisma: {
       delivery: deliveryMock,
       pickupRequest: pickupRequestMock,
       order: orderMock,
+      orderItem: orderItemMock,
       $transaction: jest.fn().mockImplementation(async (input: unknown) => {
         if (Array.isArray(input)) return Promise.all(input);
         return (input as Function)({
@@ -282,5 +284,40 @@ describe('DeliveryService.listDriverHistory', () => {
     expect(deliveryMock.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ orderBy: { deliveredAt: 'desc' } })
     );
+  });
+});
+
+describe('DeliveryService.getOrderSummary', () => {
+  const makeDeliveryWithOrderItems = (deliveryOverrides: object = {}) => ({
+    ...makeDelivery(deliveryOverrides),
+    order: {
+      ...makeOrder(),
+      items: [
+        { id: 'item-1', quantity: 2, unitPrice: 5000, laundryItem: { id: 'li-1', name: 'Shirt' } },
+        { id: 'item-2', quantity: 1, unitPrice: 8000, laundryItem: { id: 'li-2', name: 'Pants' } },
+      ],
+    },
+  });
+
+  it('returns order summary with items, subTotal, totalPrice, deliveryFee, paymentStatus', async () => {
+    const delivery = makeDeliveryWithOrderItems({ driverId: staffId });
+    deliveryMock.findFirst.mockResolvedValue(delivery as never);
+
+    const result = await DeliveryService.getOrderSummary(staffId, deliveryId);
+
+    expect(result.items).toHaveLength(2);
+    expect(result.items[0]!.name).toBe('Shirt');
+    expect(result.totalPrice).toBe(delivery.order.totalPrice);
+    expect(result.deliveryFee).toBe(delivery.order.deliveryFee);
+    expect(result.subTotal).toBe(delivery.order.totalPrice - delivery.order.deliveryFee);
+    expect(result.paymentStatus).toBe('PAID');
+  });
+
+  it('throws ResponseError(404) when delivery not found or not assigned to requesting driver', async () => {
+    deliveryMock.findFirst.mockResolvedValue(null);
+
+    await expect(
+      DeliveryService.getOrderSummary(staffId, deliveryId)
+    ).rejects.toMatchObject({ status: 404, message: 'Delivery not found' });
   });
 });
