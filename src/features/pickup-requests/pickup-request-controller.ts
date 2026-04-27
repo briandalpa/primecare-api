@@ -44,44 +44,15 @@ export class PickupRequestController {
   }
 
   static async accept(req: UserRequest, res: Response) {
-    if (!req.staff!.outletId) {
-      throw new ResponseError(409, 'Driver is not assigned to any outlet');
-    }
-
-    const pickupRequestId = Validation.validate(
-      PickupRequestValidation.ID_PARAM,
-      req.params.id
-    );
-    const response = await PickupRequestService.acceptPickupRequest(
-      req.staff!.id,
-      pickupRequestId,
-      req.staff!.outletId
-    );
-    res.json({
-      status: 'success',
-      message: 'Pickup request accepted',
-      data: response,
-    });
+    const pickupRequestId = Validation.validate(PickupRequestValidation.ID_PARAM, req.params.id);
+    const response = await PickupRequestService.acceptPickupRequest(req.staff!.id, pickupRequestId, req.staff!.outletId);
+    res.json({ status: 'success', message: 'Pickup request accepted', data: response });
   }
 
   static async complete(req: UserRequest, res: Response) {
-    if (!req.staff!.outletId) {
-      throw new ResponseError(409, 'Driver is not assigned to any outlet');
-    }
-
-    const pickupRequestId = Validation.validate(
-      PickupRequestValidation.ID_PARAM,
-      req.params.id
-    );
-    const response = await PickupRequestService.completePickupRequest(
-      req.staff!.id,
-      pickupRequestId
-    );
-    res.json({
-      status: 'success',
-      message: 'Pickup completed. Outlet admin notified.',
-      data: response,
-    });
+    const pickupRequestId = Validation.validate(PickupRequestValidation.ID_PARAM, req.params.id);
+    const response = await PickupRequestService.completePickupRequest(req.staff!.id, req.staff!.outletId, pickupRequestId);
+    res.json({ status: 'success', message: 'Pickup completed. Outlet admin notified.', data: response });
   }
 
   static async listHistory(req: UserRequest, res: Response) {
