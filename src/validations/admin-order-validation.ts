@@ -14,5 +14,15 @@ export class AdminOrderValidation {
         })
       )
       .min(1),
+    manualItems: z
+      .array(
+        z.object({
+          name: z.string().trim().min(2).max(80),
+          quantity: z.number().int().positive(),
+          unitPrice: z.number().positive(),
+        })
+      )
+      .optional()
+      .default([]),
   });
 }

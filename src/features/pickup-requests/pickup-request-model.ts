@@ -41,26 +41,24 @@ export type CompletePickupRequestResponse = {
   orderStatus: OrderStatus;
 };
 
-export function toPickupRequestResponse(
-  pickupRequest: PickupRequest & { outlet: Outlet }
-): PickupRequestResponse {
-  return {
-    id: pickupRequest.id,
-    customerId: pickupRequest.customerId,
-    addressId: pickupRequest.addressId,
-    scheduledAt: pickupRequest.scheduledAt,
-    status: pickupRequest.status,
-    createdAt: pickupRequest.createdAt,
-    outlet: {
-      id: pickupRequest.outlet.id,
-      name: pickupRequest.outlet.name,
-      address: pickupRequest.outlet.address,
-      city: pickupRequest.outlet.city,
-      province: pickupRequest.outlet.province,
-      latitude: pickupRequest.outlet.latitude,
-      longitude: pickupRequest.outlet.longitude,
-    },
-  };
+function mapOutlet(outlet: Outlet): OutletInfo {
+  return { id: outlet.id, name: outlet.name, address: outlet.address, city: outlet.city, province: outlet.province, latitude: outlet.latitude, longitude: outlet.longitude };
+}
+
+function mapAddressInfo(address: Address): AddressInfo {
+  return { label: address.label, street: address.street, city: address.city, province: address.province, latitude: address.latitude, longitude: address.longitude, phone: address.phone };
+}
+
+function mapCustomerInfo(user: User): CustomerInfo {
+  return { id: user.id, name: user.name, phone: user.phone };
+}
+
+function mapPickupAddressInfo(address: Address): PickupAddressInfo {
+  return { label: address.label, street: address.street, city: address.city, phone: address.phone };
+}
+
+export function toPickupRequestResponse(pickupRequest: PickupRequest & { outlet: Outlet }): PickupRequestResponse {
+  return { id: pickupRequest.id, customerId: pickupRequest.customerId, addressId: pickupRequest.addressId, scheduledAt: pickupRequest.scheduledAt, status: pickupRequest.status, createdAt: pickupRequest.createdAt, outlet: mapOutlet(pickupRequest.outlet) };
 }
 
 export function toAcceptPickupRequestResponse(
@@ -82,6 +80,7 @@ export type AddressInfo = {
   province: string;
   latitude: number;
   longitude: number;
+  phone: string;
 };
 
 export type CustomerInfo = {
@@ -107,31 +106,8 @@ export type PaginatedPickupRequestResponse = {
   meta: PaginationMeta;
 };
 
-export function toPickupRequestListItem(
-  pickupRequest: PickupRequest & { address: Address; customerUser: User }
-): PickupRequestListItem {
-  return {
-    id: pickupRequest.id,
-    customerId: pickupRequest.customerId,
-    addressId: pickupRequest.addressId,
-    outletId: pickupRequest.outletId,
-    scheduledAt: pickupRequest.scheduledAt,
-    status: pickupRequest.status,
-    createdAt: pickupRequest.createdAt,
-    address: {
-      label: pickupRequest.address.label,
-      street: pickupRequest.address.street,
-      city: pickupRequest.address.city,
-      province: pickupRequest.address.province,
-      latitude: pickupRequest.address.latitude,
-      longitude: pickupRequest.address.longitude,
-    },
-    customer: {
-      id: pickupRequest.customerUser.id,
-      name: pickupRequest.customerUser.name,
-      phone: pickupRequest.customerUser.phone,
-    },
-  };
+export function toPickupRequestListItem(pickupRequest: PickupRequest & { address: Address; customerUser: User }): PickupRequestListItem {
+  return { id: pickupRequest.id, customerId: pickupRequest.customerId, addressId: pickupRequest.addressId, outletId: pickupRequest.outletId, scheduledAt: pickupRequest.scheduledAt, status: pickupRequest.status, createdAt: pickupRequest.createdAt, address: mapAddressInfo(pickupRequest.address), customer: mapCustomerInfo(pickupRequest.customerUser) };
 }
 
 export type CustomerPickupListItem = {
@@ -163,6 +139,7 @@ export type PickupAddressInfo = {
   label: string;
   street: string;
   city: string;
+  phone: string;
 };
 
 export type PickupHistoryItem = {
@@ -179,24 +156,6 @@ export type PaginatedHistoryResponse = {
   meta: PaginationMeta;
 };
 
-export function toPickupHistoryItem(
-  pickupRequest: PickupRequest & {
-    address: Address;
-    customerUser: User;
-    order: Order | null;
-    updatedAt: Date;
-  }
-): PickupHistoryItem {
-  return {
-    id: pickupRequest.id,
-    orderId: pickupRequest.order?.id ?? null,
-    customerName: pickupRequest.customerUser.name,
-    pickupAddress: {
-      label: pickupRequest.address.label,
-      street: pickupRequest.address.street,
-      city: pickupRequest.address.city,
-    },
-    status: pickupRequest.status,
-    completedAt: pickupRequest.updatedAt,
-  };
+export function toPickupHistoryItem(pickupRequest: PickupRequest & { address: Address; customerUser: User; order: Order | null; updatedAt: Date }): PickupHistoryItem {
+  return { id: pickupRequest.id, orderId: pickupRequest.order?.id ?? null, customerName: pickupRequest.customerUser.name, pickupAddress: mapPickupAddressInfo(pickupRequest.address), status: pickupRequest.status, completedAt: pickupRequest.updatedAt };
 }

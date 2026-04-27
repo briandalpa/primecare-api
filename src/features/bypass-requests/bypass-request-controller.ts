@@ -33,7 +33,7 @@ export class BypassRequestController {
       );
 
       const result = await BypassRequestService.create(
-        req.staff!.id,
+        req.staff!,
         orderId,
         station,
         request,
@@ -65,7 +65,7 @@ export class BypassRequestController {
       );
 
       const result = await BypassRequestService.create(
-        req.staff!.id,
+        req.staff!,
         orderId,
         station,
         request,

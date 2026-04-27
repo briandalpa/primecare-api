@@ -127,6 +127,7 @@ model Address {
   province       String
   latitude       Float
   longitude      Float
+  phone          String
   isPrimary      Boolean         @default(false) @map("is_primary")
   createdAt      DateTime        @default(now()) @map("created_at")
   user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -216,12 +217,15 @@ model LaundryItem {
 }
 
 model OrderItem {
-  id            String      @id @default(uuid())
-  orderId       String      @map("order_id")
-  quantity      Int
-  laundryItemId String      @map("laundry_item_id")
-  laundryItem   LaundryItem @relation(fields: [laundryItemId], references: [id])
-  order         Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  id              String      @id @default(uuid())
+  orderId         String      @map("order_id")
+  quantity        Int
+  unitPrice       Float?      @map("unit_price")
+  lineTotal       Float?      @map("line_total")
+  isManualPriced  Boolean     @default(false) @map("is_manual_priced")
+  laundryItemId   String      @map("laundry_item_id")
+  laundryItem     LaundryItem @relation(fields: [laundryItemId], references: [id])
+  order           Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
   @@map("order_items")

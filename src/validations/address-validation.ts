@@ -13,6 +13,7 @@ export class AddressValidation {
     city: z.string().min(1).max(100),
     province: z.string().min(1).max(100),
     ...coordsSchema,
+    phone: z.string().min(8).max(20),
   });
 
   static readonly UPDATE: ZodType<UpdateAddressInput> = z
@@ -23,6 +24,7 @@ export class AddressValidation {
       province: z.string().min(1).max(100).optional(),
       latitude: coordsSchema.latitude.optional(),
       longitude: coordsSchema.longitude.optional(),
+      phone: z.string().min(8).max(20).optional(),
     })
     .refine((d) => Object.values(d).some((v) => v !== undefined), {
       message: 'At least one field must be provided',

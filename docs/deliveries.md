@@ -37,13 +37,19 @@ List available delivery requests for the driver's outlet. Only `PENDING` deliver
     {
       "id": "del_001",
       "orderId": "ord_xyz789",
-      "customerName": "John Doe",
+      "customer": {
+        "id": "usr_abc123",
+        "name": "John Doe",
+        "phone": "081234567890"
+      },
       "deliveryAddress": {
         "label": "Home",
         "street": "Jl. Sudirman No. 1",
         "city": "Jakarta",
+        "province": "DKI Jakarta",
         "latitude": -6.2088,
-        "longitude": 106.8456
+        "longitude": 106.8456,
+        "phone": "081234567890"
       },
       "status": "PENDING",
       "createdAt": "2026-03-08T08:00:00.000Z"
@@ -63,6 +69,61 @@ List available delivery requests for the driver's outlet. Only `PENDING` deliver
 - Scoped to the driver's assigned outlet only.
 - Deliveries with `status = 'PENDING'` are those waiting for a driver to accept.
 - A delivery only appears here after the linked order's `paymentStatus` is `PAID`.
+
+---
+
+## GET /api/v1/deliveries/:id/order
+
+> **Note for implementers:** Register this route in Express **before** `GET /deliveries/:id`; otherwise Express will match `order` as the `:id` parameter.
+
+Driver fetches the order summary for a delivery — useful for displaying item details before or during delivery.
+
+**Access:** `DRIVER`
+
+**Path Params:**
+
+| Param | Description   |
+| ----- | ------------- |
+| `id`  | Delivery UUID |
+
+**Request Body:** None
+
+**Response (Success — 200):**
+
+```json
+{
+  "status": "success",
+  "message": "Order summary retrieved",
+  "data": {
+    "items": [
+      { "name": "T-Shirt", "quantity": 5, "unitPrice": 5000 },
+      { "name": "Trousers", "quantity": 2, "unitPrice": 8000 }
+    ],
+    "subTotal": 41000,
+    "totalPrice": 43000,
+    "deliveryFee": 2000,
+    "paymentStatus": "PAID"
+  }
+}
+```
+
+**Response (Error — 404):**
+
+```json
+{
+  "status": "error",
+  "message": "Delivery not found"
+}
+```
+
+**Response (Error — 403):**
+
+```json
+{
+  "status": "error",
+  "message": "You are not the assigned driver for this delivery"
+}
+```
 
 ---
 
@@ -199,11 +260,17 @@ List the driver's own completed delivery history, paginated and filterable by da
     {
       "id": "del_001",
       "orderId": "ord_xyz789",
-      "customerName": "John Doe",
+      "customer": {
+        "id": "usr_abc123",
+        "name": "John Doe",
+        "phone": "081234567890"
+      },
       "deliveryAddress": {
         "label": "Home",
         "street": "Jl. Sudirman No. 1",
-        "city": "Jakarta"
+        "city": "Jakarta",
+        "province": "DKI Jakarta",
+        "phone": "081234567890"
       },
       "status": "DELIVERED",
       "deliveredAt": "2026-03-09T14:00:00.000Z"

@@ -3,6 +3,7 @@ export type CreateAdminOrderInput = {
   pricePerKg: number;
   totalWeightKg: number;
   items: { laundryItemId: string; quantity: number }[];
+  manualItems?: { name: string; quantity: number; unitPrice: number }[];
 };
 
 export type GetAdminOrdersQuery = {

@@ -10,7 +10,7 @@ import {
   StationStatus,
   StationType,
 } from '@/generated/prisma/client';
-import type { OrderStatus as OrderStatusType, Prisma, StationType as StationTypeValue } from '@/generated/prisma/client';
+import type { OrderStatus as OrderStatusType, Prisma, Staff, StationType as StationTypeValue } from '@/generated/prisma/client';
 
 export function prevStationFor(station: Exclude<StationTypeValue, 'WASHING'>): StationTypeValue {
   return station === StationType.IRONING ? StationType.WASHING : StationType.IRONING;
@@ -20,15 +20,15 @@ export async function loadStationRecord(
   tx: Prisma.TransactionClient,
   orderId: string,
   station: StationTypeValue,
-  workerId: string,
+  worker: Staff,
 ) {
   const sr = await tx.stationRecord.findUnique({
     where: { orderId_station: { orderId, station } },
-    include: { stationItems: true },
+    include: { order: true, stationItems: true },
   });
   if (!sr) throw new ResponseError(404, 'Station record not found');
-  if (sr.staffId !== workerId)
-    throw new ResponseError(403, 'You are not assigned to this station');
+  if (sr.order.outletId !== worker.outletId)
+    throw new ResponseError(403, 'You are not assigned to this outlet');
   return sr;
 }
 

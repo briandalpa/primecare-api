@@ -76,8 +76,6 @@ Customer creates a new laundry pickup request. The server automatically assigns 
 
 ## GET /api/v1/pickup-requests/my
 
-> ⚠️ Not yet implemented
-
 List the authenticated customer's own pickup requests.
 
 **Access:** `CUSTOMER`
@@ -145,7 +143,8 @@ List available pickup requests for the driver's outlet. Only shows `PENDING` req
         "street": "Jl. Sudirman No. 1",
         "city": "Jakarta",
         "latitude": -6.2088,
-        "longitude": 106.8456
+        "longitude": 106.8456,
+        "phone": "081234567890"
       },
       "scheduledAt": "2026-03-10T09:00:00.000Z",
       "status": "PENDING",
@@ -226,8 +225,6 @@ Driver accepts a pickup request. Sets the order status to `LAUNDRY_EN_ROUTE_TO_O
 
 ## PATCH /api/v1/pickup-requests/:id/complete
 
-> ⚠️ Not yet implemented
-
 Driver marks the pickup as complete, laundry has been collected and is arriving at the outlet.
 
 **Access:** `DRIVER`
@@ -273,8 +270,6 @@ Driver marks the pickup as complete, laundry has been collected and is arriving 
 
 ## GET /api/v1/pickup-requests/history
 
-> ⚠️ Not yet implemented
-
 List the driver's own completed pickup history, paginated and filterable by date.
 
 **Access:** `DRIVER`
@@ -304,7 +299,8 @@ List the driver's own completed pickup history, paginated and filterable by date
       "pickupAddress": {
         "label": "Home",
         "street": "Jl. Sudirman No. 1",
-        "city": "Jakarta"
+        "city": "Jakarta",
+        "phone": "081234567890"
       },
       "status": "PICKED_UP",
       "completedAt": "2026-03-10T09:45:00.000Z"

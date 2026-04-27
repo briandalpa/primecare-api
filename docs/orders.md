@@ -29,6 +29,9 @@ Outlet Admin creates a formal order after laundry physically arrives at the outl
     { "laundryItemId": "uuid-tshirt", "quantity": 5 },
     { "laundryItemId": "uuid-trousers", "quantity": 2 },
     { "laundryItemId": "uuid-jacket", "quantity": 1 }
+  ],
+  "manualItems": [
+    { "name": "Custom Bag", "quantity": 1, "unitPrice": 15000 }
   ]
 }
 ```
@@ -100,6 +103,7 @@ Outlet Admin creates a formal order after laundry physically arrives at the outl
 - `pricePerKg` is locked at order creation time and stored on the order record.
 - The pickup request must have status `PICKED_UP` and belong to the admin's outlet.
 - The customer may pay from the moment this order is created.
+- Optional `manualItems` allows the admin to add non-catalogued items. These do not reference a `laundryItemId` and are priced manually via `unitPrice`.
 
 ---
 
@@ -273,3 +277,429 @@ Customer manually confirms receipt of their delivered laundry. Sets order status
 - Only valid when `order.status === 'LAUNDRY_DELIVERED_TO_CUSTOMER'`.
 - If the customer does not confirm within **2×24 hours**, a background job auto sets `status = 'COMPLETED'` and `confirmedAt = now`.
 - A customer cannot confirm an order that already has `status = 'COMPLETED'`.
+
+---
+
+## GET /api/v1/admin/orders
+
+List orders with server-side pagination, filtering, and sorting. Scoped to the admin's outlet for `OUTLET_ADMIN`; all outlets for `SUPER_ADMIN`.
+
+**Access:** `SUPER_ADMIN`, `OUTLET_ADMIN`
+
+**Query Parameters:**
+
+| Param              | Type    | Default     | Description                                          |
+| ------------------ | ------- | ----------- | ---------------------------------------------------- |
+| `page`             | number  | `1`         | Page number                                          |
+| `limit`            | number  | `10`        | Items per page                                       |
+| `status`           | string  | —           | Filter by order status enum value                    |
+| `excludeCompleted` | boolean | —           | If `true`, exclude orders with status `COMPLETED`    |
+| `fromDate`         | string  | —           | ISO 8601 date; filter `createdAt >= fromDate`        |
+| `toDate`           | string  | —           | ISO 8601 date; filter `createdAt <= toDate`          |
+| `search`           | string  | —           | Search by order ID or customer name                  |
+| `sortBy`           | string  | `createdAt` | Sort field (`createdAt`, `totalPrice`)               |
+| `order`            | string  | `desc`      | `asc` or `desc`                                      |
+
+**Response (Success — 200):**
+
+```json
+{
+  "status": "success",
+  "message": "Orders retrieved",
+  "data": [
+    {
+      "id": "ord_xyz789",
+      "outletName": "PrimeCare Jakarta Selatan",
+      "customerName": "John Doe",
+      "totalPrice": 37000,
+      "deliveryFee": 2000,
+      "paymentStatus": "UNPAID",
+      "status": "LAUNDRY_BEING_WASHED",
+      "createdAt": "2026-03-06T12:00:00.000Z"
+    }
+  ],
+  "meta": {
+    "page": 1,
+    "limit": 10,
+    "total": 1,
+    "totalPages": 1
+  }
+}
+```
+
+---
+
+## GET /api/v1/admin/orders/:id
+
+Get full order detail including items, station history, payment, and delivery info.
+
+**Access:** `SUPER_ADMIN`, `OUTLET_ADMIN` (own outlet only)
+
+**Path Params:**
+
+| Param | Description |
+| ----- | ----------- |
+| `id`  | Order UUID  |
+
+**Response (Success — 200):** Same shape as `GET /api/v1/orders/:id`.
+
+**Response (Error — 404):**
+
+```json
+{
+  "status": "error",
+  "message": "Order not found"
+}
+```
+
+---
+
+## GET /api/v1/admin/pickup-requests
+
+Admin view of all pickup requests. Used to select a pickup when creating a new order. Scoped to the admin's outlet for `OUTLET_ADMIN`; all outlets for `SUPER_ADMIN`.
+
+**Access:** `SUPER_ADMIN`, `OUTLET_ADMIN`
+
+**Query Parameters:**
+
+| Param   | Type   | Default | Description    |
+| ------- | ------ | ------- | -------------- |
+| `page`  | number | `1`     | Page number    |
+| `limit` | number | `10`    | Items per page |
+
+**Response (Success — 200):**
+
+```json
+{
+  "status": "success",
+  "message": "Pickup requests retrieved",
+  "data": [
+    {
+      "id": "pkup_abc123",
+      "customerName": "John Doe",
+      "address": {
+        "label": "Home",
+        "street": "Jl. Sudirman No. 1",
+        "city": "Jakarta",
+        "latitude": -6.2088,
+        "longitude": 106.8456,
+        "phone": "081234567890"
+      },
+      "scheduledAt": "2026-03-10T09:00:00.000Z",
+      "status": "PICKED_UP",
+      "outletName": "PrimeCare Jakarta Selatan",
+      "createdAt": "2026-03-06T10:00:00.000Z"
+    }
+  ],
+  "meta": {
+    "page": 1,
+    "limit": 10,
+    "total": 3,
+    "totalPages": 1
+  }
+}
+```
+
+---
+
+## GET /api/v1/worker/orders
+
+List station records assigned to the authenticated worker's station and outlet.
+
+**Access:** `WORKER`
+
+**Query Parameters:**
+
+| Param    | Type   | Default | Description                                                            |
+| -------- | ------ | ------- | ---------------------------------------------------------------------- |
+| `page`   | number | `1`     | Page number                                                            |
+| `limit`  | number | `10`    | Items per page                                                         |
+| `status` | string | —       | Filter by station status: `IN_PROGRESS`, `BYPASS_REQUESTED`, `COMPLETED` |
+| `date`   | string | —       | Filter by date (`YYYY-MM-DD`)                                          |
+
+**Response (Success — 200):**
+
+```json
+{
+  "status": "success",
+  "message": "Worker orders retrieved",
+  "data": [
+    {
+      "id": "sr_001",
+      "orderId": "ord_xyz789",
+      "station": "WASHING",
+      "status": "IN_PROGRESS",
+      "totalItems": 8,
+      "customerName": "John Doe",
+      "outletName": "PrimeCare Jakarta Selatan",
+      "updatedAt": "2026-03-07T08:30:00.000Z",
+      "createdAt": "2026-03-07T08:00:00.000Z"
+    }
+  ],
+  "meta": {
+    "page": 1,
+    "limit": 10,
+    "total": 3,
+    "totalPages": 1
+  }
+}
+```
+
+**Notes:**
+
+- Station and outlet are derived from `Staff.workerType` and `Staff.outletId` — no query parameter needed.
+
+---
+
+## GET /api/v1/worker/orders/:id
+
+Get detailed station record for a specific order, including reference quantities (from the previous station) and items already submitted by this worker.
+
+**Access:** `WORKER`
+
+**Path Params:**
+
+| Param | Description         |
+| ----- | ------------------- |
+| `id`  | StationRecord UUID  |
+
+**Response (Success — 200):**
+
+```json
+{
+  "status": "success",
+  "message": "Worker order retrieved",
+  "data": {
+    "orderId": "ord_xyz789",
+    "stationRecordId": "sr_001",
+    "station": "WASHING",
+    "previousStation": null,
+    "stationStatus": "IN_PROGRESS",
+    "orderStatus": "LAUNDRY_BEING_WASHED",
+    "paymentStatus": "UNPAID",
+    "totalItems": 8,
+    "customerName": "John Doe",
+    "outletName": "PrimeCare Jakarta Selatan",
+    "createdAt": "2026-03-07T08:00:00.000Z",
+    "updatedAt": "2026-03-07T08:30:00.000Z",
+    "referenceItems": [
+      { "laundryItemId": "uuid-tshirt", "itemName": "T-Shirt", "quantity": 5 },
+      { "laundryItemId": "uuid-trousers", "itemName": "Trousers", "quantity": 2 }
+    ],
+    "stationItems": []
+  }
+}
+```
+
+**Notes:**
+
+- `referenceItems` = quantities from the previous station (or `OrderItems` for `WASHING`). Read-only reference for the worker.
+- `stationItems` = items the worker has already submitted for this station. Empty if not yet processed.
+- `previousStation` is `null` for `WASHING`.
+
+---
+
+## POST /api/v1/worker/orders/:id/process
+
+Worker submits item quantities to complete their station.
+
+- **If quantities match reference:** station is marked `COMPLETED`; order advances to the next status.
+- **If quantities mismatch:** returns `409` and the worker must submit a bypass request instead.
+
+**Access:** `WORKER` (must be on an active shift)
+
+**Path Params:**
+
+| Param | Description        |
+| ----- | ------------------ |
+| `id`  | StationRecord UUID |
+
+**Request Body:**
+
+```json
+{
+  "items": [
+    { "laundryItemId": "uuid-tshirt", "quantity": 5 },
+    { "laundryItemId": "uuid-trousers", "quantity": 2 },
+    { "laundryItemId": "uuid-jacket", "quantity": 1 }
+  ]
+}
+```
+
+**Response (Success — 200, quantities match):**
+
+```json
+{
+  "status": "success",
+  "message": "Station completed",
+  "data": {
+    "orderId": "ord_xyz789",
+    "stationRecordId": "sr_001",
+    "station": "WASHING",
+    "stationStatus": "COMPLETED",
+    "orderStatus": "LAUNDRY_BEING_IRONED",
+    "completedAt": "2026-03-07T09:00:00.000Z"
+  }
+}
+```
+
+**Response (Success — 200, Packing station, payment unpaid):**
+
+```json
+{
+  "status": "success",
+  "message": "Packing complete. Awaiting payment.",
+  "data": {
+    "orderId": "ord_xyz789",
+    "stationRecordId": "sr_003",
+    "station": "PACKING",
+    "stationStatus": "COMPLETED",
+    "orderStatus": "WAITING_FOR_PAYMENT",
+    "completedAt": "2026-03-07T15:00:00.000Z"
+  }
+}
+```
+
+**Response (Success — 200, Packing station, payment already paid):**
+
+```json
+{
+  "status": "success",
+  "message": "Packing complete. Order ready for delivery.",
+  "data": {
+    "orderId": "ord_xyz789",
+    "stationRecordId": "sr_003",
+    "station": "PACKING",
+    "stationStatus": "COMPLETED",
+    "orderStatus": "LAUNDRY_READY_FOR_DELIVERY",
+    "completedAt": "2026-03-07T15:00:00.000Z",
+    "deliveryId": "del_001"
+  }
+}
+```
+
+**Response (Error — 403):**
+
+```json
+{
+  "status": "error",
+  "message": "Worker is not on an active shift"
+}
+```
+
+**Response (Error — 409, quantities mismatch):**
+
+```json
+{
+  "status": "error",
+  "message": "Quantity mismatch. Submit a bypass request to proceed."
+}
+```
+
+**Notes — Station Progression:**
+
+| Completed Station   | Next Order Status              |
+| ------------------- | ------------------------------ |
+| `WASHING`           | `LAUNDRY_BEING_IRONED`         |
+| `IRONING`           | `LAUNDRY_BEING_PACKED`         |
+| `PACKING` (unpaid)  | `WAITING_FOR_PAYMENT`          |
+| `PACKING` (paid)    | `LAUNDRY_READY_FOR_DELIVERY` + create `Delivery` |
+
+---
+
+## POST /api/v1/worker/orders/:id/bypass-request
+
+Worker submits a bypass request when quantities do not match the reference. Sets `StationRecord.status = 'BYPASS_REQUESTED'` and creates a `BypassRequest` record.
+
+**Access:** `WORKER` (must be on an active shift)
+
+**Path Params:**
+
+| Param | Description        |
+| ----- | ------------------ |
+| `id`  | StationRecord UUID |
+
+**Request Body:**
+
+```json
+{
+  "items": [
+    { "laundryItemId": "uuid-tshirt", "quantity": 4 },
+    { "laundryItemId": "uuid-trousers", "quantity": 2 }
+  ],
+  "notes": "One T-Shirt appears to be missing"
+}
+```
+
+**Response (Success — 201):**
+
+```json
+{
+  "status": "success",
+  "message": "Bypass request submitted. Awaiting admin approval.",
+  "data": {
+    "id": "bp_001",
+    "status": "PENDING",
+    "createdAt": "2026-03-07T11:00:00.000Z"
+  }
+}
+```
+
+**Response (Error — 409):**
+
+```json
+{
+  "status": "error",
+  "message": "A pending bypass request already exists for this station"
+}
+```
+
+**Notes:**
+
+- Only one `PENDING` bypass per station record at a time.
+- The station record is blocked until the bypass is resolved by the outlet admin (`docs/bypass-requests.md`).
+
+---
+
+## GET /api/v1/worker/history
+
+List the authenticated worker's completed station records, paginated and filterable by date and station.
+
+**Access:** `WORKER`
+
+**Query Parameters:**
+
+| Param     | Type   | Default | Description                                      |
+| --------- | ------ | ------- | ------------------------------------------------ |
+| `page`    | number | `1`     | Page number                                      |
+| `limit`   | number | `10`    | Items per page                                   |
+| `station` | string | —       | Filter by station: `WASHING`, `IRONING`, `PACKING` |
+| `date`    | string | —       | Filter by date (`YYYY-MM-DD`)                    |
+
+**Response (Success — 200):**
+
+```json
+{
+  "status": "success",
+  "message": "Worker history retrieved",
+  "data": [
+    {
+      "id": "sr_001",
+      "orderId": "ord_xyz789",
+      "station": "WASHING",
+      "status": "COMPLETED",
+      "totalItems": 8,
+      "customerName": "John Doe",
+      "outletName": "PrimeCare Jakarta Selatan",
+      "completedAt": "2026-03-07T09:00:00.000Z",
+      "createdAt": "2026-03-07T08:00:00.000Z"
+    }
+  ],
+  "meta": {
+    "page": 1,
+    "limit": 10,
+    "total": 24,
+    "totalPages": 3
+  }
+}
+```

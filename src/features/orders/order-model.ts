@@ -28,6 +28,9 @@ export type OrderItemDetail = {
   laundryItemId: string;
   itemName: string;
   quantity: number;
+  unitPrice: number | null;
+  lineTotal: number | null;
+  isManualPriced: boolean;
 };
 
 export type StationRecordDetail = {
@@ -110,7 +113,15 @@ export const toOrderDetail = (order: {
   confirmedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
-  items: { id: string; laundryItemId: string; laundryItem: { name: string }; quantity: number }[];
+  items: {
+    id: string;
+    laundryItemId: string;
+    laundryItem: { name: string };
+    quantity: number;
+    unitPrice: number | null;
+    lineTotal: number | null;
+    isManualPriced: boolean;
+  }[];
   stationRecords: {
     id: string;
     station: string;
@@ -141,6 +152,9 @@ export const toOrderDetail = (order: {
     laundryItemId: item.laundryItemId,
     itemName:      item.laundryItem.name,
     quantity:      item.quantity,
+    unitPrice:     item.unitPrice,
+    lineTotal:     item.lineTotal,
+    isManualPriced: item.isManualPriced,
   })),
   stationRecords: order.stationRecords.map((sr) => ({
     id:          sr.id,

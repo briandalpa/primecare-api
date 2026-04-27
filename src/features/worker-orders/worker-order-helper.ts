@@ -96,7 +96,7 @@ export const loadWorkerStationRecordForProcess = async (
   tx: Prisma.TransactionClient,
   orderId: string,
   station: StationType,
-  workerId: string,
+  worker: Staff,
 ) => {
   const stationRecord = await tx.stationRecord.findUnique({
     where: { orderId_station: { orderId, station } },
@@ -110,8 +110,8 @@ export const loadWorkerStationRecordForProcess = async (
     throw new ResponseError(404, 'Station record not found');
   }
 
-  if (stationRecord.staffId !== workerId) {
-    throw new ResponseError(403, 'You are not assigned to this station');
+  if (stationRecord.order.outletId !== worker.outletId) {
+    throw new ResponseError(403, 'You are not assigned to this outlet');
   }
 
   return stationRecord;
