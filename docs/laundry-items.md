@@ -14,6 +14,29 @@ Provides the master list of laundry item types. Used by the frontend to populate
 
 ---
 
+## GET /api/v1/laundry-items
+
+List all active laundry item types. No pagination, the list is small and fixed (28 items).
+
+**Access:** Any authenticated session (`requireAuth`) — all roles including `WORKER`, `DRIVER`, `CUSTOMER`
+
+**Query Parameters:** None
+
+**Response (Success — 200):**
+
+```json
+{
+  "status": "success",
+  "message": "Laundry items retrieved",
+  "data": [
+    { "id": "uuid-tshirt", "name": "T-Shirt", "slug": "t-shirt" },
+    { "id": "uuid-trousers", "name": "Trousers", "slug": "trousers" }
+  ]
+}
+```
+
+---
+
 ## GET /api/v1/admin/laundry-items
 
 List all active laundry item types. No pagination, the list is small and fixed (28 items).
@@ -42,7 +65,7 @@ List all active laundry item types. No pagination, the list is small and fixed (
 - Returns only items with `isActive: true`.
 - Items are ordered alphabetically by name.
 - Cache this list on the frontend, it changes very rarely.
-- Workers do not need to call this endpoint directly — item data is embedded in the `previousStationItems` field returned by `POST /api/v1/orders/:id/stations/:station/start`.
+- Workers can also access the item list via `GET /api/v1/laundry-items` (no admin role required). Item data for the current station is embedded in the `referenceItems` field returned by `GET /api/v1/worker/orders/:id`.
 
 ---
 
@@ -61,7 +84,7 @@ When building item payloads for order creation or station processing, use `laund
 }
 ```
 
-**Completing a station (`PATCH /api/v1/orders/:id/stations/:station/complete`):**
+**Processing a station (`POST /api/v1/worker/orders/:id/process`):**
 
 ```json
 {

@@ -31,6 +31,12 @@ export class DeliveryController {
     });
   }
 
+  static async getOrderSummary(req: UserRequest, res: Response) {
+    const deliveryId = Validation.validate(DeliveryValidation.ID_PARAM, req.params.id);
+    const response = await DeliveryService.getOrderSummary(req.staff!.id, deliveryId);
+    res.json({ status: 'success', message: 'Order summary retrieved', data: response });
+  }
+
   static async complete(req: UserRequest, res: Response) {
     const deliveryId = Validation.validate(DeliveryValidation.ID_PARAM, req.params.id);
     const response = await DeliveryService.completeDelivery(req.staff!.id, deliveryId);

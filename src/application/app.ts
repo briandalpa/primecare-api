@@ -26,7 +26,7 @@ app.use(
   '/api/auth',
   rateLimit({
     windowMs: 10 * 60 * 1000,
-    max: 100,
+    max: 200,
     standardHeaders: true,
     legacyHeaders: false,
   }),
@@ -36,7 +36,7 @@ app.use(
   '/api/v1',
   rateLimit({
     windowMs: 10 * 60 * 1000,
-    max: 100,
+    max: 200,
     standardHeaders: true,
     legacyHeaders: false,
   }),

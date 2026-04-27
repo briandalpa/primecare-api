@@ -15,19 +15,18 @@ export interface InitiatePaymentResponse {
   redirectUrl: string;
 }
 
+const getMidtransBaseUrl = () =>
+  process.env.MIDTRANS_IS_PRODUCTION === 'true'
+    ? 'https://app.midtrans.com'
+    : 'https://app.sandbox.midtrans.com';
+
 export const toInitiatePaymentResponse = (
   payment: { id: string; orderId: string; amount: number },
   snapToken: string,
-): InitiatePaymentResponse => {
-  const base =
-    process.env.MIDTRANS_IS_PRODUCTION === 'true'
-      ? 'https://app.midtrans.com'
-      : 'https://app.sandbox.midtrans.com';
-  return {
-    paymentId:   payment.id,
-    orderId:     payment.orderId,
-    amount:      payment.amount,
-    snapToken,
-    redirectUrl: `${base}/snap/v2/vtweb/${snapToken}`,
-  };
-};
+): InitiatePaymentResponse => ({
+  paymentId: payment.id,
+  orderId: payment.orderId,
+  amount: payment.amount,
+  snapToken,
+  redirectUrl: `${getMidtransBaseUrl()}/snap/v2/vtweb/${snapToken}`,
+});

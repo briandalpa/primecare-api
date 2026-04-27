@@ -76,8 +76,6 @@ Customer creates a new laundry pickup request. The server automatically assigns 
 
 ## GET /api/v1/pickup-requests/my
 
-> ⚠️ Not yet implemented
-
 List the authenticated customer's own pickup requests.
 
 **Access:** `CUSTOMER`
@@ -227,8 +225,6 @@ Driver accepts a pickup request. Sets the order status to `LAUNDRY_EN_ROUTE_TO_O
 
 ## PATCH /api/v1/pickup-requests/:id/complete
 
-> ⚠️ Not yet implemented
-
 Driver marks the pickup as complete, laundry has been collected and is arriving at the outlet.
 
 **Access:** `DRIVER`
@@ -273,8 +269,6 @@ Driver marks the pickup as complete, laundry has been collected and is arriving 
 ---
 
 ## GET /api/v1/pickup-requests/history
-
-> ⚠️ Not yet implemented
 
 List the driver's own completed pickup history, paginated and filterable by date.
 

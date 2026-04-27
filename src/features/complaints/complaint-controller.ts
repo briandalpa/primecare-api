@@ -18,18 +18,8 @@ export class ComplaintController {
   static async list(req: UserRequest, res: Response, next: NextFunction) {
     try {
       const query = Validation.validate(ComplaintValidation.LIST, req.query);
-      const result = await ComplaintService.list(
-        req.staff?.role,
-        req.user!.id,
-        req.staff?.outletId,
-        query,
-      );
-      res.status(200).json({
-        status: 'success',
-        message: 'Complaints retrieved',
-        data: result.data,
-        meta: result.meta,
-      });
+      const result = await ComplaintService.list(req.staff?.role, req.user!.id, req.staff?.outletId, query);
+      res.status(200).json({ status: 'success', message: 'Complaints retrieved', data: result.data, meta: result.meta });
     } catch (error) {
       next(error);
     }

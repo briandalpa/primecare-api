@@ -234,6 +234,12 @@ describe('PickupRequestService.acceptPickupRequest', () => {
   const pickupId = '550e8400-e29b-41d4-a716-446655440004';
   const outletId = '550e8400-e29b-41d4-a716-446655440002';
 
+  it('throws 409 when driver has no outlet assigned', async () => {
+    await expect(
+      PickupRequestService.acceptPickupRequest(staffId, pickupId, null)
+    ).rejects.toMatchObject({ status: 409, message: 'Driver is not assigned to any outlet' });
+  });
+
   it('accepts pickup request and updates order status', async () => {
     pickupRequestMock.findFirst.mockResolvedValueOnce(null); // no active pickup
     deliveryMock.findFirst.mockResolvedValueOnce(null); // no active delivery
@@ -299,6 +305,13 @@ describe('PickupRequestService.acceptPickupRequest', () => {
 describe('PickupRequestService.completePickupRequest', () => {
   const staffId = '550e8400-e29b-41d4-a716-446655440001';
   const pickupId = '550e8400-e29b-41d4-a716-446655440004';
+  const outletId = '550e8400-e29b-41d4-a716-446655440002';
+
+  it('throws 409 when driver has no outlet assigned', async () => {
+    await expect(
+      PickupRequestService.completePickupRequest(staffId, null, pickupId)
+    ).rejects.toMatchObject({ status: 409, message: 'Driver is not assigned to any outlet' });
+  });
 
   it('marks pickup as PICKED_UP and updates order status', async () => {
     const pickup = makePickupRequest({ id: pickupId, status: 'DRIVER_ASSIGNED', driverId: staffId });
@@ -306,7 +319,7 @@ describe('PickupRequestService.completePickupRequest', () => {
     pickupRequestMock.update.mockResolvedValue({ ...pickup, status: 'PICKED_UP' } as never);
     orderMock.update.mockResolvedValue({} as never);
 
-    const result = await PickupRequestService.completePickupRequest(staffId, pickupId);
+    const result = await PickupRequestService.completePickupRequest(staffId, outletId, pickupId);
 
     expect(result.id).toBe(pickupId);
     expect(result.status).toBe('PICKED_UP');
@@ -320,7 +333,7 @@ describe('PickupRequestService.completePickupRequest', () => {
     pickupRequestMock.findFirst.mockResolvedValueOnce(null);
 
     await expect(
-      PickupRequestService.completePickupRequest(staffId, pickupId)
+      PickupRequestService.completePickupRequest(staffId, outletId, pickupId)
     ).rejects.toMatchObject({
       status: 404,
       message: 'Pickup request not found or not in assigned state',
@@ -333,7 +346,7 @@ describe('PickupRequestService.completePickupRequest', () => {
     pickupRequestMock.findFirst.mockResolvedValueOnce(pickup as never);
 
     await expect(
-      PickupRequestService.completePickupRequest(staffId, pickupId)
+      PickupRequestService.completePickupRequest(staffId, outletId, pickupId)
     ).rejects.toMatchObject({
       status: 403,
       message: 'You are not the assigned driver for this pickup',

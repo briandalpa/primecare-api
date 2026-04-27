@@ -1,5 +1,5 @@
-import type { Delivery, Order, PickupRequest, Address, User } from '@/generated/prisma/client';
-import { DeliveryStatus, OrderStatus } from '@/generated/prisma/enums';
+import type { Delivery, Order, OrderItem, LaundryItem, PickupRequest, Address, User } from '@/generated/prisma/client';
+import { DeliveryStatus, OrderPaymentStatus, OrderStatus } from '@/generated/prisma/enums';
 
 export type PaginationMeta = {
   page: number;
@@ -74,6 +74,39 @@ export type PaginatedDeliveryHistoryResponse = {
   meta: PaginationMeta;
 };
 
+export type DeliveryOrderItem = {
+  name: string;
+  quantity: number;
+  unitPrice: number;
+};
+
+export type DeliveryOrderSummary = {
+  items: DeliveryOrderItem[];
+  subTotal: number;
+  totalPrice: number;
+  deliveryFee: number;
+  paymentStatus: OrderPaymentStatus;
+};
+
+type OrderItemWithLaundryItem = OrderItem & { laundryItem: LaundryItem };
+type DeliveryWithOrderSummary = Delivery & {
+  order: Order & { items: OrderItemWithLaundryItem[] };
+};
+
+export function toDeliveryOrderSummary(delivery: DeliveryWithOrderSummary): DeliveryOrderSummary {
+  return {
+    items: delivery.order.items.map((item) => ({
+      name: item.laundryItem.name,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice ?? 0,
+    })),
+    subTotal: delivery.order.totalPrice - delivery.order.deliveryFee,
+    totalPrice: delivery.order.totalPrice,
+    deliveryFee: delivery.order.deliveryFee,
+    paymentStatus: delivery.order.paymentStatus,
+  };
+}
+
 type DeliveryWithOrderChain = Delivery & {
   order: Order & {
     pickupRequest: PickupRequest & {
@@ -83,25 +116,17 @@ type DeliveryWithOrderChain = Delivery & {
   };
 };
 
+function mapCustomer(user: User): DeliveryCustomerInfo {
+  return { id: user.id, name: user.name, phone: user.phone };
+}
+
 export function toDeliveryListItem(delivery: DeliveryWithOrderChain): DeliveryListItem {
   const { address, customerUser } = delivery.order.pickupRequest;
   return {
     id: delivery.id,
     orderId: delivery.orderId,
-    customer: {
-      id: customerUser.id,
-      name: customerUser.name,
-      phone: customerUser.phone,
-    },
-    deliveryAddress: {
-      label: address.label,
-      street: address.street,
-      city: address.city,
-      province: address.province,
-      latitude: address.latitude,
-      longitude: address.longitude,
-      phone: address.phone,
-    },
+    customer: mapCustomer(customerUser),
+    deliveryAddress: { label: address.label, street: address.street, city: address.city, province: address.province, latitude: address.latitude, longitude: address.longitude, phone: address.phone },
     status: delivery.status,
     createdAt: delivery.createdAt,
   };
@@ -136,18 +161,8 @@ export function toDeliveryHistoryItem(delivery: DeliveryWithOrderChain): Deliver
   return {
     id: delivery.id,
     orderId: delivery.orderId,
-    customer: {
-      id: customerUser.id,
-      name: customerUser.name,
-      phone: customerUser.phone,
-    },
-    deliveryAddress: {
-      label: address.label,
-      street: address.street,
-      city: address.city,
-      province: address.province,
-      phone: address.phone,
-    },
+    customer: mapCustomer(customerUser),
+    deliveryAddress: { label: address.label, street: address.street, city: address.city, province: address.province, phone: address.phone },
     status: delivery.status,
     deliveredAt: delivery.deliveredAt,
   };

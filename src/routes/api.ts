@@ -22,6 +22,7 @@ import { LaundryItemController } from '@/features/laundry-items/laundry-item-con
 import { ShiftController } from '@/features/shifts/shift-controller';
 import { DeliveryController } from '@/features/deliveries/delivery-controller';
 import { ComplaintController } from '@/features/complaints/complaint-controller';
+import { DriverController } from '@/features/driver/driver-controller';
 
 export const apiRouter = express.Router();
 
@@ -59,6 +60,8 @@ apiRouter.post('/shifts', requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'), Shift
 apiRouter.get('/shifts', requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'), ShiftController.list);
 apiRouter.patch('/shifts/:id/end', requireStaffRole('SUPER_ADMIN', 'OUTLET_ADMIN'), ShiftController.end);
 
+apiRouter.get('/drivers/me/active-task', requireStaffRole('DRIVER'), DriverController.getActiveTask);
+
 apiRouter.post('/pickup-requests', requireCustomerAuth, PickupRequestController.create);
 apiRouter.get('/pickup-requests/my', requireCustomerAuth, PickupRequestController.listMy);
 apiRouter.get('/pickup-requests/history', requireStaffRole('DRIVER'), PickupRequestController.listHistory);
@@ -89,6 +92,7 @@ apiRouter.get('/worker/notifications/stream', requireStaffRole('WORKER'), Worker
 // history must be registered before /:id to prevent Express matching "history" as a UUID param
 apiRouter.get('/deliveries/history', requireStaffRole('DRIVER'), DeliveryController.listHistory);
 apiRouter.get('/deliveries', requireStaffRole('DRIVER'), DeliveryController.list);
+apiRouter.get('/deliveries/:id/order', requireStaffRole('DRIVER'), DeliveryController.getOrderSummary);
 apiRouter.patch('/deliveries/:id/accept', requireStaffRole('DRIVER'), DeliveryController.accept);
 apiRouter.patch('/deliveries/:id/complete', requireStaffRole('DRIVER'), DeliveryController.complete);
 
