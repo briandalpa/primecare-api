@@ -23,6 +23,7 @@ jest.mock('@/application/database', () => {
       user: userMock,
       staff: staffMock,
       order: orderMock,
+      orderItem: {},
       $transaction: jest.fn().mockImplementation(async (input: unknown) => {
         if (Array.isArray(input)) return Promise.all(input);
         return (input as Function)({
@@ -355,5 +356,61 @@ describe('GET /api/v1/deliveries/history', () => {
 
     expect(res.body.data[0].deliveryAddress).not.toHaveProperty('latitude');
     expect(res.body.data[0].deliveryAddress).not.toHaveProperty('longitude');
+  });
+});
+
+// ─── GET /api/v1/deliveries/:id/order ────────────────────────────────────────
+
+describe('GET /api/v1/deliveries/:id/order', () => {
+  const makeDeliveryWithOrderItems = () => ({
+    ...makeDelivery({ id: deliveryId, driverId: mockStaff.id }),
+    order: {
+      ...makeOrder(),
+      items: [
+        { id: 'item-1', quantity: 2, unitPrice: 5000, laundryItem: { id: 'li-1', name: 'Shirt' } },
+        { id: 'item-2', quantity: 1, unitPrice: 8000, laundryItem: { id: 'li-2', name: 'Pants' } },
+      ],
+    },
+  });
+
+  it('returns 200 with order summary when driver is assigned to delivery', async () => {
+    authenticatedAsDriver();
+    deliveryMock.findFirst.mockResolvedValue(makeDeliveryWithOrderItems() as never);
+
+    const res = await request(app).get(`/api/v1/deliveries/${deliveryId}/order`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('success');
+    expect(res.body.data).toHaveProperty('items');
+    expect(res.body.data.items).toHaveLength(2);
+    expect(res.body.data).toHaveProperty('totalPrice');
+    expect(res.body.data).toHaveProperty('deliveryFee');
+    expect(res.body.data).toHaveProperty('paymentStatus');
+  });
+
+  it('returns 401 when not authenticated', async () => {
+    getSession.mockResolvedValue(null);
+    const res = await request(app).get(`/api/v1/deliveries/${deliveryId}/order`);
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 403 when not a DRIVER', async () => {
+    authenticatedAsStaff('WORKER');
+    const res = await request(app).get(`/api/v1/deliveries/${deliveryId}/order`);
+    expect(res.status).toBe(403);
+  });
+
+  it('returns 400 when delivery ID is not a valid UUID', async () => {
+    authenticatedAsDriver();
+    const res = await request(app).get('/api/v1/deliveries/not-a-uuid/order');
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 404 when delivery not found or not assigned to caller', async () => {
+    authenticatedAsDriver();
+    deliveryMock.findFirst.mockResolvedValue(null);
+
+    const res = await request(app).get(`/api/v1/deliveries/${deliveryId}/order`);
+    expect(res.status).toBe(404);
   });
 });
