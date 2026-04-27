@@ -53,7 +53,7 @@ export class WorkerOrderService {
         tx,
         orderId,
         queueContext.workerType,
-        staff.id,
+        staff,
       );
 
       if (stationRecord.status !== StationStatus.IN_PROGRESS) {
@@ -72,6 +72,7 @@ export class WorkerOrderService {
       const completedRecord = await tx.stationRecord.update({
         where: { id: stationRecord.id },
         data: {
+          staffId: staff.id,
           status: StationStatus.COMPLETED,
           completedAt: new Date(),
         },

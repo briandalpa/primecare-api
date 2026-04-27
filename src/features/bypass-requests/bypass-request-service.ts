@@ -9,6 +9,7 @@ import {
   toRejectBypassResponse,
   toBypassDetailResponse,
 } from './bypass-request-model';
+import type { Staff } from '@/generated/prisma/client';
 import { WorkerNotificationService } from '@/features/worker-notifications/worker-notification-service';
 import {
   advanceOrderStatus,
@@ -46,13 +47,13 @@ const BYPASS_DETAIL_INCLUDE = {
 
 export class BypassRequestService {
   static async create(
-    workerId: string,
+    worker: Staff,
     orderId: string,
     station: StationType,
     data: CreateBypassRequestInput,
   ) {
     return prisma.$transaction(async (tx) => {
-      const sr = await loadStationRecord(tx, orderId, station, workerId);
+      const sr = await loadStationRecord(tx, orderId, station, worker);
       const refItems = await fetchReferenceQuantities(tx, orderId, station);
       assertMismatch(refItems, data.items);
       await assertNoPendingBypass(tx, sr.id);
@@ -60,13 +61,16 @@ export class BypassRequestService {
       const bypass = await tx.bypassRequest.create({
         data: {
           stationRecordId: sr.id,
-          workerId,
+          workerId: worker.id,
           adminId: null,
           status: BypassStatus.PENDING,
           problemDescription: data.notes ?? null,
         },
       });
-      await tx.stationRecord.update({ where: { id: sr.id }, data: { status: StationStatus.BYPASS_REQUESTED } });
+      await tx.stationRecord.update({
+        where: { id: sr.id },
+        data: { staffId: worker.id, status: StationStatus.BYPASS_REQUESTED },
+      });
       return toBypassCreateResponse(bypass);
     });
   }
