@@ -18,7 +18,7 @@ export class BypassRequestValidation {
       .array(
         z.object({
           laundryItemId: z.uuid(),
-          quantity: z.number().int().positive(),
+          quantity: z.number().int().nonnegative(),
         })
       )
       .min(1),
