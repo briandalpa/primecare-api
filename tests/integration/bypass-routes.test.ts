@@ -11,7 +11,7 @@ jest.mock('bcrypt', () => ({
 jest.mock('@/application/database', () => ({
   prisma: {
     user: { findUnique: jest.fn() },
-    staff: { findUnique: jest.fn() },
+    staff: { findUnique: jest.fn(), findFirst: jest.fn() },
     shift: { findFirst: jest.fn() },
     stationRecord: { findUnique: jest.fn(), update: jest.fn() },
     orderItem: { findMany: jest.fn() },
@@ -63,9 +63,18 @@ describe('Bypass Routes Integration Tests', () => {
     );
   });
 
-  const mockAuthenticatedWorker = (userId: string = 'user-1', staffId: string = 'staff-1') => {
+  const mockAuthenticatedWorker = (
+    userId: string = 'user-1',
+    staffId: string = 'staff-1',
+  ) => {
     const mockUser = { id: userId, email: 'worker@example.com' };
-    const mockStaff = { id: staffId, role: 'WORKER', isActive: true };
+    const mockStaff = {
+      id: staffId,
+      role: 'WORKER',
+      isActive: true,
+      outletId: 'outlet-1',
+      workerType: 'WASHING',
+    };
 
     (auth.api.getSession as jest.Mock).mockResolvedValue({
       user: mockUser,
@@ -144,6 +153,7 @@ describe('Bypass Routes Integration Tests', () => {
         station: 'WASHING',
         staffId: 'staff-1',
         status: 'IN_PROGRESS',
+        order: { outletId: 'outlet-1' },
         stationItems: [],
       });
 
@@ -172,6 +182,7 @@ describe('Bypass Routes Integration Tests', () => {
         station: 'WASHING',
         staffId: 'staff-1',
         status: 'IN_PROGRESS',
+        order: { outletId: 'outlet-1' },
         stationItems: [],
       });
 
@@ -271,7 +282,7 @@ describe('Bypass Routes Integration Tests', () => {
         .send({ items: [{ laundryItemId: VALID_UUID, quantity: 3 }] });
 
       expect(response.status).toBe(422);
-      expect(response.body.errors).toBe(
+      expect(response.body.message).toBe(
         'Worker station or outlet assignment is not configured',
       );
     });
@@ -286,6 +297,7 @@ describe('Bypass Routes Integration Tests', () => {
         id: 'staff-1',
         role: 'WORKER',
         isActive: true,
+        outletId: 'outlet-1',
         workerType: 'WASHING',
       });
       (prisma.stationRecord as any).findUnique.mockResolvedValue({
@@ -294,6 +306,7 @@ describe('Bypass Routes Integration Tests', () => {
         station: 'WASHING',
         staffId: 'staff-1',
         status: 'IN_PROGRESS',
+        order: { outletId: 'outlet-1' },
         stationItems: [],
       });
       (prisma.orderItem as any).findMany.mockResolvedValue([
@@ -351,8 +364,16 @@ describe('Bypass Routes Integration Tests', () => {
     const makeBypassRecord = () => ({
       id: 'bp-1',
       stationRecord: {
+        orderId: 'ord-1',
         station: 'IRONING',
         order: { id: 'ord-1', outletId: 'outlet-1' },
+        stationItems: [
+          {
+            laundryItemId: VALID_UUID,
+            quantity: 3,
+            laundryItem: { name: 'T-Shirt' },
+          },
+        ],
       },
       worker: { user: { name: 'Bob Ironing' } },
       admin: null,
@@ -524,6 +545,13 @@ describe('Bypass Routes Integration Tests', () => {
     beforeEach(() => {
       (prisma.account as any).findFirst.mockResolvedValue({ password: 'hashed-password' });
       (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+      (prisma.staff.findFirst as jest.Mock).mockResolvedValue({
+        id: 'staff-next',
+        outletId: 'outlet-1',
+        workerType: 'IRONING',
+      });
+      (prisma.stationRecord as any).findUnique.mockResolvedValue(null);
+      (prisma.stationRecord as any).create = jest.fn().mockResolvedValue({});
     });
 
     it('returns 401 when unauthenticated', async () => {
@@ -555,7 +583,7 @@ describe('Bypass Routes Integration Tests', () => {
         .send(approveBody);
 
       expect(response.status).toBe(401);
-      expect(response.body.errors).toBe('Incorrect password');
+      expect(response.body.message).toBe('Incorrect password');
     });
 
     it('returns 409 when bypass is already processed', async () => {
@@ -567,7 +595,7 @@ describe('Bypass Routes Integration Tests', () => {
         .send(approveBody);
 
       expect(response.status).toBe(409);
-      expect(response.body.errors).toBe('Bypass request is not in PENDING state');
+      expect(response.body.message).toBe('Bypass request is not in PENDING state');
     });
 
     it('returns 400 when problemDescription is empty', async () => {
@@ -642,7 +670,7 @@ describe('Bypass Routes Integration Tests', () => {
         .send(rejectBody);
 
       expect(response.status).toBe(401);
-      expect(response.body.errors).toBe('Incorrect password');
+      expect(response.body.message).toBe('Incorrect password');
     });
 
     it('returns 409 when bypass is already processed', async () => {
@@ -659,7 +687,7 @@ describe('Bypass Routes Integration Tests', () => {
         .send(rejectBody);
 
       expect(response.status).toBe(409);
-      expect(response.body.errors).toBe('Bypass request is not in PENDING state');
+      expect(response.body.message).toBe('Bypass request is not in PENDING state');
     });
 
     it('returns 200 with correct envelope on happy path', async () => {

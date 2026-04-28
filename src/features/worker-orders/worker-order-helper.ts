@@ -18,6 +18,11 @@ export const buildWorkerOrdersWhere = (
   };
 
   if (query.status) where.status = query.status;
+  else {
+    where.status = {
+      in: [StationStatus.IN_PROGRESS, StationStatus.BYPASS_REQUESTED],
+    };
+  }
 
   if (query.date) {
     const startOfDay = new Date(`${query.date}T00:00:00.000Z`);
