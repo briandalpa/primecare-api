@@ -66,6 +66,7 @@ export const getWorkerOrderDetail = async (staff: Staff, orderId: string) => {
 
   const record = await prisma.stationRecord.findFirst({
     where: {
+      staffId: staff.id,
       orderId,
       station: queueContext.workerType,
       order: { outletId: queueContext.outletId },

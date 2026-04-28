@@ -32,6 +32,13 @@ export const auth = betterAuth({
     updateAge: 60 * 60 * 24, // Extend session expiry once per day to avoid forcing re-login too often.
   },
 
+  advanced: {
+    defaultCookieAttributes: {
+      sameSite: 'none',
+      secure: true,
+    },
+  },
+
   emailVerification: {
     sendVerificationEmail: async ({ user, url }) => {
       void sendEmail({
