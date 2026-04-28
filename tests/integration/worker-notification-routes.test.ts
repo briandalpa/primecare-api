@@ -71,7 +71,7 @@ describe('Worker Notification Routes', () => {
     const response = await request(app).get('/api/v1/worker/notifications/stream');
 
     expect(response.status).toBe(422);
-    expect(response.body.errors).toBe(
+    expect(response.body.message).toBe(
       'Worker station or outlet assignment is not configured',
     );
   });

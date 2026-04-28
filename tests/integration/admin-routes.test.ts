@@ -9,11 +9,12 @@ jest.mock('better-auth/node', () => ({
 jest.mock('@/application/database', () => ({
   prisma: {
     user: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn(), findMany: jest.fn(), count: jest.fn() },
-    staff: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn(), findMany: jest.fn() },
+    staff: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn(), findMany: jest.fn(), count: jest.fn(), findFirst: jest.fn() },
     verification: { create: jest.fn(), deleteMany: jest.fn() },
     order: { findMany: jest.fn(), findUnique: jest.fn(), create: jest.fn(), count: jest.fn() },
     orderItem: { create: jest.fn() },
     pickupRequest: { findMany: jest.fn(), findUnique: jest.fn(), count: jest.fn() },
+    stationRecord: { create: jest.fn() },
     $transaction: jest.fn(),
   },
 }));
@@ -35,12 +36,17 @@ import { sendEmail } from '@/utils/mailer';
 import { auth } from '@/utils/auth';
 
 const VALID_UUID = '123e4567-e89b-12d3-a456-426614174000';
+const mockTx = {
+  order: { create: jest.fn() },
+  stationRecord: { create: jest.fn() },
+  orderItem: { create: jest.fn() },
+};
 
 describe('Admin Routes Integration Tests', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    (prisma.$transaction as jest.Mock).mockImplementation(
-      (ops: Promise<unknown>[]) => Promise.all(ops)
+    (prisma.$transaction as jest.Mock).mockImplementation((input: any) =>
+      typeof input === 'function' ? input(mockTx) : Promise.all(input)
     );
   });
 
@@ -71,10 +77,24 @@ describe('Admin Routes Integration Tests', () => {
       (auth.api.getSession as unknown as jest.Mock).mockResolvedValue({ user: mockUser, session: 'token' });
       (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
       (prisma.staff.findUnique as jest.Mock).mockResolvedValue(mockStaff);
-      (prisma.user.findMany as jest.Mock).mockResolvedValue([
-        { id: 'user-2', name: 'Alice', email: 'alice@example.com', emailVerified: true, createdAt: new Date(), staff: { role: 'OUTLET_ADMIN', outletId: null, isActive: true, workerType: null } },
+      (prisma.staff.findMany as jest.Mock).mockResolvedValue([
+        {
+          id: 'staff-2',
+          role: 'OUTLET_ADMIN',
+          outletId: null,
+          isActive: true,
+          workerType: null,
+          outlet: null,
+          user: {
+            id: 'user-2',
+            name: 'Alice',
+            email: 'alice@example.com',
+            emailVerified: true,
+            createdAt: new Date(),
+          },
+        },
       ]);
-      (prisma.user.count as jest.Mock).mockResolvedValue(1);
+      (prisma.staff.count as jest.Mock).mockResolvedValue(1);
 
       const response = await request(app).get('/api/v1/admin/users');
 
@@ -539,8 +559,10 @@ describe('Admin Routes Integration Tests', () => {
       (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
       (prisma.staff.findUnique as jest.Mock).mockResolvedValue(mockStaff);
       (prisma.pickupRequest.findUnique as jest.Mock).mockResolvedValue(mockPickup);
-      (prisma.order.create as jest.Mock).mockResolvedValue({ id: 'order-new', outletId: 'outlet-1' });
-      (prisma.orderItem.create as jest.Mock).mockResolvedValue({ id: 'item-1' });
+      mockTx.order.create.mockResolvedValue({ id: 'order-new', outletId: 'outlet-1', status: 'LAUNDRY_BEING_WASHED' });
+      mockTx.orderItem.create.mockResolvedValue({ id: 'item-1' });
+      (prisma.staff.findFirst as jest.Mock).mockResolvedValue({ id: 'staff-washing' });
+      mockTx.stationRecord.create.mockResolvedValue({ id: 'sr-1' });
 
       const response = await request(app).post('/api/v1/admin/orders').send(validBody);
 
@@ -616,8 +638,10 @@ describe('Admin Routes Integration Tests', () => {
       (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
       (prisma.staff.findUnique as jest.Mock).mockResolvedValue(mockStaff);
       (prisma.pickupRequest.findUnique as jest.Mock).mockResolvedValue(mockPickup);
-      (prisma.order.create as jest.Mock).mockResolvedValue({ id: 'order-new', outletId: 'outlet-1' });
-      (prisma.orderItem.create as jest.Mock).mockResolvedValue({ id: 'item-1' });
+      mockTx.order.create.mockResolvedValue({ id: 'order-new', outletId: 'outlet-1', status: 'LAUNDRY_BEING_WASHED' });
+      mockTx.orderItem.create.mockResolvedValue({ id: 'item-1' });
+      (prisma.staff.findFirst as jest.Mock).mockResolvedValue({ id: 'staff-washing' });
+      mockTx.stationRecord.create.mockResolvedValue({ id: 'sr-1' });
 
       const response = await request(app).post('/api/v1/admin/orders').send(validBody);
 
