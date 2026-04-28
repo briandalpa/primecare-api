@@ -9,8 +9,10 @@ import {
   toRejectBypassResponse,
   toBypassDetailResponse,
 } from './bypass-request-model';
-import type { Staff } from '@/generated/prisma/client';
+import type { Prisma, Staff } from '@/generated/prisma/client';
+import { resolveStationFromOrderStatus } from '@/features/worker-notifications/worker-notification-model';
 import { WorkerNotificationService } from '@/features/worker-notifications/worker-notification-service';
+import { findNextStationWorker } from '@/features/worker-orders/worker-order-helper';
 import {
   advanceOrderStatus,
   assertMismatch,
@@ -27,6 +29,30 @@ import {
 } from './bypass-request-helpers';
 import type { StationType } from '@/generated/prisma/client';
 import type { BypassListQuery } from '@/validations/bypass-request-validation';
+
+const createNextStationRecord = async (
+  tx: Prisma.TransactionClient,
+  order: { id: string; outletId: string },
+  orderStatus: string,
+) => {
+  const nextStation = resolveStationFromOrderStatus(orderStatus);
+  if (!nextStation) return;
+
+  const existing = await tx.stationRecord.findUnique({
+    where: { orderId_station: { orderId: order.id, station: nextStation } },
+  });
+  if (existing) return;
+
+  const nextWorker = await findNextStationWorker(order.outletId, nextStation);
+  await tx.stationRecord.create({
+    data: {
+      orderId: order.id,
+      station: nextStation,
+      staffId: nextWorker.id,
+      status: StationStatus.IN_PROGRESS,
+    },
+  });
+};
 
 const BYPASS_LIST_INCLUDE = {
   stationRecord: {
@@ -59,6 +85,9 @@ export class BypassRequestService {
   ) {
     return prisma.$transaction(async (tx) => {
       const sr = await loadStationRecord(tx, orderId, station, worker);
+      if (sr.status !== StationStatus.IN_PROGRESS) {
+        throw new ResponseError(409, 'Station is not in progress');
+      }
       const refItems = await fetchReferenceQuantities(tx, orderId, station);
       assertMismatch(refItems, data.items);
       await assertNoPendingBypass(tx, sr.id);
@@ -130,6 +159,8 @@ export class BypassRequestService {
         data: { status: StationStatus.COMPLETED, completedAt: new Date() },
       });
       const nextStatus = await advanceOrderStatus(tx, bypass.stationRecord.order);
+      await createNextStationRecord(tx, bypass.stationRecord.order, nextStatus);
+
       return {
         orderId: bypass.stationRecord.order.id,
         outletId: bypass.stationRecord.order.outletId,

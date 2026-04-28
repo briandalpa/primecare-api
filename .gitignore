@@ -51,3 +51,5 @@ CLAUDE.md
 # Prisma
 .prisma/
 /src/generated/prisma
+.vercel
+.env*.local

@@ -4,7 +4,7 @@ import { logger } from '@/application/logging';
 
 const AUTO_CONFIRM_MS = 48 * 60 * 60 * 1000;
 
-const runAutoConfirm = async () => {
+export const runAutoConfirm = async () => {
   const threshold = new Date(Date.now() - AUTO_CONFIRM_MS);
   const result = await prisma.order.updateMany({
     where: { status: 'LAUNDRY_DELIVERED_TO_CUSTOMER', updatedAt: { lte: threshold } },
