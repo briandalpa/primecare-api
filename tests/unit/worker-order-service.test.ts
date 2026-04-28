@@ -6,7 +6,7 @@ jest.mock('@/application/database', () => ({
       count: jest.fn(),
       findFirst: jest.fn(),
     },
-    staff: {
+    shift: {
       findFirst: jest.fn(),
     },
     orderItem: {
@@ -406,8 +406,10 @@ describe('WorkerOrderService', () => {
     (prisma.$transaction as jest.Mock).mockImplementation(async (callback) =>
       callback(mockTx),
     );
-    (prisma.staff.findFirst as jest.Mock).mockResolvedValue({
-      id: 'staff-ironing',
+    (prisma.shift.findFirst as jest.Mock).mockResolvedValue({
+      staff: {
+        id: 'staff-ironing',
+      },
     });
 
     const result = await WorkerOrderService.processWorkerOrder(
@@ -442,14 +444,19 @@ describe('WorkerOrderService', () => {
       where: { id: 'order-1' },
       data: { status: 'LAUNDRY_BEING_IRONED' },
     });
-    expect(prisma.staff.findFirst).toHaveBeenCalledWith({
+    expect(prisma.shift.findFirst).toHaveBeenCalledWith({
       where: {
-        role: 'WORKER',
-        isActive: true,
         outletId: 'outlet-1',
-        workerType: 'IRONING',
+        endTime: null,
+        staff: {
+          role: 'WORKER',
+          isActive: true,
+          outletId: 'outlet-1',
+          workerType: 'IRONING',
+        },
       },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { startTime: 'desc' },
+      include: { staff: true },
     });
     expect(mockTx.stationRecord.create).toHaveBeenCalledWith({
       data: {
@@ -540,7 +547,7 @@ describe('WorkerOrderService', () => {
       data: { status: 'WAITING_FOR_PAYMENT' },
     });
     expect(mockTx.delivery.create).not.toHaveBeenCalled();
-    expect(prisma.staff.findFirst).not.toHaveBeenCalled();
+    expect(prisma.shift.findFirst).not.toHaveBeenCalled();
     expect(mockTx.stationRecord.create).not.toHaveBeenCalled();
     expect(WorkerNotificationService.publishOrderArrival).toHaveBeenCalledWith({
       orderId: 'order-2',
@@ -626,7 +633,7 @@ describe('WorkerOrderService', () => {
       where: { id: 'order-3' },
       data: { status: 'LAUNDRY_READY_FOR_DELIVERY' },
     });
-    expect(prisma.staff.findFirst).not.toHaveBeenCalled();
+    expect(prisma.shift.findFirst).not.toHaveBeenCalled();
     expect(mockTx.stationRecord.create).not.toHaveBeenCalled();
     expect(WorkerNotificationService.publishOrderArrival).toHaveBeenCalledWith({
       orderId: 'order-3',
