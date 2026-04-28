@@ -69,6 +69,7 @@ const fetchUsers = async (where: Prisma.StaffWhereInput, page: number, limit: nu
     toAdminUserResponse({
       ...staff.user,
       staff: {
+        id: staff.id,
         role: staff.role,
         outletId: staff.outletId,
         outlet: staff.outlet,
@@ -184,7 +185,14 @@ export class AdminUserService {
     return toAdminUserResponse({
       ...user,
       staff: staffRecord
-        ? { role: staffRecord.role, outletId: staffRecord.outletId, isActive: staffRecord.isActive, workerType: staffRecord.workerType, outlet: staffRecord.outlet }
+        ? {
+            id: staffRecord.id,
+            role: staffRecord.role,
+            outletId: staffRecord.outletId,
+            isActive: staffRecord.isActive,
+            workerType: staffRecord.workerType,
+            outlet: staffRecord.outlet,
+          }
         : null
     })
   }

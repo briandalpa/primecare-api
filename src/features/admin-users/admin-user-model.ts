@@ -15,6 +15,7 @@ export type UpdateAdminUserInput = {
 
 export type AdminUserResponse = {
   id: string;
+  staffId: string | null;
   name: string;
   email: string;
   emailVerified: boolean;
@@ -41,6 +42,7 @@ export function toAdminUserResponse(user: {
   emailVerified: boolean;
   createdAt: Date;
   staff: {
+    id: string;
     role: string;
     outletId: string | null;
     isActive: boolean;
@@ -50,6 +52,7 @@ export function toAdminUserResponse(user: {
 }): AdminUserResponse {
   return {
     id: user.id,
+    staffId: user.staff?.id ?? null,
     name: user.name ?? '',
     email: user.email,
     emailVerified: user.emailVerified,
