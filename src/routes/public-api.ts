@@ -1,5 +1,6 @@
 import { UserController } from '@/features/users/user-controller';
 import { PaymentController } from '@/features/payments/payment-controller';
+import { CronController } from '@/features/cron/cron-controller';
 import express from 'express';
 
 export const publicRouter = express.Router();
@@ -9,3 +10,6 @@ publicRouter.post('/users/set-password', UserController.setPassword);
 publicRouter.post('/users/resend-verification', UserController.resendVerification);
 
 publicRouter.post('/payments/webhook', PaymentController.handleWebhook);
+
+publicRouter.get('/cron/auto-confirm', CronController.autoConfirm);
+publicRouter.get('/cron/payment-deadline', CronController.paymentDeadline);
