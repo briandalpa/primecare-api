@@ -12,7 +12,7 @@
   "scripts": {
     "test": "jest",
     "build": "prisma generate && tsc && tsc-alias",
-    "vercel-build": "prisma generate",
+    "vercel-build": "prisma migrate deploy && prisma generate",
     "start": "node dist/main.js",
     "dev": "ts-node -r tsconfig-paths/register ./src/main.ts",
     "dev:watch": "nodemon"
