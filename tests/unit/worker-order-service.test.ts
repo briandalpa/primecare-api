@@ -246,6 +246,7 @@ describe('WorkerOrderService', () => {
 
     expect(prisma.stationRecord.findFirst).toHaveBeenCalledWith({
       where: {
+        staffId: 'staff-worker',
         orderId: 'order-1',
         station: 'WASHING',
         order: { outletId: 'outlet-1' },
@@ -432,6 +433,7 @@ describe('WorkerOrderService', () => {
     expect(mockTx.stationRecord.update).toHaveBeenCalledWith({
       where: { id: 'station-record-1' },
       data: {
+        staffId: 'staff-worker',
         status: 'COMPLETED',
         completedAt: expect.any(Date),
       },

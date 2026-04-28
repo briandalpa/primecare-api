@@ -6,6 +6,7 @@ const mockTx = {
   stationRecord: {
     findUnique: jest.fn(),
     update: jest.fn(),
+    create: jest.fn(),
   },
   orderItem: {
     findMany: jest.fn(),
@@ -40,6 +41,9 @@ jest.mock('@/application/database', () => ({
       findUnique: jest.fn(),
       count: jest.fn(),
     },
+    staff: {
+      findFirst: jest.fn(),
+    },
     orderItem: {
       findMany: jest.fn(),
     },
@@ -73,7 +77,11 @@ describe('BypassRequestService', () => {
   });
 
   describe('create', () => {
-    const workerId = 'worker-1';
+    const worker = {
+      id: 'worker-1',
+      outletId: 'outlet-1',
+      role: 'WORKER',
+    } as any;
     const orderId = 'order-1';
     const stationRecordId = 'sr-1';
 
@@ -81,7 +89,7 @@ describe('BypassRequestService', () => {
       mockTx.stationRecord.findUnique.mockResolvedValue(null);
 
       await expect(
-        BypassRequestService.create(workerId, orderId, 'WASHING', {
+        BypassRequestService.create(worker, orderId, 'WASHING', {
           items: [{ laundryItemId: 'item-1', quantity: 5 }],
         })
       ).rejects.toThrow(new ResponseError(404, 'Station record not found'));
@@ -92,16 +100,19 @@ describe('BypassRequestService', () => {
         id: stationRecordId,
         orderId,
         station: 'WASHING',
-        staffId: 'other-worker',
+        order: { outletId: 'outlet-1' },
         status: 'IN_PROGRESS',
         stationItems: [],
       });
+      mockTx.orderItem.findMany.mockResolvedValue([
+        { laundryItemId: 'item-1', quantity: 5 },
+      ]);
 
       await expect(
-        BypassRequestService.create(workerId, orderId, 'WASHING', {
+        BypassRequestService.create(worker, orderId, 'WASHING', {
           items: [{ laundryItemId: 'item-1', quantity: 5 }],
         })
-      ).rejects.toThrow(new ResponseError(403, 'You are not assigned to this station'));
+      ).rejects.toThrow(new ResponseError(400, 'No quantity mismatch detected'));
     });
 
     it('throws 400 when quantities match (no mismatch for WASHING)', async () => {
@@ -109,10 +120,13 @@ describe('BypassRequestService', () => {
         id: stationRecordId,
         orderId,
         station: 'WASHING',
-        staffId: workerId,
+        order: { outletId: 'outlet-1' },
         status: 'IN_PROGRESS',
         stationItems: [],
       });
+      mockTx.orderItem.findMany.mockResolvedValue([
+        { laundryItemId: 'item-1', quantity: 5 },
+      ]);
 
       mockTx.orderItem.findMany.mockResolvedValue([
         { laundryItemId: 'item-1', quantity: 5 },
@@ -120,7 +134,7 @@ describe('BypassRequestService', () => {
       ]);
 
       await expect(
-        BypassRequestService.create(workerId, orderId, 'WASHING', {
+        BypassRequestService.create(worker, orderId, 'WASHING', {
           items: [
             { laundryItemId: 'item-1', quantity: 5 },
             { laundryItemId: 'item-2', quantity: 3 },
@@ -134,7 +148,7 @@ describe('BypassRequestService', () => {
         id: stationRecordId,
         orderId,
         station: 'WASHING',
-        staffId: workerId,
+        order: { outletId: 'outlet-1' },
         status: 'IN_PROGRESS',
         stationItems: [],
       });
@@ -149,7 +163,7 @@ describe('BypassRequestService', () => {
       });
 
       await expect(
-        BypassRequestService.create(workerId, orderId, 'WASHING', {
+        BypassRequestService.create(worker, orderId, 'WASHING', {
           items: [{ laundryItemId: 'item-1', quantity: 3 }], // mismatch
         })
       ).rejects.toThrow(
@@ -162,7 +176,7 @@ describe('BypassRequestService', () => {
       const createdBypass = {
         id: 'bp-1',
         stationRecordId,
-        workerId,
+        workerId: worker.id,
         adminId: null,
         problemDescription: notes,
         status: 'PENDING',
@@ -173,7 +187,7 @@ describe('BypassRequestService', () => {
         id: stationRecordId,
         orderId,
         station: 'WASHING',
-        staffId: workerId,
+        order: { outletId: 'outlet-1' },
         status: 'IN_PROGRESS',
         stationItems: [],
       });
@@ -191,7 +205,7 @@ describe('BypassRequestService', () => {
         status: 'BYPASS_REQUESTED',
       });
 
-      const result = await BypassRequestService.create(workerId, orderId, 'WASHING', {
+      const result = await BypassRequestService.create(worker, orderId, 'WASHING', {
         items: [{ laundryItemId: 'item-1', quantity: 3 }], // mismatch
         notes,
       });
@@ -207,7 +221,7 @@ describe('BypassRequestService', () => {
       expect(mockTx.bypassRequest.create).toHaveBeenCalledWith({
         data: {
           stationRecordId,
-          workerId,
+          workerId: worker.id,
           adminId: null,
           status: 'PENDING',
           problemDescription: notes,
@@ -216,7 +230,7 @@ describe('BypassRequestService', () => {
 
       expect(mockTx.stationRecord.update).toHaveBeenCalledWith({
         where: { id: stationRecordId },
-        data: { status: 'BYPASS_REQUESTED' },
+        data: { staffId: worker.id, status: 'BYPASS_REQUESTED' },
       });
 
       expect(result).toEqual({
@@ -233,7 +247,7 @@ describe('BypassRequestService', () => {
           id: stationRecordId,
           orderId,
           station: 'IRONING',
-          staffId: workerId,
+          order: { outletId: 'outlet-1' },
           status: 'IN_PROGRESS',
           stationItems: [],
         })
@@ -250,7 +264,7 @@ describe('BypassRequestService', () => {
       mockTx.bypassRequest.create.mockResolvedValue({
         id: 'bp-1',
         stationRecordId,
-        workerId,
+        workerId: worker.id,
         adminId: null,
         problemDescription: null,
         status: 'PENDING',
@@ -258,7 +272,7 @@ describe('BypassRequestService', () => {
       });
       mockTx.stationRecord.update.mockResolvedValue({});
 
-      await BypassRequestService.create(workerId, orderId, 'IRONING', {
+      await BypassRequestService.create(worker, orderId, 'IRONING', {
         items: [{ laundryItemId: 'item-1', quantity: 3 }], // mismatch
       });
 
@@ -277,7 +291,7 @@ describe('BypassRequestService', () => {
           id: stationRecordId,
           orderId,
           station: 'PACKING',
-          staffId: workerId,
+          order: { outletId: 'outlet-1' },
           status: 'IN_PROGRESS',
           stationItems: [],
         })
@@ -294,7 +308,7 @@ describe('BypassRequestService', () => {
       mockTx.bypassRequest.create.mockResolvedValue({
         id: 'bp-1',
         stationRecordId,
-        workerId,
+        workerId: worker.id,
         adminId: null,
         problemDescription: null,
         status: 'PENDING',
@@ -302,7 +316,7 @@ describe('BypassRequestService', () => {
       });
       mockTx.stationRecord.update.mockResolvedValue({});
 
-      await BypassRequestService.create(workerId, orderId, 'PACKING', {
+      await BypassRequestService.create(worker, orderId, 'PACKING', {
         items: [{ laundryItemId: 'item-1', quantity: 3 }], // mismatch
       });
 
@@ -321,14 +335,14 @@ describe('BypassRequestService', () => {
           id: stationRecordId,
           orderId,
           station: 'IRONING',
-          staffId: workerId,
+          order: { outletId: 'outlet-1' },
           status: 'IN_PROGRESS',
           stationItems: [],
         })
         .mockResolvedValueOnce(null); // prev station missing
 
       await expect(
-        BypassRequestService.create(workerId, orderId, 'IRONING', {
+        BypassRequestService.create(worker, orderId, 'IRONING', {
           items: [{ laundryItemId: 'item-1', quantity: 3 }],
         })
       ).rejects.toThrow(
@@ -341,8 +355,9 @@ describe('BypassRequestService', () => {
     const makeBypass = (overrides = {}) => ({
       id: 'bp-1',
       stationRecord: {
-        station: 'IRONING',
+        station: 'WASHING',
         order: { id: 'ord-1', outletId: 'outlet-1' },
+        stationItems: [],
       },
       worker: { user: { name: 'Bob Ironing' } },
       admin: null,
@@ -355,6 +370,9 @@ describe('BypassRequestService', () => {
     it('SUPER_ADMIN: does not add outlet filter to where clause', async () => {
       (prisma.bypassRequest.findMany as jest.Mock).mockResolvedValue([makeBypass()]);
       (prisma.bypassRequest.count as jest.Mock).mockResolvedValue(1);
+      (prisma.orderItem.findMany as jest.Mock).mockResolvedValue([
+        { laundryItemId: 'item-1', quantity: 5, laundryItem: { name: 'Shirt' } },
+      ]);
 
       await BypassRequestService.getAll('SUPER_ADMIN', undefined, {
         page: 1,
@@ -368,6 +386,9 @@ describe('BypassRequestService', () => {
     it('OUTLET_ADMIN with outletId: adds stationRecord.order.outletId filter', async () => {
       (prisma.bypassRequest.findMany as jest.Mock).mockResolvedValue([makeBypass()]);
       (prisma.bypassRequest.count as jest.Mock).mockResolvedValue(1);
+      (prisma.orderItem.findMany as jest.Mock).mockResolvedValue([
+        { laundryItemId: 'item-1', quantity: 5, laundryItem: { name: 'Shirt' } },
+      ]);
 
       await BypassRequestService.getAll('OUTLET_ADMIN', 'outlet-1', {
         page: 1,
@@ -398,6 +419,9 @@ describe('BypassRequestService', () => {
       const bypass = makeBypass();
       (prisma.bypassRequest.findMany as jest.Mock).mockResolvedValue([bypass]);
       (prisma.bypassRequest.count as jest.Mock).mockResolvedValue(1);
+      (prisma.orderItem.findMany as jest.Mock).mockResolvedValue([
+        { laundryItemId: 'item-1', quantity: 5, laundryItem: { name: 'Shirt' } },
+      ]);
 
       const result = await BypassRequestService.getAll('SUPER_ADMIN', undefined, {
         page: 1,
@@ -409,7 +433,7 @@ describe('BypassRequestService', () => {
       expect(result.data[0]).toMatchObject({
         id: 'bp-1',
         orderId: 'ord-1',
-        station: 'IRONING',
+        station: 'WASHING',
         workerName: 'Bob Ironing',
         status: 'PENDING',
         resolvedAt: null,
@@ -455,9 +479,9 @@ describe('BypassRequestService', () => {
       id: bypassId,
       stationRecordId: 'sr-1',
       status,
-      stationRecord: {
-        order: { id: 'ord-1', status: orderStatus, paymentStatus, outletId: 'outlet-1' },
-      },
+        stationRecord: {
+          order: { id: 'ord-1', status: orderStatus, paymentStatus, outletId: 'outlet-1' },
+        },
     });
 
     const approve = (overrides: { role?: string; outletId?: string } = {}) =>
@@ -505,11 +529,14 @@ describe('BypassRequestService', () => {
     it('advances WASHING order to LAUNDRY_BEING_IRONED', async () => {
       const resolvedAt = new Date();
       mockTx.bypassRequest.findUnique.mockResolvedValue(makeBypass('PENDING', 'UNPAID', 'LAUNDRY_BEING_WASHED'));
+      mockTx.stationRecord.findUnique.mockResolvedValue(null);
       mockTx.bypassRequest.update.mockResolvedValue({
         id: bypassId, status: 'APPROVED', adminId: adminStaffId, problemDescription, resolvedAt,
       });
       mockTx.stationRecord.update.mockResolvedValue({});
       mockTx.order.update.mockResolvedValue({});
+      mockTx.stationRecord.create.mockResolvedValue({ id: 'sr-next' });
+      (prisma.staff.findFirst as jest.Mock).mockResolvedValue({ id: 'staff-ironing' });
 
       const result = await approve();
 
@@ -519,16 +546,27 @@ describe('BypassRequestService', () => {
         outletId: 'outlet-1',
         orderStatus: 'LAUNDRY_BEING_IRONED',
       });
+      expect(mockTx.stationRecord.create).toHaveBeenCalledWith({
+        data: {
+          orderId: 'ord-1',
+          station: 'IRONING',
+          staffId: 'staff-ironing',
+          status: 'IN_PROGRESS',
+        },
+      });
       expect(result.orderStatus).toBe('LAUNDRY_BEING_IRONED');
     });
 
     it('advances IRONING order to LAUNDRY_BEING_PACKED', async () => {
       mockTx.bypassRequest.findUnique.mockResolvedValue(makeBypass('PENDING', 'UNPAID', 'LAUNDRY_BEING_IRONED'));
+      mockTx.stationRecord.findUnique.mockResolvedValue(null);
       mockTx.bypassRequest.update.mockResolvedValue({
         id: bypassId, status: 'APPROVED', adminId: adminStaffId, problemDescription, resolvedAt: new Date(),
       });
       mockTx.stationRecord.update.mockResolvedValue({});
       mockTx.order.update.mockResolvedValue({});
+      mockTx.stationRecord.create.mockResolvedValue({ id: 'sr-next' });
+      (prisma.staff.findFirst as jest.Mock).mockResolvedValue({ id: 'staff-packing' });
 
       const result = await approve();
 
@@ -537,6 +575,14 @@ describe('BypassRequestService', () => {
         orderId: 'ord-1',
         outletId: 'outlet-1',
         orderStatus: 'LAUNDRY_BEING_PACKED',
+      });
+      expect(mockTx.stationRecord.create).toHaveBeenCalledWith({
+        data: {
+          orderId: 'ord-1',
+          station: 'PACKING',
+          staffId: 'staff-packing',
+          status: 'IN_PROGRESS',
+        },
       });
       expect(result.orderStatus).toBe('LAUNDRY_BEING_PACKED');
     });

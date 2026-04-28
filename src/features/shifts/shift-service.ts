@@ -4,6 +4,11 @@ import { ResponseError } from '@/error/response-error';
 import { resolveManagedOutletId, toShiftResponse } from './shift-helper';
 import type { CreateShiftInput, ShiftListQuery } from './shift-model';
 
+const WORKER_INCLUDE = {
+  user: { select: { name: true } },
+  outlet: { select: { id: true, name: true } },
+} as const;
+
 const SHIFT_INCLUDE = {
   staff: { include: { user: { select: { name: true } } } },
   outlet: { select: { id: true, name: true } },
@@ -13,7 +18,7 @@ export class ShiftService {
   static async createShift(staff: Staff, data: CreateShiftInput) {
     const worker = await prisma.staff.findUnique({
       where: { id: data.staffId },
-      include: SHIFT_INCLUDE,
+      include: WORKER_INCLUDE,
     });
 
     if (!worker || worker.role !== 'WORKER' || !worker.outletId) {

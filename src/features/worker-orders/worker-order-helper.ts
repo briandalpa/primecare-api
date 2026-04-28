@@ -13,6 +13,7 @@ export const buildWorkerOrdersWhere = (
   query: WorkerOrderListQuery,
 ) => {
   const where: Record<string, unknown> = {
+    staffId: staff.id,
     station: staff.workerType,
     order: { outletId: staff.outletId },
   };
@@ -117,6 +118,10 @@ export const loadWorkerStationRecordForProcess = async (
 
   if (stationRecord.order.outletId !== worker.outletId) {
     throw new ResponseError(403, 'You are not assigned to this outlet');
+  }
+
+  if (stationRecord.staffId !== worker.id) {
+    throw new ResponseError(403, 'You are not assigned to this station record');
   }
 
   return stationRecord;
