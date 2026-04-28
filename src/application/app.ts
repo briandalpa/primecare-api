@@ -10,6 +10,10 @@ import rateLimit from 'express-rate-limit';
 
 export const app = express();
 
+// Vercel routes all requests through a proxy that sets X-Forwarded-For.
+// Trust one hop so express-rate-limit can correctly identify client IPs.
+app.set('trust proxy', 1);
+
 // Security headers first; sets X-Content-Type-Options, X-Frame-Options, HSTS, etc.
 app.use(helmet());
 

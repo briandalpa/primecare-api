@@ -131,22 +131,27 @@ export const findNextStationWorker = async (
   outletId: string,
   station: StationType,
 ) => {
-  const worker = await prisma.staff.findFirst({
+  const activeShift = await prisma.shift.findFirst({
     where: {
-      role: 'WORKER',
-      isActive: true,
       outletId,
-      workerType: station,
+      endTime: null,
+      staff: {
+        role: 'WORKER',
+        isActive: true,
+        outletId,
+        workerType: station,
+      },
     },
-    orderBy: { createdAt: 'asc' },
+    orderBy: { startTime: 'desc' },
+    include: { staff: true },
   });
 
-  if (!worker) {
+  if (!activeShift?.staff) {
     throw new ResponseError(
       422,
-      `No active worker configured for ${station} station`,
+      `No worker with an active shift is configured for ${station} station`,
     );
   }
 
-  return worker;
+  return activeShift.staff;
 };
