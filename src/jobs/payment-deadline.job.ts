@@ -120,6 +120,11 @@ const sendPaymentReminder = async () => {
   for (const order of orders) await notifyReminderOrder(order);
 };
 
+export const runPaymentDeadlineJob = async () => {
+  await sendPackingHeadsUp();
+  await sendPaymentReminder();
+};
+
 export const startPaymentDeadlineJob = () => {
   cron.schedule('*/30 * * * *', async () => {
     logger.info('Running payment deadline notification job');
