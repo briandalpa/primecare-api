@@ -47,6 +47,7 @@ CLAUDE.md
 .env
 .env.local
 .env.*.local
+.env.production
 
 # Prisma
 .prisma/
