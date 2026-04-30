@@ -16,6 +16,7 @@ const SHIFT_INCLUDE = {
 
 export class ShiftService {
   static async createShift(staff: Staff, data: CreateShiftInput) {
+    // Shift creation is restricted to real worker staff records that belong to a managed outlet.
     const worker = await prisma.staff.findUnique({
       where: { id: data.staffId },
       include: WORKER_INCLUDE,
@@ -32,6 +33,7 @@ export class ShiftService {
     });
 
     if (activeShift) {
+      // Only one open shift is allowed for each worker so station assignment stays deterministic.
       throw new ResponseError(409, 'Worker already has an active shift');
     }
 
@@ -49,6 +51,7 @@ export class ShiftService {
   }
 
   static async getShifts(staff: Staff, query: ShiftListQuery) {
+    // Shift list access follows outlet scope so outlet admins only see workers from their own branch.
     const outletId = resolveManagedOutletId(staff, query.outletId);
     const where = {
       ...(outletId ? { outletId } : {}),
@@ -96,6 +99,7 @@ export class ShiftService {
     resolveManagedOutletId(staff, shift.outletId);
 
     if (shift.endTime) {
+      // Ending an already closed shift would create inconsistent worker availability state.
       throw new ResponseError(409, 'Shift has already ended');
     }
 

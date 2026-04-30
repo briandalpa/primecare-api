@@ -22,6 +22,7 @@ const calculateDeliveryFee = (distanceKm: number) => {
 }
 
 const computeOrderPricing = (data: CreateAdminOrderInput, distanceKm: number) => {
+  // The final bill combines kilo-based laundry pricing, manual item pricing, and delivery fee.
   const laundryPrice = data.totalWeightKg * data.pricePerKg
   const deliveryFee = calculateDeliveryFee(distanceKm)
   return { deliveryFee, totalPrice: laundryPrice + deliveryFee + calculateOrderTotal(data) }
@@ -96,6 +97,7 @@ export class AdminOrderService {
   }
 
   static async createAdminOrder(staff: any, data: CreateAdminOrderInput) {
+    // Outlet admins can only turn a picked-up request into an order once, and only for their own outlet.
     const pickupRequest = await prisma.pickupRequest.findUnique({
       where: { id: data.pickupRequestId },
       include: { order: true, address: true, outlet: true },
@@ -118,6 +120,7 @@ export class AdminOrderService {
     )
     const { deliveryFee, totalPrice } = computeOrderPricing(data, distanceKm)
     const orderId = uuid()
+    // Order processing always starts in the washing station with the worker who is currently on an active shift.
     const washingWorker = await findNextStationWorker(pickupRequest.outletId, StationType.WASHING)
 
     const order = await prisma.$transaction(async (tx) => {
