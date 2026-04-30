@@ -103,19 +103,6 @@ type BypassWithRelations = Prisma.BypassRequestGetPayload<{
   };
 }>;
 
-type BypassWithDetailRelations = Prisma.BypassRequestGetPayload<{
-  include: {
-    stationRecord: {
-      include: {
-        order: true;
-        stationItems: { include: { laundryItem: true } };
-      };
-    };
-    worker: { include: { user: true } };
-    admin: { include: { user: true } };
-  };
-}>;
-
 export function toBypassCreateResponse(bypass: BypassRequest): BypassRequestCreateResponse {
   return {
     id: bypass.id,
@@ -125,7 +112,7 @@ export function toBypassCreateResponse(bypass: BypassRequest): BypassRequestCrea
 }
 
 const buildMismatchItems = (
-  bypass: BypassWithDetailRelations,
+  bypass: BypassWithRelations,
   referenceItems: BypassItemResponse[],
 ): BypassMismatchItemResponse[] => {
   const workerItems = new Map(
@@ -185,7 +172,7 @@ export function toRejectBypassResponse(bypass: BypassRequest): RejectBypassRespo
 }
 
 export function toBypassDetailResponse(
-  bypass: BypassWithDetailRelations,
+  bypass: BypassWithRelations,
   referenceItems: BypassItemResponse[]
 ): BypassRequestDetailResponse {
   const workerItems: BypassItemResponse[] = bypass.stationRecord.stationItems.map((item) => ({
