@@ -39,7 +39,12 @@ export class AdminOrderService {
       skip,
       take: query.limit,
       orderBy: { [sortBy]: sortOrder },
-      include: { outlet: true, pickupRequest: true },
+      include: {
+        outlet: true,
+        pickupRequest: {
+          include: { customerUser: { select: { name: true } } },
+        },
+      },
     })
     const total = await prisma.order.count({ where })
 
@@ -177,3 +182,4 @@ export class AdminOrderService {
     })
   }
 }
+
