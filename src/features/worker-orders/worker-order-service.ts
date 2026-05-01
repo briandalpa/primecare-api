@@ -46,6 +46,7 @@ export class WorkerOrderService {
     orderId: string,
     data: WorkerOrderProcessInput,
   ) {
+    // The worker queue context narrows processing to the station type that belongs to the logged-in worker.
     const queueContext = getWorkerQueueContext(staff);
 
     const result = await prisma.$transaction(async (tx) => {
@@ -65,6 +66,7 @@ export class WorkerOrderService {
         orderId,
         queueContext.workerType,
       );
+      // A normal station completion is only allowed when the worker re-enters the exact expected quantities.
       assertQuantitiesMatch(referenceItems, data.items);
 
       await saveStationItems(tx, stationRecord.id, data.items);
@@ -82,6 +84,7 @@ export class WorkerOrderService {
       const nextStation = resolveStationFromOrderStatus(nextOrderStatus);
 
       if (nextStation) {
+        // Each completed station hands the order to the next station worker who is currently on shift.
         const nextWorker = await findNextStationWorker(
           stationRecord.order.outletId,
           nextStation,

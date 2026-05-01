@@ -27,6 +27,7 @@ import {
   saveStationItems,
   StationStatus,
 } from './bypass-request-helpers';
+import { getBypassDetail, getBypassList } from './bypass-request-query';
 import type { StationType } from '@/generated/prisma/client';
 import type { BypassListQuery } from '@/validations/bypass-request-validation';
 
@@ -35,6 +36,7 @@ const createNextStationRecord = async (
   order: { id: string; outletId: string },
   orderStatus: string,
 ) => {
+  // Approved bypasses should continue the order flow exactly like a successful station completion.
   const nextStation = resolveStationFromOrderStatus(orderStatus);
   if (!nextStation) return;
 
@@ -54,28 +56,6 @@ const createNextStationRecord = async (
   });
 };
 
-const BYPASS_LIST_INCLUDE = {
-  stationRecord: {
-    include: {
-      order: true,
-      stationItems: { include: { laundryItem: true } },
-    },
-  },
-  worker: { include: { user: true } },
-  admin: { include: { user: true } },
-} as const;
-
-const BYPASS_DETAIL_INCLUDE = {
-  stationRecord: {
-    include: {
-      order: true,
-      stationItems: { include: { laundryItem: true } },
-    },
-  },
-  worker: { include: { user: true } },
-  admin: { include: { user: true } },
-} as const;
-
 export class BypassRequestService {
   static async create(
     worker: Staff,
@@ -84,6 +64,7 @@ export class BypassRequestService {
     data: CreateBypassRequestInput,
   ) {
     return prisma.$transaction(async (tx) => {
+      // Workers can only request a bypass while they still own an in-progress station record.
       const sr = await loadStationRecord(tx, orderId, station, worker);
       if (sr.status !== StationStatus.IN_PROGRESS) {
         throw new ResponseError(409, 'Station is not in progress');
@@ -117,13 +98,7 @@ export class BypassRequestService {
     const { page, limit, status, order = 'desc' } = query;
     const where = buildBypassWhere(role, outletId, status);
     const [data, total] = await Promise.all([
-      prisma.bypassRequest.findMany({
-        where,
-        include: BYPASS_LIST_INCLUDE,
-        orderBy: { createdAt: order },
-        skip: (page - 1) * limit,
-        take: limit,
-      }),
+      getBypassList({ where, order, page, limit }),
       prisma.bypassRequest.count({ where }),
     ]);
     const responses = await Promise.all(
@@ -149,6 +124,7 @@ export class BypassRequestService {
     problemDescription: string,
   ) {
     const result = await prisma.$transaction(async (tx) => {
+      // Approve means accepting the mismatch, closing the current station, and moving the order forward.
       const bypass = await loadAndVerifyBypass(tx, admin, bypassId, password);
       const updated = await tx.bypassRequest.update({
         where: { id: bypassId },
@@ -183,6 +159,7 @@ export class BypassRequestService {
     password: string,
   ) {
     const result = await prisma.$transaction(async (tx) => {
+      // Reject sends the worker back to the same station so they can re-enter the quantities correctly.
       const bypass = await loadAndVerifyBypass(tx, admin, bypassId, password);
       const updated = await tx.bypassRequest.update({
         where: { id: bypassId },
@@ -211,10 +188,7 @@ export class BypassRequestService {
     outletId: string | null | undefined,
     bypassId: string,
   ) {
-    const bypass = await prisma.bypassRequest.findUnique({
-      where: { id: bypassId },
-      include: BYPASS_DETAIL_INCLUDE,
-    });
+    const bypass = await getBypassDetail(bypassId);
     if (!bypass) throw new ResponseError(404, 'Bypass request not found');
     assertOutletAccess(role, outletId, bypass.stationRecord.order.outletId);
     const referenceItems = await fetchReferenceItems(bypass.stationRecord.orderId, bypass.stationRecord.station);
