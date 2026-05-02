@@ -1,90 +1,20 @@
-import crypto from 'crypto';
-import { v4 as uuidv4 } from 'uuid';
-import MidtransClient from 'midtrans-client';
-import { prisma } from '@/application/database';
 import { logger } from '@/application/logging';
 import { ResponseError } from '@/error/response-error';
-import type { Prisma } from '@/generated/prisma/client';
 import {
   InitiatePaymentResponse,
   MidtransWebhookPayload,
   toInitiatePaymentResponse,
 } from './payment-model';
-
-let _snap: InstanceType<typeof MidtransClient.Snap> | null = null;
-let _core: InstanceType<typeof MidtransClient.CoreApi> | null = null;
-
-const getMidtransConfig = () => {
-  if (!process.env.MIDTRANS_SERVER_KEY)
-    throw new ResponseError(500, 'Payment gateway misconfigured');
-  return {
-    isProduction: process.env.MIDTRANS_IS_PRODUCTION === 'true',
-    serverKey: process.env.MIDTRANS_SERVER_KEY,
-    clientKey: process.env.MIDTRANS_CLIENT_KEY ?? '',
-  };
-};
-
-const getSnap = () => {
-  if (!_snap) _snap = new MidtransClient.Snap(getMidtransConfig());
-  return _snap;
-};
-
-const getCoreApi = () => {
-  if (!_core) _core = new MidtransClient.CoreApi(getMidtransConfig());
-  return _core;
-};
-
-const verifySignature = (payload: MidtransWebhookPayload): boolean => {
-  const serverKey = process.env.MIDTRANS_SERVER_KEY;
-  if (!serverKey) throw new ResponseError(500, 'Payment gateway misconfigured');
-  const raw =
-    payload.order_id + payload.status_code + payload.gross_amount + serverKey;
-  const hash = crypto.createHash('sha512').update(raw).digest('hex');
-  return hash === payload.signature_key;
-};
-
-const fetchOrderForPayment = (orderId: string) =>
-  prisma.order.findUnique({
-    where: { id: orderId },
-    include: {
-      payment: true,
-      pickupRequest: { select: { customerId: true } },
-    },
-  });
-
-async function upsertPaymentRecord(tx: Prisma.TransactionClient, paymentId: string, orderId: string, token: string, totalPrice: number, hasOldPayment: boolean) {
-  if (hasOldPayment) await tx.payment.delete({ where: { orderId } }); // Midtrans rejects reused order_id
-  return tx.payment.create({ data: { id: paymentId, orderId, amount: totalPrice, gateway: 'midtrans', gatewayTxId: token, status: 'PENDING' } });
-}
-
-const persistNewPayment = async (orderId: string, hasOldPayment: boolean, totalPrice: number) => {
-  const paymentId = uuidv4();
-  const { token } = await getSnap().createTransaction({ transaction_details: { order_id: paymentId, gross_amount: totalPrice } });
-  const payment = await prisma.$transaction((tx) => upsertPaymentRecord(tx, paymentId, orderId, token, totalPrice, hasOldPayment));
-  return { payment, snapToken: token };
-};
-
-const processFailure = (paymentId: string, status: 'EXPIRED' | 'FAILED') =>
-  prisma.payment.update({ where: { id: paymentId }, data: { status } });
-
-async function runSettlementTx(tx: Prisma.TransactionClient, paymentId: string, orderId: string, isWaitingForPayment: boolean) {
-  await tx.payment.update({ where: { id: paymentId }, data: { status: 'PAID', paidAt: new Date() } });
-  await tx.order.update({ where: { id: orderId }, data: { paymentStatus: 'PAID', ...(isWaitingForPayment && { status: 'LAUNDRY_READY_FOR_DELIVERY' }) } });
-  if (isWaitingForPayment) await tx.delivery.create({ data: { orderId, status: 'PENDING' } });
-}
-
-const processSettlement = (paymentId: string, orderId: string, orderStatus: string) => {
-  const isWaitingForPayment = orderStatus === 'WAITING_FOR_PAYMENT';
-  return prisma.$transaction((tx) => runSettlementTx(tx, paymentId, orderId, isWaitingForPayment));
-};
-
-async function dispatchWebhookStatus(payload: MidtransWebhookPayload, paymentId: string, orderId: string, orderStatus: string) {
-  const { transaction_status, fraud_status } = payload;
-  if (transaction_status === 'settlement' && fraud_status !== 'deny')
-    return void (await processSettlement(paymentId, orderId, orderStatus));
-  if (transaction_status === 'expire') await processFailure(paymentId, 'EXPIRED');
-  else if (transaction_status === 'cancel' || transaction_status === 'deny') await processFailure(paymentId, 'FAILED');
-}
+import {
+  getCoreApi,
+  verifySignature,
+  fetchOrderForPayment,
+  fetchPaymentForWebhook,
+  persistNewPayment,
+  processFailure,
+  processSettlement,
+  dispatchWebhookStatus,
+} from './payment-helper';
 
 export class PaymentService {
   static async initiatePayment(customerId: string, orderId: string): Promise<InitiatePaymentResponse> {
@@ -112,7 +42,7 @@ export class PaymentService {
 
   static async handleWebhook(payload: MidtransWebhookPayload): Promise<void> {
     if (!verifySignature(payload)) throw new ResponseError(400, 'Invalid signature');
-    const payment = await prisma.payment.findUnique({ where: { id: payload.order_id }, include: { order: true } });
+    const payment = await fetchPaymentForWebhook(payload.order_id);
     if (!payment) { logger.warn(`Webhook received for unknown payment: ${payload.order_id}`); return; }
     if (payment.status === 'PAID') { logger.info(`Webhook duplicate for already-settled payment ${payment.id} — skipped`); return; }
     if (parseFloat(payload.gross_amount) !== payment.amount) { logger.warn(`Amount mismatch on webhook for payment ${payment.id}`); throw new ResponseError(400, 'Invalid webhook payload'); }
